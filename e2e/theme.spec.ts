@@ -99,7 +99,7 @@ test('system bootstrap, cross-tab synchronization, malformed recovery and blocke
   await other.close();
   await page.evaluate(()=>localStorage.setItem('fc.theme.v1','broken-original')); await page.reload();
   await page.getByRole('radio',{name:'Light',exact:true}).check();
-  expect(await page.evaluate(()=>Object.keys(localStorage).filter(k=>k.startsWith('fc.theme.v1.recovery.')).map(k=>localStorage.getItem(k)))).toContain('broken-original');
+  await expect.poll(()=>page.evaluate(()=>Object.keys(localStorage).filter(k=>k.startsWith('fc.theme.v1.recovery.')).map(k=>localStorage.getItem(k)))).toContain('broken-original');
   await page.evaluate(()=>{ const original=Storage.prototype.setItem; Storage.prototype.setItem=function(key,value){if(key==='fc.theme.v1')throw new Error('quota');return original.call(this,key,value);}; });
   await page.getByRole('radio',{name:'Dark',exact:true}).check(); await assertScreen(page,true);
   await expect(page.locator('.theme-settings')).toContainText('this tab only');

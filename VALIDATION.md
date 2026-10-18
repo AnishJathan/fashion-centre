@@ -4,6 +4,8 @@ This report covers the quality/adversarial passes (`ba5c424`, `c7ff0cb`), storag
 
 ## Reproducible checks
 
+Hosted CI follow-up: the authorized feature-branch push at `382fc7e` passed Linux build, bundle budgets, frontend unit and backend checks. Its browser run passed 42/47 tests and exposed test timing assumptions around asynchronous saves, photo cleanup and concurrent clicks. The tests now wait for committed quantity/save state and revoked previews, poll recovery evidence, and hold the shared Web Lock until both concurrent writes are queued. Assertions remain intact; no application behavior was changed. Hosted rerun results are reported with the final delivery commit.
+
 | Command | Verified result |
 | --- | --- |
 | `npm run build` | TypeScript check and Vite production build passed. JavaScript 288.23 kB / 89.72 kB gzip; CSS 45.99 kB / 10.39 kB gzip. |
