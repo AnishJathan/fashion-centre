@@ -14,12 +14,14 @@
 
 Browser-local data does not sync between devices. Profile offers a local export for manual recovery. No real purchase, merchant installation, authentication or AI generation is enabled.
 
+Selecting a brand now keeps its supplied name in the header, announcement and footer across product, saved, cart, checkout, photo preparation and profile routes. Catalogue, cart counts and garment choices stay scoped to that store. Shared settings/follows and all-store order history are explicitly labelled; historical records are never reassigned or removed. Context lives in the URL, so refresh, copied links and browser history work without a hidden global preference. Product links select their owning store. Disabled stores retain unavailable cart records and clear exits. No verified logo or brand colour metadata is supplied, so the app uses the actual store name with the existing palette rather than inventing assets.
+
 ## Click-through guide
 
 | Goal | Exact path and expected result |
 | --- | --- |
 | Start with a catalogue | **For brands → Explore demo stores → Onboard Mock Shop → Browse onboarded stores**. Public source availability requires network access; failures show a retry state. Elysian Thread is another optional demo source. |
-| Enter and leave a brand | **Brands → store** opens its Brand Centre. Use **Discover** in the bottom navigation to return to combined discovery. |
+| Enter and leave a brand | **Brands → store** opens its Brand Centre. Brand mode persists across shopping routes. **Discover** returns to that brand; **Back to Fashion Centre** returns to combined discovery, and **Switch brand** opens the brand chooser. |
 | Follow and save | In a Brand Centre, **Follow store → product → Save piece**. **Profile** shows followed stores; **Saved** shows saved products. |
 | View vertical photos | **Product → View catalogue photos full screen**. Scroll vertically, use **Next photo**, or focus the photo area and use arrow keys. Escape closes the viewer. |
 | Try demo checkout | **Product → choose an available variant → Add to demo cart → View your cart → Demo checkout**. **Cancel and keep shopping** preserves the cart. **Place demo order** creates only a local record. |
@@ -50,7 +52,7 @@ The final handover pass fixes fresh-checkout instructions and adds the complete 
 | 2 — Real merchant onboarding | Wire OAuth storage and key lifecycle; implement reinstall/uninstall, publication selection, catalogue pagination/sync and privacy webhooks. | Owned Shopify app/development store, exact HTTPS callbacks, scopes, merchant permission and distribution review. |
 | 3 — Purchase handoff | Implement brand checkout destinations and revalidate actual variants, price and availability. Local orders do not reserve stock. | Confirm brand-owned Shopify checkout and authorize store integration. |
 | 4 — Private try-on | Authenticated private uploads/results/deletion, object storage, recoverable provider transport, result validation/materialization, scheduling, practical bounded polling/cost policy, reconciliation and metadata compaction. | Provider/model terms, image rights and explicit consent, regions, retention policy, spending cap and secure service setup. |
-| 5 — Release operations | Execute CI, configure deployment/monitoring, test production database/load/recovery, and check real devices and assistive technology. | Explicit push/deployment approval and operating owners. |
+| 5 — Release operations | Execute CI, configure deployment/monitoring, test production database/load/recovery, and check real devices and assistive technology. | Deployment approval and operating owners. |
 
 Credentials alone do not complete these implementation tasks. No account setup, provider call, paid generation, personal-photo upload, installation, deployment or push was performed in this handover pass.
 
@@ -61,4 +63,4 @@ The reviewed implementation branch is `feature/shopify-foundation`. A read-only 
 - Remote feature branch: `53ffdbc4fb8d6da4ba19c86701b3a63940a5c263`.
 - Remote main: `dd75322a1471a522c065b3bafaecff74811af0a5`.
 
-All subsequent changes remain local. The final response supplies the handover commit and clean-tree confirmation. CI YAML is syntax-checked and matches the build commands; actual GitHub/Linux/Java 17 execution is still unverified. The laptop runs Java 19 while compiling Java 17 bytecode.
+These hashes record the pre-push baseline. The user subsequently authorized pushing completed commits to this feature branch. The completion report supplies the verified final local/remote hash and actual CI status; a CI pass is not assumed. The laptop runs Java 19 while compiling Java 17 bytecode.

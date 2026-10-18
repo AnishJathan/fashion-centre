@@ -1,15 +1,15 @@
 # Current validation — 18 October 2026
 
-This report covers the quality/adversarial passes (`ba5c424`, `c7ff0cb`), storage foundation (`70c20bf`) and subsequent durable private-job/worker increment. The previously pushed commit remains `53ffdbc`. Earlier evidence is preserved in [VALIDATION-HISTORY.md](VALIDATION-HISTORY.md). These results establish a working local demo and tested unwired foundations, not production readiness.
+This report covers the quality/adversarial passes (`ba5c424`, `c7ff0cb`), storage foundation (`70c20bf`) and subsequent durable private-job/worker increment. The earlier published foundation was `53ffdbc`; subsequent push and CI status are reported separately. Earlier evidence is preserved in [VALIDATION-HISTORY.md](VALIDATION-HISTORY.md). These results establish a working local demo and tested unwired foundations, not production readiness.
 
 ## Reproducible checks
 
 | Command | Verified result |
 | --- | --- |
-| `npm run build` | TypeScript check and Vite production build passed. JavaScript 286.69 kB / 89.08 kB gzip; CSS 45.23 kB / 10.26 kB gzip. |
-| `node scripts/check-bundle.mjs` | JavaScript 89,083 bytes gzip below 110,000; CSS 10,263 bytes below 12,000. |
-| `npm test` | 33 passed; zero failed/skipped. |
-| `npm run test:ui` | 45 passed in installed Chrome (2.2 minutes); zero failed/skipped, including complete walkthroughs, four navigation viewport checks, seven theme tests and two common-home scenarios. |
+| `npm run build` | TypeScript check and Vite production build passed. JavaScript 288.23 kB / 89.72 kB gzip; CSS 45.99 kB / 10.39 kB gzip. |
+| `node scripts/check-bundle.mjs` | JavaScript 89,723 bytes gzip below 110,000; CSS 10,387 bytes below 12,000. |
+| `npm test` | 35 passed; zero failed/skipped. |
+| `npm run test:ui` | 47 passed in installed Chrome (2.3 minutes); zero failed/skipped, including complete walkthroughs, four navigation viewport checks, seven theme tests two common-home scenarios and two persistent-brand scenarios. |
 | `mvn '-Dmaven.repo.local=.m2' -o -B package` from `backend` | 104 passed; zero failures/errors/skips; runnable Spring Boot JAR packaged successfully offline. |
 | `npm audit --json` | Zero reported vulnerabilities in the installed npm dependency graph at check time. Not a Java advisory audit or security certification. |
 | `node scripts/public-smoke.mjs` | Read-only public catalogue browser smoke; see public evidence below. Requires both local servers and network access. |
@@ -47,6 +47,14 @@ Screenshots in `screenshots/themes/` include both themes at 320, 390, 430 and 14
 Fashion Centre home combines all enabled onboarded catalogues under the shared Fashion Centre heading. Its store dropdown, sort dropdown, filter panel and sorting action are removed. Simple search, photographic category browsing, product source labels and links to distinct Brand Centres remain. Home explicitly ignores store-filter and sort state from other screens; navigation also resets search/category controls. Saved-page store filtering and Brand Centre sorting remain available. Product identities and original currencies are unchanged.
 
 Two new browser scenarios cover no stores, one store, two stores, returning from either restricted Brand Centre, returning from a restricted Saved page, searching the combined catalogue, disabling either/both stores and changing/reloading themes through Profile. The fixture stores deliberately use distinct CAD/USD prices. Both-theme screenshots at 390 and 1440 pixels in `screenshots/common-home-*.png` were visually inspected. The existing theme/navigation matrix still covers 320 and 430 pixels. Test fixtures are isolated; the actual app still displays only onboarded fetched data and does not seed sample products. Live source availability and the existing 48-products-per-store bound remain limitations.
+
+## Persistent Brand Centre mode
+
+`navigationScope.ts` resolves brand context from the hash URL. Brand/product/photo/checkout identity wins over a conflicting query parameter. Other shopping routes carry `?brand=<store-key>`; explicit Fashion Centre and brand-chooser links clear context. Normal browser history restores the context in each entry. No business records are copied or rewritten when changing brands.
+
+The active store scopes catalogue/saved products, cart views/counts and try-on garment selection. Checkout dispatch still uses the complete protected commerce repository and retains other stores' carts. Orders remain global historical snapshots with an explicit all-store label; Profile explains shared settings/follows/history and scoped cart/saved counts. Disabled/unavailable stores show no other store's products and preserve unavailable cart records. The merchant name is supplied metadata; no logo or brand colour has been fabricated.
+
+Two navigation unit tests cover explicit exits, URL persistence, malformed input and conflicting ownership. Two mobile/desktop browser scenarios cover brand identity across routes, direct product entry, refresh/back/forward, switching, CAD/USD cart isolation, checkout/history retention, photo preparation cancellation, shared theme settings, disabled stores and common discovery on exit. Brand screenshots in both themes at 390 and 1440 pixels were inspected. Full regressions found an ambiguous test locator after headers became branded and a long-name footer overflow at 320 pixels; both were corrected. Backend code and the preceding 104-test Java evidence are unchanged.
 
 ## Storage foundation evidence
 

@@ -40,7 +40,7 @@ for (const width of [390, 1440]) test(`complete shopper and merchant handover th
     await expect(page.getByRole('heading', { name: 'Demo order placed', exact: true })).toBeVisible();
     await expect(page.getByText('CAD 25.50').last()).toBeVisible();
     await page.locator('.bottom-nav').getByRole('link', { name: 'Profile', exact: true }).click();
-    await expect(page.getByRole('link', { name: 'Walkthrough fixture store', exact: true })).toBeVisible();
+    await expect(page.locator('.commerce-panel').filter({has:page.getByRole('heading',{name:'Followed stores',exact:true})}).getByRole('link', { name: 'Walkthrough fixture store', exact: true })).toBeVisible();
     await page.getByRole('link', { name: /Your demo orders/ }).click();
     await expect(page.locator('.order-card')).toHaveCount(1);
     await page.goBack();
@@ -52,7 +52,8 @@ for (const width of [390, 1440]) test(`complete shopper and merchant handover th
     await expect(page.getByRole('button', { name: /Generate try-on.*not connected/ })).toBeDisabled();
     await page.getByRole('button', { name: 'Cancel preparation' }).click();
     await expect(page.getByRole('heading', { name: 'No try-on results yet.' })).toBeVisible();
-    await page.getByRole('link', { name: 'For brands', exact: true }).click();
+    await page.locator('.bottom-nav').getByRole('link', { name: 'Profile', exact: true }).click();
+    await page.getByRole('link', { name: 'Brand-owner dashboard', exact: true }).click();
     await page.getByLabel('Shopify store domain').focus();
     await page.keyboard.type('walkthrough.myshopify.com');
     await page.keyboard.press('Tab');

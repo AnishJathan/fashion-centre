@@ -11,6 +11,7 @@ for(const width of [390,1440]) test(`common home includes enabled stores and cle
     }]}});
   });
   const home=async(count:number)=>{
+    if(await page.locator('.brand-mode').count()) await page.getByRole('link',{name:'Back to Fashion Centre',exact:true}).click();
     await page.locator('.bottom-nav').getByRole('link',{name:'Discover',exact:true}).click();
     await expect(page.locator('.product')).toHaveCount(count);
     await expect(page.locator('header .logo')).toHaveText('Fashion Centre');
