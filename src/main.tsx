@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { loadCatalogue, loadSources, readStores, STORES_KEY, readIds, toggleId, selectProducts, money, productPath, type Product, type Brand, type Source, type StoreRegistration, decodeRoute } from './domain';
-import { writeStored, storageRecoveryNeeded, withStorageLock } from './browserStorage';
+import { writeStored, storageRecoveryNeeded, withStorageLock, assertStoredCurrent } from './browserStorage';
 import { commerceReducer, localCommerceRepository, COMMERCE_KEY, type CommerceAction } from './commerce';
 import { CartScreen, CheckoutScreen, OrdersScreen, ProfileScreen } from './CommerceScreens';
 import { LoginDemo } from './LoginDemo';
@@ -28,7 +28,7 @@ function App() {
     const [state, setState] = useState(() => localCommerceRepository.read()), stateRef = useRef(state);
     const [storageIssue, setStorageIssue] = useState('');
     async function dispatch(action: CommerceAction) { try {
-        return await withStorageLock(COMMERCE_KEY, () => { const next = commerceReducer(stateRef.current, action); if (next === stateRef.current)
+        return await withStorageLock(COMMERCE_KEY, () => { if (action.type === 'add' || action.type === 'checkout') assertStoredCurrent(STORES_KEY); const next = commerceReducer(stateRef.current, action); if (next === stateRef.current)
             return false; localCommerceRepository.write(next); stateRef.current = next; setState(next); return true; });
     }
     catch (e) {

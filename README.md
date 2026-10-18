@@ -5,6 +5,7 @@ Responsive React/TypeScript frontend with a loopback Java Spring Boot backend. W
 From this directory:
 ```powershell
 npm run build
+node scripts/check-bundle.mjs
 npm test
 npm run test:ui
 ```
@@ -54,3 +55,5 @@ The local app now validates source responses, preserves recovery copies of malfo
 Store/search/category filters and currency-grouped sorting use fetched metadata. Full-screen catalogue photos support vertical scrolling and keyboard navigation; they are explicitly not generated try-on results. Unknown routes and failed images have recovery states.
 
 See [VALIDATION.md](VALIDATION.md) for current evidence, [READINESS.md](READINESS.md) for verified local behavior versus external prerequisites, and [QA-GAPS.md](QA-GAPS.md) for the review priorities. Earlier implementation evidence is retained in [VALIDATION-HISTORY.md](VALIDATION-HISTORY.md).
+
+The second adversarial pass adds failed-read preservation, a shared app-state lock across store changes and checkout, current-source order labels, still-PNG checks, bounded photo-viewer loading and OAuth ownership/scope-integrity regressions. [CI.md](CI.md) documents the local-only verification workflow; no GitHub run or push is implied.

@@ -29,3 +29,18 @@ No account access, credentials, merchant installation, paid generation, real per
 ## Verification boundaries
 
 Automated tests use synthetic records/photos and isolated Chrome sessions. The public-catalogue smoke check is separate and read-only. The user's browser session was not modified. Real phone gestures, Safari/Firefox, assistive-technology testing and a production security assessment remain unverified. Encoded image checks reduce obvious allocation risks; they are not a guarantee against every malformed native-decoder input.
+
+## Second adversarial pass: code versus external setup
+
+Independently implementable safeguards completed without credentials: failed-read/parse recovery, store-dependent checkout under a shared transaction lock, current-source order snapshots, OAuth ownership recheck after exchange, sanitized ownership/repository failures, scope-bound encryption, bounded identifiers/CSRF, APNG rejection, deferred-photo race regressions, bounded viewer image loading, resize/focus regressions, and a pinned read-only CI workflow with bundle budgets. The workflow remains local and has not run on GitHub.
+
+| Remaining area | Code still missing (credentials alone do not complete it) | External decision or authorization |
+| --- | --- | --- |
+| Durable tenancy and connections | Concrete repository, database schema/migrations, atomic membership recheck and exclusive shop binding, encrypted token read/rotation/revocation, commit/restart and backup/recovery integration tests. The current `EncryptedConnections.Repository` specifies durable atomic behavior but has no runtime implementation; injected test stores are not durable storage. | Choose database/hosting and secure key management. No live provider credentials are needed to implement and test the selected repository locally. |
+| Authentication | Validated provider session adapter, session expiry/logout/rotation, membership administration and endpoint authorization integration. Protocol tests inject trusted identities; user headers do not establish authentication. | Choose identity provider and approve account/configuration work. |
+| Merchant catalogue lifecycle | Publication selection, pagination/sync reconciliation, uninstall/privacy webhook handling and durable lifecycle state. Existing fixed public demo reads are not merchant synchronization. | Owned development store/app, scopes, callback URLs, merchant permission, public distribution review. |
+| Purchase | Brand checkout destination integration and current-variant availability/price revalidation at handoff. Browser-local demo orders remain noncommercial records. | Confirm the purchase model and authorize store integration. |
+| Private try-on | Private storage adapter, authenticated upload/job/result/delete endpoints, queue worker, tenant isolation, retention enforcement and cost/idempotency controls. Test-only provider boundaries do not perform generation. | Storage/queue choice, provider/model terms, rights/consent, region/retention policy, secure credentials and spending cap. |
+| Release operations | Actual CI execution, deployment configuration, monitoring, load testing, recovery drills and real-device/assistive-technology checks. Local tests do not prove these. | Authorized push/deployment and operating owners. |
+
+The database, authentication and private-storage choices are architecture decisions rather than secret values. Their adapters and integration tests can be developed without live provider access once selected. This pass deliberately leaves the runtime disconnected; it does not substitute a file-backed token database, test identity or in-memory job map for production infrastructure.

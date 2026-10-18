@@ -106,8 +106,8 @@ export function commerceReducer(state: CommerceState, action: CommerceAction): C
             const lines = state.cart.filter(l => l.brandId === action.brandId);
             if (!checkoutReady(lines, action.catalogue) || state.orders.some(o => o.id === action.id))
                 return state;
-            const snapshots: OrderLine[] = lines.map(l => { const { product: p, variant: v } = resolveLine(l, action.catalogue); return { ...l, name: p!.name, image: p!.image, price: Number(v!.amount), currency: v!.currency, color: Object.values(v!.options).join(' / ') }; });
-            return { ...state, cart: state.cart.filter(l => !lines.includes(l)), orders: [{ id: action.id, brandId: action.brandId, brandName: lines[0].brandName, date: action.date, status: 'Recorded locally', sample: true, legacy: false, lines: snapshots }, ...state.orders] };
+            const snapshots: OrderLine[] = lines.map(l => { const { product: p, variant: v } = resolveLine(l, action.catalogue); return { ...l, size: v!.title, brandName: p!.brandName, name: p!.name, image: p!.image, price: Number(v!.amount), currency: v!.currency, color: Object.values(v!.options).join(' / ') }; });
+            return { ...state, cart: state.cart.filter(l => !lines.includes(l)), orders: [{ id: action.id, brandId: action.brandId, brandName: snapshots[0].brandName, date: action.date, status: 'Recorded locally', sample: true, legacy: false, lines: snapshots }, ...state.orders] };
         }
     }
 }
@@ -156,6 +156,12 @@ export function parseCommerce(raw: string | null): CommerceState {
         for (const row of value.lines) {
             const base = cartLine(row);
             if (!base || !object(row) || !string(row.name) || typeof row.price !== 'number')
+                continue;
+            // Only a missing field denotes the old AUD schema; malformed explicit
+            // currencies must never be reinterpreted as a different currency.
+            if (row.currency !== undefined && !string(row.currency))
+                continue;
+            if (base.brandId !== undefined && base.brandId !== value.brandId)
                 continue;
             const currency = string(row.currency) ? row.currency : 'AUD';
             if (!validMoney(row.price, currency))

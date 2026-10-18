@@ -14,10 +14,12 @@ export function validatePhotoHeader(type: string, size: number, bytes: Uint8Arra
 export function resolutionWarning(width: number, height: number) { return Math.min(width, height) < 768 ? 'The shorter edge is below 768 pixels. A sharper original may preserve more detail. This is local guidance, not a Pruna requirement or a quality score.' : ''; }
 export async function inspectPhoto(file: File) {
     validatePhotoHeader(file.type, file.size, new Uint8Array(await file.slice(0, 16).arrayBuffer()));
-    const encoded = encodedDimensions(file.type, new Uint8Array(await file.arrayBuffer()));
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const encoded = encodedDimensions(file.type, bytes);
     if (!encoded)
         throw new Error('This photo could not be decoded. Its image dimensions are missing or unsupported.');
     validateDimensions(encoded.width, encoded.height);
+    if (file.type === 'image/png') validateStillPng(bytes);
     let bitmap: ImageBitmap;
     try {
         bitmap = await createImageBitmap(file);
@@ -30,6 +32,22 @@ export async function inspectPhoto(file: File) {
     if (!width || !height || width > 12000 || height > 12000 || width * height > MAX_PHOTO_PIXELS)
         throw new Error('Photo dimensions exceed this preview’s limit: 12,000 pixels per edge and 40 megapixels.');
     return { width, height, warning: resolutionWarning(width, height) };
+}
+
+/** PNG animation is not a still photo. Inspect chunk framing before asking the browser to decode. */
+export function validateStillPng(bytes: Uint8Array) {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    let at = 8;
+    while (at + 12 <= bytes.length) {
+        const length = view.getUint32(at), end = at + 12 + length;
+        if (end > bytes.length) break;
+        const kind = String.fromCharCode(...bytes.slice(at + 4, at + 8));
+        if (kind === 'acTL' || kind === 'fcTL' || kind === 'fdAT')
+            throw new Error('Choose a still photo. Animated PNG images are not supported.');
+        if (kind === 'IEND' && length === 0 && end === bytes.length) return;
+        at = end;
+    }
+    throw new Error('This photo could not be decoded. Its PNG chunk structure is incomplete.');
 }
 export function encodedDimensions(type: string, bytes: Uint8Array): {
     width: number;

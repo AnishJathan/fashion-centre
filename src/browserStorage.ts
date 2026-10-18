@@ -10,24 +10,45 @@ catch {
     return false;
 } }
 export function readStored<T>(key: string, parse: (raw: string | null) => T, fallback: T): T {
+    let raw: string | null;
     try {
-        const raw = localStorage.getItem(key);
-        baseline.set(key, raw);
+        raw = localStorage.getItem(key);
+    }
+    catch {
+        // A fallback is not evidence that the existing storage is empty.
+        baseline.delete(key);
+        return fallback;
+    }
+    baseline.set(key, raw);
+    try {
         const value = parse(raw);
         if (raw !== null && !equivalent(raw, value))
             recovery.add(key);
+        else
+            recovery.delete(key);
         return value;
     }
     catch {
+        if (raw !== null)
+            recovery.add(key);
+        else
+            // A parser may read a legacy key when the current key is absent.
+            // Do not create an empty current record after that migration fails.
+            baseline.delete(key);
         return fallback;
     }
 }
-export function writeStored(key: string, value: unknown) {
+/** Check a transaction dependency without rereading it into the UI baseline. */
+export function assertStoredCurrent(key: string) {
     const current = localStorage.getItem(key);
     if (!baseline.has(key))
-        baseline.set(key, current);
+        throw new Error('Existing browser data could not be read. Reload before saving changes.');
     if (current !== baseline.get(key))
         throw new Error('Newer browser data was found. Reload this page before making more changes.');
+    return current;
+}
+export function writeStored(key: string, value: unknown) {
+    const current = assertStoredCurrent(key);
     if (equivalent(current, value))
         return;
     if (recovery.has(key) && current !== null) {
@@ -38,10 +59,11 @@ export function writeStored(key: string, value: unknown) {
     localStorage.setItem(key, next);
     baseline.set(key, next);
 }
-/** Web Locks serializes read/compare/write across same-origin tabs. No unsafe fallback. */
+const relatedKeys = new Set(['fc.commerce.v2', 'fc.stores.v1', 'fc.saved', 'fc.followed']);
+/** Related app state uses one lock so dependency checks and writes cannot interleave. */
 export async function withStorageLock<T>(key: string, operation: () => T): Promise<T> {
     if (!navigator.locks)
         throw new Error('This browser cannot safely coordinate saved changes. Open the app in a supported browser on localhost.');
-    return navigator.locks.request('fashion-centre:' + key, { mode: 'exclusive' }, operation);
+    return navigator.locks.request('fashion-centre:' + (relatedKeys.has(key) ? 'app-state' : key), { mode: 'exclusive' }, operation);
 }
 export function storageRecoveryNeeded() { return recovery.size > 0; }
