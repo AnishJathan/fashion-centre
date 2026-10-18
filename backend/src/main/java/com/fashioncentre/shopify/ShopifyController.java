@@ -12,10 +12,9 @@ public class ShopifyController {
  private final ObjectMapper json;private final StorefrontAdapter adapter;
  private final HttpClient client=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).followRedirects(HttpClient.Redirect.NEVER).build();
  public ShopifyController(ObjectMapper json){this.json=json;adapter=new StorefrontAdapter(json);}
- @GetMapping("/status") public Map<String,Object> status(){return Map.of("connected",false,"mode","PREVIEW_ONLY","apiVersion",StorefrontAdapter.API_VERSION,"shops",List.of(Map.of("key","mock","name","Mock Shop"),Map.of("key","apparel","name","Elysian Thread")),"merchants",List.of("violet","nimble","lume"));}
- @GetMapping("/catalogue/{shopKey}") public StorefrontAdapter.Catalogue catalogue(@PathVariable String shopKey,@RequestParam(defaultValue="fixture") String source){
+ @GetMapping("/status") public Map<String,Object> status(){return Map.of("connected",false,"mode","PREVIEW_ONLY","apiVersion",StorefrontAdapter.API_VERSION,"shops",List.of(Map.of("key","mock","name","Mock Shop"),Map.of("key","apparel","name","Elysian Thread")));}
+ @GetMapping("/catalogue/{shopKey}") public StorefrontAdapter.Catalogue catalogue(@PathVariable String shopKey,@RequestParam(defaultValue="public") String source){
   try {var shop=StorefrontAdapter.shop(shopKey);
-   if(source.equals("fixture"))return adapter.catalogue(shop,(s,r)->{try(var in=getClass().getResourceAsStream("/shopify-fixture.json")){return new StorefrontAdapter.Reply(200,StorefrontAdapter.API_VERSION,new String(Objects.requireNonNull(in).readAllBytes(),java.nio.charset.StandardCharsets.UTF_8));}},"fixture");
    if(!source.equals("public"))throw new IllegalArgumentException("Unknown source");
    return adapter.catalogue(shop,(s,r)->{
     // Fixed read-only query and exact server-owned endpoint. No arbitrary query/URL or credentials.

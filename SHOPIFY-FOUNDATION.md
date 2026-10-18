@@ -1,3 +1,7 @@
+# Current update
+
+The original fixture preview described below has been superseded by explicit local onboarding. Runtime fixtures and static business content have been removed; public data is the only runtime catalogue source. See [ONBOARDED-CATALOGUE.md](ONBOARDED-CATALOGUE.md). The original security/live-enable prerequisites remain applicable. This document's implementation section records the previous increment.
+
 # Shopify foundation — local development only
 
 Branch: `feature/shopify-foundation`. No new GitHub push or deployment.

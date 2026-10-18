@@ -16,8 +16,8 @@ test('WhatsApp OTP is an explicit local simulation with recovery states',async({
  await page.getByRole('button',{name:'Continue with demo OTP'}).click();await page.getByLabel('Enter 6-digit code').fill('123456');await page.getByRole('button',{name:'Verify demo code'}).click();
  await expect(page.getByText('Demo verification complete.')).toBeVisible();await expect(page.getByText(/No account was created/)).toBeVisible();
  await page.screenshot({path:'screenshots/otp-success-390.png',fullPage:true});
- await page.getByRole('button',{name:'Continue browsing'}).click();await expect(page.getByRole('heading',{name:/Discover your style/})).toBeVisible();
- await page.goto('/#/login');await page.getByRole('button',{name:'Cancel and browse'}).click();await expect(page.getByRole('heading',{name:/Discover your style/})).toBeVisible();
+ await page.getByRole('button',{name:'Continue browsing'}).click();await expect(page.getByRole('heading',{name:/Your local space/})).toBeVisible();
+ await page.goto('/#/login');await page.getByRole('button',{name:'Cancel and browse'}).click();await expect(page.getByRole('heading',{name:/Your local space/})).toBeVisible();
  expect(authRequests).toEqual([]);
  expect(await page.evaluate(()=>Object.keys(localStorage).some(k=>/token|phone|session|otp/i.test(k)))).toBe(false);
 });

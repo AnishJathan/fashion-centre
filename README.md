@@ -1,74 +1,42 @@
-# Fashion Centre — local prototype
+# Fashion Centre
+Responsive React/TypeScript frontend with a loopback Java Spring Boot backend. White/violet design and navigation remain; displayed business content now comes only from explicitly onboarded public demo stores.
 
-Independent React + TypeScript frontend with Vite and a Java/Spring Boot demo API. No DAT assessment files were used or changed.
-
-## Run on this laptop
-
+## Run locally
 From this directory:
-
-```powershell
-npm ci --cache .npm-cache
-npm run dev
-```
-
-Open http://127.0.0.1:5173. In another terminal:
-
-```powershell
-cd backend
-mvn "-Dmaven.repo.local=.m2" test package
-java -jar target/fashion-centre-api-0.1.0.jar
-```
-
-Java API: http://127.0.0.1:8081/api/health. The frontend calls `/api/products` through Vite's development proxy, falling back to the bundled demo catalogue if the API is unavailable. Both modes use fictional demo data; the desktop announcement reports which mode loaded. `npm run preview` serves the built frontend at http://127.0.0.1:4173 with the same bundled fallback.
-
-The current verified preview can be restarted with `powershell -File scripts/start-local.ps1` after stopping the specific processes listed in `local-processes.json`. See `VALIDATION.md` for final results and limitations, and `AUTH-BOUNDARY.md` for the latest outbound WhatsApp OTP direction.
-
-## Implemented
-
-- Responsive discovery, search, category/vibe filters, photographic banners and category circles.
-- Three fictional brand storefronts with separate product scope, identity colours, follow state, and return/switch controls.
-- Product detail, demo size selection, reversible saved items and followed brands in browser localStorage.
-- Full-height, vertically snapping **still-photo** inspiration feed. Touch scrolling and keyboard arrows; no video, personal uploads or generated results.
-- Hash navigation supports browser Back/Forward and direct URLs. Product detail is a page, not a modal; Escape returns to browsing.
-- Empty states and storage-unavailable feedback. Profile clearly states that no account or cloud sync exists.
-- Outbound WhatsApp OTP **UI simulation** from Profile: phone/code forms, resend cooldown, change number, invalid/expired code, simulated delivery failure, cancellation and demo success. No message, authentication request, account or session is created. Use the displayed demo code only to review screen transitions.
-- Cart with product/size variants, repeated-add merging, bounded quantity editing, remove/empty states, browser persistence and brand-separated subtotals/checkouts.
-- Explicit demo checkout review creates a local sample order and clears only the selected brand's cart. No payment or store redirection occurs.
-- Orders list grouped by brand, brand/status filters, empty states and sample order details with illustrative progress. Includes three fixtures and local demo checkout records.
-- Redesigned guest Profile with cart/orders/saved counts, followed brands and local style/fit preferences. No personal details are collected or transmitted.
-
-## Validation commands
-
 ```powershell
 npm run build
 npm test
 npm run test:ui
-cd backend
-mvn "-Dmaven.repo.local=.m2" test package
 ```
+From `backend`:
+```powershell
+mvn '-Dmaven.repo.local=.m2' -o -B package
+java -jar target/fashion-centre-api-0.1.0.jar
+```
+In a separate terminal at the project root: `npm run dev`.
+Or, after building, `powershell -File scripts/start-local.ps1` starts both hidden processes if ports are free.
 
-Browser tests use the laptop's installed Chrome; no Playwright browser download is required. Screenshots are written to `screenshots/`. Tests cover 390×844 and 1440×1000 layouts, image loading, horizontal overflow, repeated saves, persistence, following, brand isolation, product navigation, Back/Forward and keyboard photo scrolling. Real-device touch behaviour and other browsers require separate validation.
+Open http://127.0.0.1:5173. Java listens only at http://127.0.0.1:8081. Existing Node/JDK/Maven and installed Chrome are used. No new runtime or dependency installation was needed.
 
-Commerce tests additionally cover repeated cart actions, size variants, invalid quantities, brand-separated demo checkout, repeat-checkout protection, sample orders and filters, empty states, reload and Profile preference persistence. New screens: `/#/cart`, `/#/orders`, `/#/profile`; add to cart from a product detail page.
+## First visit
+Open **Manage demo stores**, then explicitly onboard Mock Shop and/or Elysian Thread. This browser stores the choice. The Java API fetches the allowlisted public fictional catalogue. No products or stores are automatically onboarded, and network failure never falls back to invented inventory. Disable a store to hide its products; re-enable to fetch again without deleting cart, orders or saved references.
 
-To place a demo order: open a product, select its size, **Add to cart**, open **Bag**, choose that brand's **Demo checkout**, review the items, then select **Place demo order**. The order detail opens immediately with a full unique ID and timestamp. **View all orders** opens history; choose **Your demo orders** to hide the supplied sample examples. Only that brand's cart items are cleared. Cancelling leaves the cart unchanged. No payment details, Shopify requests or personal information are involved.
+Store names, categories, imagery, products, variants, prices and availability come from fetched data. Up to 48 products and 100 variants/product are loaded; truncation is disclosed. Counts describe loaded records. Currency remains CAD/USD as supplied. The sample source directory is server configuration, not a list of already connected merchants.
 
-## Architecture and next integration boundaries
+## Local-only commerce and identity
+Select an actual fetched variant, add it to the local cart, and place a **demo order** per store. This creates a browser record only; no public cart mutation, reservation, payment or merchant order is sent. Unavailable/disabled items stay visible in the cart and cannot check out. Totals are separated by currency.
 
-`src/domain.ts` defines Brand, Product, CatalogueGateway, demo/http catalogue adapters and an explicitly simulated TryOnResult. `src/main.tsx` owns the shopper UI; `src/approved.css` translates approved Figma frames into responsive layouts. `backend/` is Spring Boot 3.5.16, compiled for Java 17 and verified with installed JDK 19/Maven 3.9.11. Spring's official requirements: https://docs.spring.io/spring-boot/3.5/system-requirements.html. Prefer an LTS JDK for subsequent production work; none was installed for this prototype.
+Orders start empty. Existing user-created demo orders are preserved as historical snapshots. Old seeded SAMPLE records remain archived, excluded from order history. The original `fc.commerce.v1` value is retained; migration writes `fc.commerce.v2`. User preferences, saved and followed references remain. No fake profile identity exists.
 
-API routes: GET `/api/health`, `/api/brands`, `/api/products?brandId=violet`, `/api/products/{id}`. Unknown brands/products return 404; filtering is enforced by the server. There is no Node application backend: Vite only serves frontend development assets and proxies to Java. The API is loopback-bound, read-only and deliberately unauthenticated because every record is public fictional demo data.
+Try-on is empty until actual verified results exist. No catalogue photo is presented as the user's generated image. The Pruna boundary is disabled and has no live transport or credentials. OTP remains a clearly labelled local UI simulation.
 
-Future backend work: verified merchant catalogue ingestion, server-side publication/tenant rules, authenticated shopper persistence, variant/price revalidation, private photo storage and consent, bounded asynchronous try-on jobs, and provider secrets stored only on the server. No integration readiness or production security is claimed by this demo.
+## Architecture and evidence
+- `src/domain.ts`: scoped API mapping and catalogue types; no runtime product fixtures.
+- `src/main.tsx`: local onboarding, fetch lifecycle, discovery/store/product/saved/empty states.
+- `src/commerce.ts`: preserved-data migration and currency/variant-aware local transactions.
+- `backend/.../shopify`: fixed read-only public endpoints, validation and mapping; no arbitrary host proxy.
+- `backend/.../tryon`: disabled provider interface and mocked Pruna contract.
+- [ONBOARDED-CATALOGUE.md](ONBOARDED-CATALOGUE.md), [COMMERCE-BOUNDARY.md](COMMERCE-BOUNDARY.md), [PRUNA-BOUNDARY.md](PRUNA-BOUNDARY.md), [VALIDATION.md](VALIDATION.md).
+- Deterministic fictional records live only in tests. Legacy design images remain in source history/assets but are not selected as business content by runtime UI. Navigation SVGs remain design assets.
 
-## Design and assets
-
-Approved Figma baseline: https://www.figma.com/design/QRfAgtOkBDGTbgmwtjDljZ?node-id=11-34 (Discover 11:35; Brand Centre 11:78; storefront 11:122; photo feed 11:168). Downloaded actual campaign/denim imagery and five navigation icons from the design. Responsive adaptation omits fake phone status bars, adds real controls and demo disclosures, and extends discovery below the first screen for categories, vibes and additional products. It is not a pixel-perfect implementation of fixed-size Figma frames.
-
-The older Library brief was read. The original approved Library image could not be materialized because its supported metadata helper needs Python, unavailable on this laptop. The later user-approved Figma screenshots and full design context were inspected instead.
-
-See `ASSETS.md` for provenance and `COMMERCE-BOUNDARY.md` for cart/order/profile behaviour and future Java boundaries. All prices, inventory, labels, order statuses and try-on photos are illustrative. No live checkout, authentication, Shopify, Pruna, WhatsApp, database, paid service, deployment, or personal-photo handling is connected. New Cart, Orders and Profile screens were implemented in the application; no Figma updates are claimed.
-
-## Shopify foundation preview
-
-Open http://127.0.0.1:5173/#/merchant (also linked from Profile). Local fixtures load by default; choose Public Mock Shop to read one of two fictional Shopify catalogues without credentials. Source prices/currencies and shop-scoped IDs are preserved. The shopper demo remains separate. Connect/live sync/cart/webhook routes are disabled. See [SHOPIFY-FOUNDATION.md](SHOPIFY-FOUNDATION.md) for implementation, official references and exact prerequisites for an authorized development-store test. This increment is local on `feature/shopify-foundation`; it has not been pushed.
+No real auth, merchant installation, AI generation, payment, personal-photo upload or deployment is enabled.

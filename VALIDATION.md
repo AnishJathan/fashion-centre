@@ -55,3 +55,19 @@ Cart, sample orders and preferences persist only in this browser. Completing dem
 - No dependencies installed, merchant credentials configured, production data accessed, real/public mock carts mutated, deployment performed or GitHub push made.
 
 After compacting long variant lists, the production build and both Shopify browser tests were rerun and passed (2/2). Public preview screenshot refreshed.
+
+## Onboarded-only catalogue and disabled Pruna — final 2026-10-18 update
+
+This section supersedes earlier static-demo validation descriptions above.
+
+- Production frontend build passed; 9/9 domain/commerce tests passed. Tests verify empty initial records, scoped filtering, currency separation, available variants, quantity bounds, checkout idempotency, offline/disabled-store denial and non-destructive v1 migration.
+- Full current browser suite: 5/5 passed (17.0 seconds): OTP simulation; complete onboarding, variants, two currencies, checkout/reload and store disable/re-enable at 390 and 1440 widths; network failure/empty/retry; migration preserving original v1, earlier user orders and preferences. Prior static-fixture journey files were replaced by these lifecycle tests. Initial failures were ambiguous text/quantity locators, corrected with exact accessible matches.
+- Java offline package succeeded, 16/16 tests: 2 catalogue retirement/health, 7 Shopify contracts and disabled routes, 7 Pruna contracts/validation/bounded polling/disabled runtime. No provider calls. Maven clean was unavailable offline; only the verified generated backend target directory was removed before rebuilding with cached package plugins. No dependencies downloaded.
+- Packaged JAR inspection found no fixture resource or test classes. The deterministic Shopify JSON now lives only in test resources. Static catalogue endpoints return 410; fixture runtime source returns 400.
+- Real read-only public smoke checks: Mock.shop returned 29 products in CAD; Elysian Thread returned 30 products in USD with source productType categories. Counts are observations, not hard-coded UI values. Both scoped IDs and source names came through the Java adapter.
+- Fresh isolated browser contexts explicitly onboarded Elysian Thread and rendered its 30 fetched products at 390 and 1440 widths with no horizontal document overflow. Screenshots: onboarded-public-390.png and onboarded-public-1440.png. Browser test snapshots onboarded-test-* use isolated test responses and are not evidence of real public catalogue calls.
+- Runtime try-on status: enabled=false, provider=unselected, results=[]; create jobs remains 501. Mock Pruna result URLs only appear in tests. No personal images, credentials, uploads, generation or paid requests occurred.
+- Existing user browser state was not opened/modified during QA; all test migrations/onboarding ran in isolated Playwright contexts. Original v1 storage remains preserved by application migration. No user order/cart/preferences deletion is part of this change.
+- Still not verified: real merchant OAuth, complete synchronization/pagination, real checkout/order/webhook processing, personal photo consent/storage/retention, live Pruna compatibility or billing, Safari/Firefox, physical touch devices and full accessibility audit. All corresponding live integrations remain disabled.
+
+Visual QA found inherited flex ordering placed products before the fetched hero/categories. Restoring DOM flow fixed it; production build and all four onboarding browser tests passed again (17.9 seconds). Updated public screenshots were visually inspected. The reported user screenshot showed the intentional no-onboarded-store state; prior merchant preview selection was not an onboarding registration. Explicit onboarding was verified to populate home and persist. Test-only snapshots are generated under ignored test-results, not shipped as catalogue assets.

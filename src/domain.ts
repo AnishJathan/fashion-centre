@@ -1,24 +1,19 @@
-export interface Brand { id:string; name:string; tagline:string; color:string; image:string }
-export interface Product { id:string; brandId:string; name:string; price:number; category:string; vibe:string; image:string; color:string }
-export const brands:Brand[]=[
- {id:'violet',name:'STUDIO VIOLET',tagline:'A little bold. Entirely you.',color:'#7041d9',image:'/images/campaign.png'},
- {id:'nimble',name:'NIMBLE SUPPLY',tagline:'Made for the everyday adventure.',color:'#24604f',image:'/images/campaign.png'},
- {id:'lume',name:'lume studio',tagline:'Quiet confidence. Lasting impressions.',color:'#98512f',image:'/images/denim.png'}
-];
-export const products:Product[]=[
- {id:'p1',brandId:'violet',name:'Everyday denim',price:119,category:'Denim',vibe:'City muse',image:'/images/denim.png',color:'Denim blue'},
- {id:'p2',brandId:'nimble',name:'Relaxed Overshirt',price:89,category:'Tops',vibe:'Off duty',image:'/images/campaign.png',color:'White'},
- {id:'p3',brandId:'lume',name:'Wide Leg Jeans',price:129,category:'Denim',vibe:'Golden hour',image:'/images/denim.png',color:'Denim blue'},
- {id:'p4',brandId:'violet',name:'Relaxed cotton shirt',price:79,category:'Tops',vibe:'Off duty',image:'/images/campaign.png',color:'Cloud white'},
- {id:'p5',brandId:'nimble',name:'The everyday sneaker',price:119,category:'Sneakers',vibe:'Off duty',image:'/images/shoes.jpg',color:'White'},
- {id:'p6',brandId:'lume',name:'After hours edit',price:169,category:'Dresses',vibe:'City muse',image:'/images/evening.jpg',color:'Midnight'}
-];
-export function selectProducts(items:Product[],brandId='',query='',filter='All'){return items.filter(p=>(!brandId||p.brandId===brandId)&&(filter==='All'||filter==='New in'||(filter==='Men'&&p.brandId==='nimble')||(filter==='Women'&&p.brandId!=='nimble')||p.category===filter||p.vibe===filter)&&`${p.name} ${brands.find(b=>b.id===p.brandId)?.name} ${p.category}`.toLowerCase().includes(query.toLowerCase()));}
-export function toggleId(ids:string[],id:string){return ids.includes(id)?ids.filter(x=>x!==id):[...ids,id];}
-export function readIds(key:string):string[]{try{const v=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(v)?[...new Set(v.filter((x:unknown)=>typeof x==='string'))]:[];}catch{return [];}}
-export interface CatalogueGateway { listBrands():Promise<Brand[]>; listProducts(brandId?:string):Promise<Product[]> }
-export const demoCatalogue:CatalogueGateway={listBrands:async()=>brands,listProducts:async(id)=>selectProducts(products,id)};
-export const httpCatalogue:CatalogueGateway={listBrands:async()=>request('/api/brands'),listProducts:async(id)=>request('/api/products'+(id?'?brandId='+encodeURIComponent(id):''))};
-async function request<T>(path:string):Promise<T>{const response=await fetch(path);if(!response.ok)throw new Error('Catalogue unavailable');return response.json();}
-export interface TryOnResult {productId:string;image:string;simulated:true}
-export async function previewTryOn(product:Product):Promise<TryOnResult>{return {productId:product.id,image:product.image,simulated:true};}
+export interface Variant { key:string; id:string; title:string; available:boolean; amount:number; currency:string; options:Record<string,string> }
+export interface Product { id:string; brandId:string; brandName:string; name:string; category:string; image:string; variants:Variant[]; moreVariants:boolean }
+export interface Brand { id:string; name:string; image:string; products:Product[]; more:boolean }
+export interface StoreRegistration { id:string; enabled:boolean; onboardedAt:string }
+export interface Source {key:string;name:string}
+export const STORES_KEY='fc.stores.v1';
+export function readStores():StoreRegistration[]{try{const parsed=JSON.parse(localStorage.getItem(STORES_KEY)||'[]');return Array.isArray(parsed)?parsed.filter((s:StoreRegistration)=>s&&typeof s.id==='string'&&typeof s.enabled==='boolean'&&typeof s.onboardedAt==='string'):[]}catch{return []}}
+export function toggleId(ids:string[],id:string){return ids.includes(id)?ids.filter(x=>x!==id):[...ids,id]}
+export function readIds(key:string):string[]{try{const value=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(value)?[...new Set(value.filter((v:unknown)=>typeof v==='string'))]:[]}catch{return []}}
+export function selectProducts(items:Product[],brandId='',query='',category='All'){return items.filter(p=>(!brandId||p.brandId===brandId)&&(category==='All'||p.category===category)&&(p.name+' '+p.brandName+' '+p.category).toLowerCase().includes(query.toLowerCase()))}
+export function money(amount:number,currency:string){return currency+' '+new Intl.NumberFormat('en',{minimumFractionDigits:2,maximumFractionDigits:2}).format(amount)}
+export const productPath=(id:string)=>'#/product/'+encodeURIComponent(id);
+export async function loadSources(signal?:AbortSignal):Promise<Source[]>{const r=await fetch('/api/integrations/shopify/status',{signal});if(!r.ok)throw new Error('Demo store directory unavailable.');return (await r.json()).shops}
+export async function loadCatalogue(id:string,signal?:AbortSignal):Promise<Brand>{
+ const r=await fetch('/api/integrations/shopify/catalogue/'+encodeURIComponent(id)+'?source=public',{signal});if(!r.ok)throw new Error('Catalogue unavailable. Retry when your connection is ready.');
+ const d=await r.json();if(d.shopKey!==id||typeof d.shopName!=='string'||!Array.isArray(d.products))throw new Error('Catalogue response is invalid.');
+ const products:Product[]=d.products.map((p:{key:string;title:string;category:string;image:string;variants:Variant[];moreVariants:boolean})=>({id:p.key,brandId:id,brandName:d.shopName,name:p.title,category:p.category||'',image:p.image,variants:p.variants,moreVariants:p.moreVariants}));
+ return {id,name:d.shopName,image:products.find(p=>p.image)?.image||'',products,more:d.hasNextPage};
+}
