@@ -68,3 +68,7 @@ Approved Figma baseline: https://www.figma.com/design/QRfAgtOkBDGTbgmwtjDljZ?nod
 The older Library brief was read. The original approved Library image could not be materialized because its supported metadata helper needs Python, unavailable on this laptop. The later user-approved Figma screenshots and full design context were inspected instead.
 
 See `ASSETS.md` for provenance and `COMMERCE-BOUNDARY.md` for cart/order/profile behaviour and future Java boundaries. All prices, inventory, labels, order statuses and try-on photos are illustrative. No live checkout, authentication, Shopify, Pruna, WhatsApp, database, paid service, deployment, or personal-photo handling is connected. New Cart, Orders and Profile screens were implemented in the application; no Figma updates are claimed.
+
+## Shopify foundation preview
+
+Open http://127.0.0.1:5173/#/merchant (also linked from Profile). Local fixtures load by default; choose Public Mock Shop to read one of two fictional Shopify catalogues without credentials. Source prices/currencies and shop-scoped IDs are preserved. The shopper demo remains separate. Connect/live sync/cart/webhook routes are disabled. See [SHOPIFY-FOUNDATION.md](SHOPIFY-FOUNDATION.md) for implementation, official references and exact prerequisites for an authorized development-store test. This increment is local on `feature/shopify-foundation`; it has not been pushed.

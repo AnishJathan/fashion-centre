@@ -42,3 +42,16 @@ Checkout: `checkout-review-390.png`, `checkout-review-1440.png`, `checkout-confi
 ## Commerce scope limits
 
 Cart, sample orders and preferences persist only in this browser. Completing demo checkout is a local state transition, not a payment, reservation or real order. Shipping, taxes, live inventory, merchant checkout, order sync and tracking remain unconnected. Profile is a guest demo with no personal-data fields. The Java-backed demo catalogue remains in use; future authenticated commerce endpoints are documented in `COMMERCE-BOUNDARY.md`. Existing real-device/browser/accessibility limitations still apply.
+
+## Shopify increment — 2026-10-18
+
+- `npm run build`: TypeScript and Vite production build passed.
+- `npm test`: 8/8 existing domain/commerce tests passed.
+- In `backend`, `mvn '-Dmaven.repo.local=.m2' -o -B package`: build passed, 10 Java tests total (3 existing catalogue, 7 Shopify contract/security/API tests). Tests use local synthetic data, never public mutations. Initial packaging hit a Windows JAR lock; stopping only the verified app-owned Java process and restarting after packaging resolved it.
+- `npm run test:ui`: 9/9 installed-Chrome browser tests passed at 390/1440 widths. New checks cover fixture mapping display, shop switching, disconnected/disabled connect UI, failed public request/recovery, no browser mutation requests and no horizontal overflow. Existing shopping/cart/orders/OTP journeys still pass.
+- Separate read-only integration smoke checks against the running Java proxy succeeded for both fixed public endpoints: 6 Mock Shop products in CAD; 6 Elysian Thread products in USD. Public Elysian Thread browser render showed 6 cards, a decoded first product image and no horizontal overflow. This smoke check requires network access and is separate from deterministic tests.
+- Shopify screenshots: `screenshots/shopify-preview-390.png`, `shopify-preview-1440.png`, `shopify-public-1440.png`. Mobile fixture and desktop public screenshots visually inspected. Fixed bottom navigation appears midway down full-page captures because it remains pinned to the original viewport; content remains scrollable.
+- Not verified: merchant OAuth/install, credentials/scopes, actual API-version negotiation, complete sync pagination, real cart submission/checkout, payment, customer identity, webhook subscription/delivery/idempotent processing or real order linkage. Those features remain disabled or planned. Synthetic HMAC tests prove only the raw-body verifier.
+- No dependencies installed, merchant credentials configured, production data accessed, real/public mock carts mutated, deployment performed or GitHub push made.
+
+After compacting long variant lists, the production build and both Shopify browser tests were rerun and passed (2/2). Public preview screenshot refreshed.
