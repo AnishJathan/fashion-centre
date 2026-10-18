@@ -6,10 +6,10 @@ This report covers the quality/adversarial passes (`ba5c424`, `c7ff0cb`), storag
 
 | Command | Verified result |
 | --- | --- |
-| `npm run build` | TypeScript check and Vite production build passed. JavaScript 284.54 kB / 88.40 kB gzip; CSS 41.16 kB / 9.35 kB gzip. |
-| `node scripts/check-bundle.mjs` | JavaScript 88,397 bytes gzip below 110,000; CSS 9,353 bytes below 12,000. |
-| `npm test` | 31 passed; zero failed/skipped. |
-| `npm run test:ui` | 36 passed in installed Chrome; zero failed/skipped, including complete walkthroughs and four navigation viewport checks. |
+| `npm run build` | TypeScript check and Vite production build passed. JavaScript 287.15 kB / 89.22 kB gzip; CSS 45.53 kB / 10.32 kB gzip. |
+| `node scripts/check-bundle.mjs` | JavaScript 89,218 bytes gzip below 110,000; CSS 10,324 bytes below 12,000. |
+| `npm test` | 33 passed; zero failed/skipped. |
+| `npm run test:ui` | 43 passed in installed Chrome (1.9 minutes); zero failed/skipped, including complete walkthroughs, four navigation viewport checks and seven theme tests. |
 | `mvn '-Dmaven.repo.local=.m2' -o -B package` from `backend` | 104 passed; zero failures/errors/skips; runnable Spring Boot JAR packaged successfully offline. |
 | `npm audit --json` | Zero reported vulnerabilities in the installed npm dependency graph at check time. Not a Java advisory audit or security certification. |
 | `node scripts/public-smoke.mjs` | Read-only public catalogue browser smoke; see public evidence below. Requires both local servers and network access. |
@@ -28,9 +28,19 @@ After the final 30-test browser pass, the API was stopped deliberately and `npx 
 
 The requested capsule shape applies only at widths up to 700 pixels. Fashion Centre icons, labels, routes and logo are preserved. Desktop retains its prior 460-pixel-wide navigation with 20-pixel corner radii. Mobile navigation has fully rounded ends, 12-pixel side insets, a violet selected-item pill and bottom clearance including the CSS safe-area inset.
 
-The latest build and bundle budget checks passed, followed by all 36 browser tests (1.3 minutes). The four new viewport checks cover 320, 390, 430 and 1440 pixels, unchanged destinations, selected state, keyboard navigation, 44-pixel minimum touch targets, no horizontal overflow and footer clearance. A simulated 34-pixel safe-area inset moves the navigation to 46 pixels above the viewport bottom and increases content padding to 146 pixels. Physical iPhone safe-area behavior remains unverified. Frontend unit and Java results above are from the preceding integration pass; neither implementation changed in this CSS-only increment.
+The first capsule increment passed 36 browser tests. The subsequent theme increment reduces mobile height from 76 to 60 pixels while retaining at least 44-pixel touch targets. The four navigation viewport checks cover 320, 390, 430 and 1440 pixels, unchanged destinations, selected state, keyboard navigation, no horizontal overflow and footer clearance. A simulated 34-pixel safe-area inset moves the navigation to 46 pixels above the viewport bottom and increases content padding to 130 pixels. Physical iPhone safe-area behavior remains unverified.
 
 All five screenshots in `screenshots/navigation/` were visually inspected: the four viewport captures and `nav-390-safe-area-focus.png`. They use a synthetic test catalogue and show the mobile capsule, selected pill, visible keyboard focus, safe-area spacing and unchanged desktop geometry.
+
+## Light and Dark appearance
+
+The quick switch is above each page; **Profile > Appearance** provides Light, Dark and Use device radio controls. A missing preference follows the current system setting and responds to subsequent system changes. An explicit selection persists under `fc.theme.v1`, independently of shopping records. Storage uses the existing read baseline, lock and recovery-copy protections. Failed reads/writes preserve existing data and display an explicit tab-only message. Cross-tab storage events synchronize appearance.
+
+`public/theme-init.js` runs in the document head before body parsing, with critical light/dark backgrounds in `index.html`. It reads without writing; unit checks verify agreement with the runtime resolver for valid, absent, malformed and blocked storage. This avoids waiting for React before applying the preferred background.
+
+Seven additional browser tests cover keyboard radio/shortcut switching, reload persistence, device changes, cross-tab updates, original-byte recovery, blocked reads/writes and both themes across shopper, brand, owner, demo management, profile, product, cart, checkout, order, login, populated photo preparation and full-screen photo views. Dark text on tested solid surfaces is checked at 4.5:1; disabled controls and photographic gradients are excluded. This is a focused contrast check, not a complete accessibility certification. Photos are asserted to have no CSS filter; only navigation SVGs are recoloured.
+
+Screenshots in `screenshots/themes/` include both themes at 320, 390, 430 and 1440 pixels, plus screen-by-screen mobile/desktop captures. Both-theme home/nav captures and representative profile, owner, management, preparation, product, checkout, order, login and photo screens were visually inspected. Visual review corrected low-contrast small labels, pale order metadata and the login badge; browser checks also caught and resolved delayed controlled-radio updates. Java/backend code and dependencies are unchanged; the 104 Java results above remain from the preceding integration pass.
 
 ## Storage foundation evidence
 

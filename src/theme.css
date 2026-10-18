@@ -1,0 +1,66 @@
+/* Theme surfaces are explicit: photographic content is never inverted or dimmed. */
+:root {
+  color-scheme: light;
+  --surface: #fff;
+  --text: #1d1929;
+  --muted: #62566f;
+  --line: #d7c8e9;
+  --tint: #f1ebfe;
+}
+.theme-toolbar { display:flex; justify-content:flex-end; margin:-8px 0 12px; }
+.theme-shortcut { display:flex; align-items:center; gap:8px; min-height:44px; padding:8px 14px; border-radius:24px; background:var(--tint); color:var(--accent); font-size:12px; font-weight:600; }
+.theme-shortcut span { font-size:20px; line-height:1; }
+.theme-settings { margin-top:20px; }
+.theme-settings h2 { margin-bottom:12px; }
+.theme-settings fieldset { border:0; padding:0; margin:16px 0; min-width:0; }
+.theme-settings legend { font-size:13px; margin-bottom:10px; }
+.theme-options { display:flex; flex-wrap:wrap; gap:8px; }
+.theme-options label { display:flex; align-items:center; gap:8px; padding:10px 12px; min-height:44px; border:1px solid var(--line); border-radius:24px; cursor:pointer; }
+.theme-options label:has(:checked) { background:var(--tint); border-color:var(--accent); }
+.theme-options input { margin:0; accent-color:var(--accent); width:16px; height:16px; }
+.theme-settings .fine { margin-top:14px; }
+.detail a.wide { display:flex; justify-content:center; }
+.detail label { display:block; }
+
+html[data-theme="dark"] {
+  color-scheme:dark;
+  background:#14111c;
+  color:#f4effb;
+  --surface:#201a2b;
+  --text:#f4effb;
+  --muted:#c3b7d1;
+  --line:#67547d;
+  --tint:#30223f;
+  --accent:#c5a3ff;
+}
+html[data-theme="dark"] body { background:#14111c; color:var(--text); }
+html[data-theme="dark"] :is(header,footer,.cart-line,.checkout-line,.unavailable-reference,.quantity-control) { border-color:var(--line); }
+html[data-theme="dark"] :is(.commerce-panel,.owner-card,.login-card,.preparation-panel,.brand-grid>a,.save,.campaign-caption,.skip-link,.toast) { background:var(--surface); color:var(--text); border-color:var(--line); }
+html[data-theme="dark"] :is(.commerce-empty,.profile-links a,.owner-demo,.demo-note,.intro .search,.privacy-pill,.owner-badge,.header-cart span,.success-mark,.image-fallback,.photo-picker) { background:var(--tint); color:var(--text); border-color:var(--line); }
+html[data-theme="dark"] :is(.product-photo,.catalogue-hero,.brand-grid img,.garment-reference,.person-preview) { background:#251f30; }
+html[data-theme="dark"] :is(.fine,.legacy-note,.owner-lead,.owner-page .fine,.login-card p,.cancel-login,.commerce-empty p,.brand-grid span,footer p,footer small,.detail p,.cart-line-info>p,.checkout-line p,.order-card>p,.no-image,.image-facts) { color:var(--muted); }
+html[data-theme="dark"] .product-description { color:var(--muted)!important; }
+html[data-theme="dark"] .order-metadata { background:var(--tint); color:var(--text); }
+html[data-theme="dark"] .order-metadata :is(dt,dd) { color:var(--text); }
+html[data-theme="dark"] .pill { background:var(--tint); color:var(--accent); border-color:var(--line); }
+html[data-theme="dark"] :is(.eyebrow,.section-title>span,.section-title>a) { color:var(--muted); }
+html[data-theme="dark"] :is(.owner-entry,.text-action,.login-actions button,.login-card h1 em,.profile-links strong,.remove-line,.cart-detail-link,.categories button[aria-pressed=true],.photo-picker,.save.selected) { color:var(--accent); }
+html[data-theme="dark"] :is(input,select,textarea) { color:var(--text); background:var(--surface); border-color:var(--line); }
+html[data-theme="dark"] .search input { background:transparent; }
+html[data-theme="dark"] input::placeholder { color:var(--muted); opacity:1; }
+html[data-theme="dark"] .secondary { color:var(--text); border-color:var(--line); }
+html[data-theme="dark"] .primary { background:#7945d9; color:#fff; }
+html[data-theme="dark"] .announcement { background:#30223f; color:#decaff; }
+html[data-theme="dark"] .storage-warning,
+html[data-theme="dark"] .preparation-warning { background:#352918; color:#ffdda1; border-color:#bf923f; }
+html[data-theme="dark"] .login-error { background:#401e30; color:#ffb7cd!important; }
+html[data-theme="dark"] .bottom-nav { background:#211b2bf5; border-color:#67547d; box-shadow:0 4px 24px #0005; }
+html[data-theme="dark"] .bottom-nav a { color:#c3b7d1; }
+html[data-theme="dark"] .bottom-nav a[aria-current="page"] { background:#493064; color:#eadcff; border-radius:999px; }
+/* Only the five monochrome navigation SVGs are recoloured; photos remain untouched. */
+html[data-theme="dark"] .nav-icon { filter:brightness(0) saturate(100%) invert(88%); }
+html[data-theme="dark"] :is(button,a,input,select,[tabindex]):focus-visible,
+html[data-theme="dark"] .search:focus-within { outline-color:#d4b5ff; }
+html[data-theme="dark"] .catalogue-hero .campaign-caption { background:linear-gradient(transparent,rgba(25,12,46,.85)); color:white; }
+/* Full-screen photos already use a dark surround in both themes. */
+html[data-theme="dark"] .catalogue-viewer .image-fallback { background:var(--surface); color:var(--muted); }

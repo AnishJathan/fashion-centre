@@ -10,6 +10,7 @@
 - Prepare a photo locally in browser memory, replace/remove/cancel it, and read capture guidance. Generation remains disabled; no photo is uploaded or stored by the app.
 - Use the owner dashboard to validate a Shopify domain's syntax and inspect setup blockers. Domain validation does not verify ownership; Connect remains disabled.
 - Use a clearly labelled OTP simulation. No message or authenticated account is created.
+- Switch between Light and Dark using the button above each page, or **Profile > Appearance > Light / Dark / Use device**. The initial setting follows the device; an explicit choice persists in this browser and synchronizes across its tabs. Photos retain their original colours. Mobile navigation is a slimmer 60-pixel capsule with at least 44-pixel touch targets.
 
 Browser-local data does not sync between devices. Profile offers a local export for manual recovery. No real purchase, merchant installation, authentication or AI generation is enabled.
 

@@ -28,7 +28,7 @@ for (const width of [320, 390, 430, 1440]) {
       expect(metrics.x).toBeCloseTo(12, 0);
       expect(metrics.width).toBeCloseTo(width - 24, 0);
       expect(metrics.bottom).toBeCloseTo(12, 0);
-      expect(metrics.height).toBe(76);
+      expect(metrics.height).toBe(60);
       expect(metrics.radius).toBeGreaterThanOrEqual(metrics.height / 2);
       expect(metrics.mainPadding).toBeGreaterThanOrEqual(metrics.height + metrics.bottom + 20);
       for (const link of await links.all()) {
@@ -62,7 +62,7 @@ for (const width of [320, 390, 430, 1440]) {
       expect(footer.y + footer.height).toBeLessThan((await nav.boundingBox())!.y);
       await page.evaluate(() => document.documentElement.style.setProperty('--mobile-nav-safe-bottom', '34px'));
       expect(await nav.evaluate(e => innerHeight - e.getBoundingClientRect().bottom)).toBe(46);
-      expect(await page.locator('main').evaluate(e => parseFloat(getComputedStyle(e).paddingBottom))).toBe(146);
+      expect(await page.locator('main').evaluate(e => parseFloat(getComputedStyle(e).paddingBottom))).toBe(130);
       await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
       const safeFooter = (await page.locator('main footer').boundingBox())!;
       expect(safeFooter.y + safeFooter.height).toBeLessThan((await nav.boundingBox())!.y);
