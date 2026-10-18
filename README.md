@@ -40,3 +40,7 @@ Try-on is empty until actual verified results exist. No catalogue photo is prese
 - Deterministic fictional records live only in tests. Legacy design images remain in source history/assets but are not selected as business content by runtime UI. Navigation SVGs remain design assets.
 
 No real auth, merchant installation, AI generation, payment, personal-photo upload or deployment is enabled.
+
+## Prepare a try-on photo locally
+
+Open a fetched product and select **Prepare a try-on photo**, or select a garment in **Try on**. JPEG/PNG/WebP checks and previews run only in browser memory. Replace/remove/cancel/navigation releases previews; nothing is uploaded or persisted. Read the capture guidance and consent preview; generation is disabled. See [TRY-ON-PREPARATION.md](TRY-ON-PREPARATION.md). This preparation increment is local only and has not been pushed.

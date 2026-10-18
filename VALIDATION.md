@@ -71,3 +71,16 @@ This section supersedes earlier static-demo validation descriptions above.
 - Still not verified: real merchant OAuth, complete synchronization/pagination, real checkout/order/webhook processing, personal photo consent/storage/retention, live Pruna compatibility or billing, Safari/Firefox, physical touch devices and full accessibility audit. All corresponding live integrations remain disabled.
 
 Visual QA found inherited flex ordering placed products before the fetched hero/categories. Restoring DOM flow fixed it; production build and all four onboarding browser tests passed again (17.9 seconds). Updated public screenshots were visually inspected. The reported user screenshot showed the intentional no-onboarded-store state; prior merchant preview selection was not an onboarding registration. Explicit onboarding was verified to populate home and persist. Test-only snapshots are generated under ignored test-results, not shipped as catalogue assets.
+
+## Local try-on preparation — 2026-10-18
+
+Added product-linked and Try on entry points for an entirely local personal-photo preview. MIME/signature, size, browser decode and dimension checks distinguish technical readability from unavailable person/pose/garment analysis. Original catalogue image dimensions are shown without invented HD detail. Checkboxes provide a consent preview only; generation stays disabled.
+
+- `npm run build` passed. `npm test`: 11/11 passed, including two new signature/size/resolution tests.
+- Full browser regression: 7/7 passed (24.4 seconds): all existing onboarding/commerce/migration/OTP scenarios plus mobile/desktop photo preparation.
+- Photo browser tests use an internally generated solid-color PNG, never a personal photo. They cover mismatched MIME/signature, unsupported SVG, oversized files, low-resolution warning, consent gating/reset, replace/cancel/navigation cleanup and unchanged storage/privacy boundaries. HTTP request inspection found no photo payload, filename or upload call; neither localStorage nor sessionStorage contains photo bytes, names or blob URLs. Every created blob URL was revoked after navigation.
+- Mobile/desktop local-preview screenshots were visually inspected under ignored `test-results/photo-preparation-390.png` and `photo-preparation-1440.png`. These are synthetic test evidence, not generated try-on output.
+- The Java code is unchanged; no new backend tests were required. Its generation route remains disabled. No credentials, provider calls, paid generation, personal photos, upload, deployment or new push occurred.
+- Live analysis/quality/pose/garment extraction, physical fit and provider compatibility are NOT verified. Capture advice and the 768-pixel warning are local guidance, not a claimed provider requirement. See TRY-ON-PREPARATION.md for requirements and controlled-evaluation prerequisites.
+
+After polishing the photo picker, the production build and both photo browser scenarios passed again (2/2, 15.2 seconds), including newly added corrupted-PNG decoding and 12,001-pixel edge rejection. No real photos were used.
