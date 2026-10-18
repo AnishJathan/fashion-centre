@@ -8,7 +8,7 @@ import java.util.*;
 /** Disabled production boundary. No HTTP client, key lookup, upload or Spring bean exists. */
 public final class PrunaTryOnProvider implements TryOnProvider {
     public static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
-    private static final Duration LIFETIME = Duration.ofMinutes(2), INTERVAL = Duration.ofSeconds(2);
+    private static final Duration LIFETIME = Duration.ofMinutes(2), INTERVAL = Duration.ofSeconds(2), RETENTION = Duration.ofMinutes(5);
     private static final int MAX_POLLS = 30, MAX_JOBS = 128;
     public record Response(int status, JsonNode body) {
         @Override public String toString() { return "ProviderResponse[" + status + ", body redacted]"; }
@@ -61,6 +61,7 @@ public final class PrunaTryOnProvider implements TryOnProvider {
         enabled();
         if (request==null || request.garmentImages().isEmpty() || request.garmentImages().size()>6) throw new Failure("INVALID_GARMENT_COUNT");
         image(request.personImage()); request.garmentImages().forEach(this::image);
+        prune();
         if (jobs.size()>=MAX_JOBS) throw new Failure("JOB_CAPACITY_REACHED");
         JsonNode body=call("POST","/v1/predictions",Map.of("input",Map.of(
                 "person_image",request.personImage().toString(),
@@ -75,7 +76,7 @@ public final class PrunaTryOnProvider implements TryOnProvider {
         jobs.put(id,new State(providerId,now.plus(LIFETIME),job)); return job;
     }
     @Override public synchronized Job poll(String jobId) {
-        enabled(); State state=jobs.get(jobId);
+        enabled(); prune(); State state=jobs.get(jobId);
         if (state==null) throw new Failure("UNKNOWN_JOB");
         if (state.job.status()!=Status.QUEUED && state.job.status()!=Status.PROCESSING) return state.job;
         Instant now=clock.instant();
@@ -104,4 +105,6 @@ public final class PrunaTryOnProvider implements TryOnProvider {
         }
     }
     private Job finish(State state,Status status,URI result) { return state.job=new Job(state.job.id(),status,null,result); }
+    // Bounded retention also removes abandoned jobs; no photo references are persisted here.
+    private void prune(){Instant now=clock.instant();jobs.values().removeIf(state->!now.isBefore(state.deadline.plus(RETENTION)));}
 }

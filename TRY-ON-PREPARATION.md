@@ -1,6 +1,6 @@
 # Local photo preparation
 
-This increment is local only and has not been pushed. Open a fetched product and choose **Prepare a try-on photo**, or use Try on and select an onboarded garment.
+Photo preparation runs locally; generation remains disabled. Open a fetched product and choose **Prepare a try-on photo**, or use Try on and select an onboarded garment.
 
 ## What is implemented
 - Personal JPEG/PNG/WebP selection and transient object-URL preview. MIME must match file signature; browser decoding must succeed. Local application limits: non-empty, at most 10 MiB, at most 12,000 pixels per edge and 40 megapixels. The short-edge 768-pixel warning is guidance only, not a provider minimum or a quality score.
@@ -19,3 +19,5 @@ The [Pruna P-Image-Try-On guide](https://docs.api.pruna.ai/guides/models/p-image
 
 ## Before controlled real evaluation
 Approve provider/costs and permitted non-sensitive test photos; verify person/garment image rights and explicit per-upload consent. Resolve retention, no-training, deletion, processing regions and subprocessors. Implement authenticated photo/job ownership, secure short-lived storage, server-side validation/metadata handling and private result delivery. Verify provider input-format/size restrictions with the selected service and evaluate actual output quality using permitted samples. Keep upload authorization separate from this local checklist. See PRUNA-BOUNDARY.md for transport/job requirements. No real evaluation has occurred.
+
+Encoded JPEG/PNG/still-WebP dimensions are checked before native decoding, and decoded dimensions are checked again. Still-WebP canvas and bitstream dimensions must agree; animated WebP is rejected. These checks reduce obvious oversized-image allocation risk, but are not a universal malformed-decoder security guarantee. Only synthetic image files were used in testing.

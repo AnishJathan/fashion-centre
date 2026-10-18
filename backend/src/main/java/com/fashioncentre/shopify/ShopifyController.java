@@ -19,11 +19,11 @@ public class ShopifyController {
    return adapter.catalogue(shop,(s,r)->{
     // Fixed read-only query and exact server-owned endpoint. No arbitrary query/URL or credentials.
     var request=HttpRequest.newBuilder(s.endpoint()).timeout(Duration.ofSeconds(12)).header("Content-Type","application/json").POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(r))).build();
-    var response=client.send(request,HttpResponse.BodyHandlers.ofInputStream());
-    try(var body=response.body()){byte[] bytes=body.readNBytes(1024*1024+1);if(bytes.length>1024*1024)throw new StorefrontAdapter.ContractException("Response exceeds preview limit");return new StorefrontAdapter.Reply(response.statusCode(),null,new String(bytes,java.nio.charset.StandardCharsets.UTF_8));}
+    var response=BoundedResponse.send(client,request,Duration.ofSeconds(12),1024*1024);
+    return new StorefrontAdapter.Reply(response.statusCode(),null,new String(response.body(),java.nio.charset.StandardCharsets.UTF_8));
    },"public-mock-shop");
   }catch(IllegalArgumentException ex){throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Unknown sample shop or source");}
-  catch(Exception ex){if(ex instanceof InterruptedException)Thread.currentThread().interrupt();throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,"Sample catalogue unavailable. Retry or choose local fixtures.");}
+  catch(Exception ex){if(ex instanceof InterruptedException)Thread.currentThread().interrupt();throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,"Sample catalogue unavailable. Please retry later.");}
  }
  @PostMapping({"/connect","/cart","/webhooks","/sync"}) public void disabled(){throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED,"Live Shopify actions are not configured; preview only.");}
 }

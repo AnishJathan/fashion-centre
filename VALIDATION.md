@@ -1,86 +1,37 @@
-# Validation — 18 October 2026
+# Current validation — 18 October 2026
 
-## Passed
+This report covers the local quality pass after previously pushed commit `53ffdbc`. Earlier evidence is preserved in [VALIDATION-HISTORY.md](VALIDATION-HISTORY.md). These results establish a working local demo, not production readiness.
 
-- `npm run build`: TypeScript check and Vite production build. Final bundle: 263.65 kB JS / 81.47 kB gzip, 30.01 kB CSS / 7.06 kB gzip. Log: `frontend-build.log`.
-- `npm test`: 8/8 passing. Existing domain checks plus cart merging/variant separation and maximum quantities, invalid quantities, repeat removal, per-brand checkout isolation, duplicate-checkout prevention, price snapshots, storage round trips and malformed-storage handling. Log: `unit-verification.log`.
-- `mvn "-Dmaven.repo.local=.m2" -o -B test package` from `backend`: BUILD SUCCESS. 3/3 JUnit tests, zero failures/errors/skips. Report: `backend/target/surefire-reports/com.fashioncentre.CatalogueTest.txt`; log: `backend/build-verification.log`.
-- Java regression rerun: `mvn "-Dmaven.repo.local=.m2" -o -B test` passed all 3 tests; log: `backend/regression-verification.log`. The Java API source and catalogue contract were unchanged by the commerce extension.
-- `npm run test:ui`: 7/7 passing using installed Chrome, with shopping, commerce and complete checkout lifecycle at 390×844 and 1440×1000 and OTP simulation at 390×844, against the running Java-connected preview. Final run 49.7 seconds; log: `browser-verification.log`.
-- Dedicated checkout lifecycle checks: empty checkout has no submit action; two sizes and repeated quantities appear in review; cancel leaves all persisted state unchanged; reloading review retains items; two immediate submit clicks create exactly one order; full UUID/timestamp/brand/size/quantity/colour/price snapshots are persisted; another brand's cart remains; order reload and Back/Forward create no duplicate; order-type filters distinguish user-created demos from supplied examples; a second brand checkout creates a different order and empties the remaining cart. No POST/PUT/PATCH/DELETE requests occurred during this journey.
-- Commerce browser checks: initial/removed cart empty states; repeated adds; selected size; invalid zero quantity rejection; quantity increase and reload persistence; cross-brand cart grouping; separate checkout review and Back/Forward; local order completion/reload; repeat-checkout empty state; preservation of another brand's cart; removal/reload; sample order brand/status filters and empty state; profile preferences saved repeatedly and restored after reload; profile/order navigation; no horizontal overflow.
-- OTP simulation checks: invalid phone, delivery failure, wrong code, expiry, resend cooldown, change number, demo success, cancellation, zero `/api/auth` requests, and no phone/OTP/token/session keys in browser storage. Phone and code remain only in component memory. OTP screenshots were visually inspected.
-- Browser checks: all images decoded; no horizontal overflow; save/unsave/save; saved-item reload persistence; two-product brand scope; following; product open/close; Back/Forward; returning to six-product discovery; switching to a second brand; absence of video; keyboard vertical photo-feed scrolling; returning from try-on to the originating brand.
-- Live read-only HTTP checks: `/api/health` returns `{"demo":true,"status":"ok"}`. Vite proxy `/api/products?brandId=violet` returns only `p1` and `p4`, at A$119 and A$79.
-- Visually inspected phone discovery, brand storefront and try-on screenshots, plus desktop discovery. Exact approved campaign/denim images and navigation SVGs are local files and render successfully.
-- Visually inspected new phone Cart, Orders, order detail and Profile screenshots, plus desktop Cart. Quantity buttons have 44px touch dimensions and totals explicitly use A$. New screens were implemented in the app; no Figma updates were made.
-- Final runtime checks: frontend returned HTTP 200 at `http://127.0.0.1:5173`; Java health returned `demo: true, status: ok` at port 8081.
+## Reproducible checks
 
-## Runtime
+| Command | Verified result |
+| --- | --- |
+| `npm run build` | TypeScript check and Vite production build passed. JavaScript 282.95 kB / 87.83 kB gzip; CSS 40.07 kB / 9.11 kB gzip. |
+| `npm test` | 22 passed; zero failed/skipped. |
+| `npm run test:ui` | 26 passed in installed Chrome; zero failed/skipped. |
+| `mvn '-Dmaven.repo.local=.m2' -o -B package` from `backend` | 34 passed; zero failures/errors/skips; runnable Spring Boot JAR packaged. No dependency downloads. |
+| `npm audit --json` | Zero reported vulnerabilities in the installed npm dependency graph at check time. Not a Java advisory audit or security certification. |
+| `node scripts/public-smoke.mjs` | Read-only public catalogue browser smoke; see public evidence below. Requires both local servers and network access. |
 
-- Frontend: http://127.0.0.1:5173
-- Java API: http://127.0.0.1:8081
-- Both bind to loopback only. Started as hidden local processes; current PIDs are in ignored `local-processes.json`. Restart using `scripts/start-local.ps1` after stopping these specific processes, or use the individual commands in README.
+Frontend unit coverage includes variant identity, quantity limits, currency precision/overflow, malformed-record recovery, stale-write guards, combined listings, API validation and encoded photo dimensions. Browser coverage includes mobile/desktop onboarding, filters, store isolation, saves/follows, demo checkout, quota failure, simultaneous tabs, migration, export, invalid routes, image fallback, vertical still-photo viewing, keyboard focus, OTP simulation and local photo lifecycle. Synthetic photo tests check no upload/persistence and released previews; encoded oversized PNG is rejected before native decode.
 
-## Limits and resolved issues
+Java tests cover source contracts and metadata, identical versus conflicting shared variants, response size/deadline cancellation, OAuth principal/session/CSRF/state expiry/scopes and disabled try-on metadata expiry. External credential exchanges and provider jobs use test doubles only.
 
-- A first sandbox build failed because esbuild could not read ancestor directory metadata. Scoped execution outside that restriction succeeded.
-- After the user approved the newer Figma designs, old heading assertions were updated to check the new visible header identity. Navigation continued to work.
-- One desktop attempt timed out during Chrome context startup, before page execution. A 60-second test allowance and a rerun passed both viewports.
-- The photo feed uses browser-native touch scrolling and scroll snapping. Keyboard scrolling is automated; real phone gestures, Safari, Firefox, screen-reader traversal and broader accessibility audits were not tested.
-- The earlier Library image could not be materialized because the supported helper required an unavailable Python runtime. The newer approved Figma screenshots and full design context were inspected and used. This responsive implementation extends those fixed frames; exact pixel identity is not claimed.
-- Original photo commercial permissions are not established. Demo catalogue, profile, prices and try-on results remain illustrative. No real AI generation, payment, authentication, WhatsApp message, personal-photo upload or external service integration occurred.
+## Public source evidence
 
-## Screenshots
+The rebuilt local API returned 29 Mock Shop products (28 nonempty descriptions, 29 source dates) and 30 Elysian Thread products (30 descriptions and dates). An initial Mock Shop502 exposed identical shared merchandise in combined listings. The mapper and frontend now accept consistent shared variants, reject within-product duplicates/conflicts, and retain product context in cart operations. Both catalogue endpoints subsequently returned successfully.
 
-`screenshots/home-390.png`, `home-1440.png`, `brand-390.png`, `brand-1440.png`, `try-on-390.png`, `try-on-1440.png`, `otp-code-390.png`, `otp-success-390.png`.
+The two-store Chrome smoke passed at 390px and 1440px: 59 combined products, 29 in Mock Shop's isolated store, successful return to the combined catalogue, zero failed photos, zero horizontal overflow and zero page errors. Screenshots in `screenshots/quality` show public source imagery and were visually inspected. The capture script scrolls to load off-screen images before full-page capture. Browser contexts are isolated and do not change the user's browser or existing shopping data.
 
-Commerce: `cart-390.png`, `cart-1440.png`, `orders-390.png`, `orders-1440.png`, `order-detail-390.png`, `order-detail-1440.png`, `profile-390.png`, `profile-1440.png`, all inside `screenshots/`.
+## Run and inspect
 
-Checkout: `checkout-review-390.png`, `checkout-review-1440.png`, `checkout-confirmation-390.png`, `checkout-confirmation-1440.png`. Phone review and confirmation were visually inspected. Reference attachment `libfile_6fc0f1762c148191a41506f339f2841c` was read for extracted text. The supported materialization route returned a download transfer, but the required helper could not run because `py -0` confirmed no installed Python runtime. Reference pixels were not inspected; app screenshots were inspected instead.
+- Shopper: http://127.0.0.1:5173
+- Demo-store setup: http://127.0.0.1:5173/#/merchant
+- Owner dashboard: http://127.0.0.1:5173/#/owner
+- API: http://127.0.0.1:8081
 
-## Commerce scope limits
+First visit: explicitly onboard one or both public demo stores. Follow [README.md](README.md) to rebuild/start. Process IDs are recorded only in ignored `local-processes.json`.
 
-Cart, sample orders and preferences persist only in this browser. Completing demo checkout is a local state transition, not a payment, reservation or real order. Shipping, taxes, live inventory, merchant checkout, order sync and tracking remain unconnected. Profile is a guest demo with no personal-data fields. The Java-backed demo catalogue remains in use; future authenticated commerce endpoints are documented in `COMMERCE-BOUNDARY.md`. Existing real-device/browser/accessibility limitations still apply.
+## Limits
 
-## Shopify increment — 2026-10-18
-
-- `npm run build`: TypeScript and Vite production build passed.
-- `npm test`: 8/8 existing domain/commerce tests passed.
-- In `backend`, `mvn '-Dmaven.repo.local=.m2' -o -B package`: build passed, 10 Java tests total (3 existing catalogue, 7 Shopify contract/security/API tests). Tests use local synthetic data, never public mutations. Initial packaging hit a Windows JAR lock; stopping only the verified app-owned Java process and restarting after packaging resolved it.
-- `npm run test:ui`: 9/9 installed-Chrome browser tests passed at 390/1440 widths. New checks cover fixture mapping display, shop switching, disconnected/disabled connect UI, failed public request/recovery, no browser mutation requests and no horizontal overflow. Existing shopping/cart/orders/OTP journeys still pass.
-- Separate read-only integration smoke checks against the running Java proxy succeeded for both fixed public endpoints: 6 Mock Shop products in CAD; 6 Elysian Thread products in USD. Public Elysian Thread browser render showed 6 cards, a decoded first product image and no horizontal overflow. This smoke check requires network access and is separate from deterministic tests.
-- Shopify screenshots: `screenshots/shopify-preview-390.png`, `shopify-preview-1440.png`, `shopify-public-1440.png`. Mobile fixture and desktop public screenshots visually inspected. Fixed bottom navigation appears midway down full-page captures because it remains pinned to the original viewport; content remains scrollable.
-- Not verified: merchant OAuth/install, credentials/scopes, actual API-version negotiation, complete sync pagination, real cart submission/checkout, payment, customer identity, webhook subscription/delivery/idempotent processing or real order linkage. Those features remain disabled or planned. Synthetic HMAC tests prove only the raw-body verifier.
-- No dependencies installed, merchant credentials configured, production data accessed, real/public mock carts mutated, deployment performed or GitHub push made.
-
-After compacting long variant lists, the production build and both Shopify browser tests were rerun and passed (2/2). Public preview screenshot refreshed.
-
-## Onboarded-only catalogue and disabled Pruna — final 2026-10-18 update
-
-This section supersedes earlier static-demo validation descriptions above.
-
-- Production frontend build passed; 9/9 domain/commerce tests passed. Tests verify empty initial records, scoped filtering, currency separation, available variants, quantity bounds, checkout idempotency, offline/disabled-store denial and non-destructive v1 migration.
-- Full current browser suite: 5/5 passed (17.0 seconds): OTP simulation; complete onboarding, variants, two currencies, checkout/reload and store disable/re-enable at 390 and 1440 widths; network failure/empty/retry; migration preserving original v1, earlier user orders and preferences. Prior static-fixture journey files were replaced by these lifecycle tests. Initial failures were ambiguous text/quantity locators, corrected with exact accessible matches.
-- Java offline package succeeded, 16/16 tests: 2 catalogue retirement/health, 7 Shopify contracts and disabled routes, 7 Pruna contracts/validation/bounded polling/disabled runtime. No provider calls. Maven clean was unavailable offline; only the verified generated backend target directory was removed before rebuilding with cached package plugins. No dependencies downloaded.
-- Packaged JAR inspection found no fixture resource or test classes. The deterministic Shopify JSON now lives only in test resources. Static catalogue endpoints return 410; fixture runtime source returns 400.
-- Real read-only public smoke checks: Mock.shop returned 29 products in CAD; Elysian Thread returned 30 products in USD with source productType categories. Counts are observations, not hard-coded UI values. Both scoped IDs and source names came through the Java adapter.
-- Fresh isolated browser contexts explicitly onboarded Elysian Thread and rendered its 30 fetched products at 390 and 1440 widths with no horizontal document overflow. Screenshots: onboarded-public-390.png and onboarded-public-1440.png. Browser test snapshots onboarded-test-* use isolated test responses and are not evidence of real public catalogue calls.
-- Runtime try-on status: enabled=false, provider=unselected, results=[]; create jobs remains 501. Mock Pruna result URLs only appear in tests. No personal images, credentials, uploads, generation or paid requests occurred.
-- Existing user browser state was not opened/modified during QA; all test migrations/onboarding ran in isolated Playwright contexts. Original v1 storage remains preserved by application migration. No user order/cart/preferences deletion is part of this change.
-- Still not verified: real merchant OAuth, complete synchronization/pagination, real checkout/order/webhook processing, personal photo consent/storage/retention, live Pruna compatibility or billing, Safari/Firefox, physical touch devices and full accessibility audit. All corresponding live integrations remain disabled.
-
-Visual QA found inherited flex ordering placed products before the fetched hero/categories. Restoring DOM flow fixed it; production build and all four onboarding browser tests passed again (17.9 seconds). Updated public screenshots were visually inspected. The reported user screenshot showed the intentional no-onboarded-store state; prior merchant preview selection was not an onboarding registration. Explicit onboarding was verified to populate home and persist. Test-only snapshots are generated under ignored test-results, not shipped as catalogue assets.
-
-## Local try-on preparation — 2026-10-18
-
-Added product-linked and Try on entry points for an entirely local personal-photo preview. MIME/signature, size, browser decode and dimension checks distinguish technical readability from unavailable person/pose/garment analysis. Original catalogue image dimensions are shown without invented HD detail. Checkboxes provide a consent preview only; generation stays disabled.
-
-- `npm run build` passed. `npm test`: 11/11 passed, including two new signature/size/resolution tests.
-- Full browser regression: 7/7 passed (24.4 seconds): all existing onboarding/commerce/migration/OTP scenarios plus mobile/desktop photo preparation.
-- Photo browser tests use an internally generated solid-color PNG, never a personal photo. They cover mismatched MIME/signature, unsupported SVG, oversized files, low-resolution warning, consent gating/reset, replace/cancel/navigation cleanup and unchanged storage/privacy boundaries. HTTP request inspection found no photo payload, filename or upload call; neither localStorage nor sessionStorage contains photo bytes, names or blob URLs. Every created blob URL was revoked after navigation.
-- Mobile/desktop local-preview screenshots were visually inspected under ignored `test-results/photo-preparation-390.png` and `photo-preparation-1440.png`. These are synthetic test evidence, not generated try-on output.
-- The Java code is unchanged; no new backend tests were required. Its generation route remains disabled. No credentials, provider calls, paid generation, personal photos, upload, deployment or new push occurred.
-- Live analysis/quality/pose/garment extraction, physical fit and provider compatibility are NOT verified. Capture advice and the 768-pixel warning are local guidance, not a claimed provider requirement. See TRY-ON-PREPARATION.md for requirements and controlled-evaluation prerequisites.
-
-After polishing the photo picker, the production build and both photo browser scenarios passed again (2/2, 15.2 seconds), including newly added corrupted-PNG decoding and 12,001-pixel edge rejection. No real photos were used.
+No live authentication, WhatsApp message, merchant install, payment, Pruna generation, real personal-photo upload or deployment was performed. No further Git push is included in this pass. Real touch hardware, Safari/Firefox, screen-reader workflows, production load, durable multi-user persistence and production security assessment remain unverified. See [READINESS.md](READINESS.md) for external prerequisites and work that still requires implementation.

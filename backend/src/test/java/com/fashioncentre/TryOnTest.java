@@ -81,4 +81,10 @@ class TryOnTest {
         fake.reply(503,"{}");assertEquals("PROVIDER_UNAVAILABLE",assertThrows(PrunaTryOnProvider.Failure.class,()->adapter.submit(request())).code());
         fake.reply(201,"{\"id\":\"../../escape\",\"model\":\"p-image-try-on\"}");assertThrows(PrunaTryOnProvider.Failure.class,()->adapter.submit(request()));
     }
+    @Test void abandonedJobsExpireAndReleaseCapacity() throws Exception {
+        var first=submit();for(int i=1;i<128;i++)submit();
+        assertEquals("JOB_CAPACITY_REACHED",assertThrows(PrunaTryOnProvider.Failure.class,()->adapter.submit(request())).code());
+        time.advance(420);assertEquals("UNKNOWN_JOB",assertThrows(PrunaTryOnProvider.Failure.class,()->adapter.poll(first.id())).code());
+        assertEquals(TryOnProvider.Status.QUEUED,submit().status());
+    }
 }

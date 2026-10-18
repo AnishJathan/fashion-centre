@@ -43,4 +43,14 @@ No real auth, merchant installation, AI generation, payment, personal-photo uplo
 
 ## Prepare a try-on photo locally
 
-Open a fetched product and select **Prepare a try-on photo**, or select a garment in **Try on**. JPEG/PNG/WebP checks and previews run only in browser memory. Replace/remove/cancel/navigation releases previews; nothing is uploaded or persisted. Read the capture guidance and consent preview; generation is disabled. See [TRY-ON-PREPARATION.md](TRY-ON-PREPARATION.md). This preparation increment is local only and has not been pushed.
+Open a fetched product and select **Prepare a try-on photo**, or select a garment in **Try on**. JPEG/PNG/WebP checks and previews run only in browser memory. Replace/remove/cancel/navigation releases previews; nothing is uploaded or persisted. Read the capture guidance and consent preview; generation is disabled. See [TRY-ON-PREPARATION.md](TRY-ON-PREPARATION.md). See [READINESS.md](READINESS.md) for current pilot prerequisites.
+
+## Current quality and data safety
+
+Brand owners: http://127.0.0.1:5173/#/owner. Demo-store onboarding: http://127.0.0.1:5173/#/merchant.
+
+The local app now validates source responses, preserves recovery copies of malformed records, serializes same-origin writes with Web Locks, and blocks stale tabs from replacing newer data. Reload when the app reports a conflict. Profile offers a private local-data export; it is not cloud backup or an automated restore tool. The browser must support Web Locks (current Chrome on localhost is verified).
+
+Store/search/category filters and currency-grouped sorting use fetched metadata. Full-screen catalogue photos support vertical scrolling and keyboard navigation; they are explicitly not generated try-on results. Unknown routes and failed images have recovery states.
+
+See [VALIDATION.md](VALIDATION.md) for current evidence, [READINESS.md](READINESS.md) for verified local behavior versus external prerequisites, and [QA-GAPS.md](QA-GAPS.md) for the review priorities. Earlier implementation evidence is retained in [VALIDATION-HISTORY.md](VALIDATION-HISTORY.md).
