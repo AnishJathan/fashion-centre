@@ -57,3 +57,5 @@ Store/search/category filters and currency-grouped sorting use fetched metadata.
 See [VALIDATION.md](VALIDATION.md) for current evidence, [READINESS.md](READINESS.md) for verified local behavior versus external prerequisites, and [QA-GAPS.md](QA-GAPS.md) for the review priorities. Earlier implementation evidence is retained in [VALIDATION-HISTORY.md](VALIDATION-HISTORY.md).
 
 The second adversarial pass adds failed-read preservation, a shared app-state lock across store changes and checkout, current-source order labels, still-PNG checks, bounded photo-viewer loading and OAuth ownership/scope-integrity regressions. [CI.md](CI.md) documents the local-only verification workflow; no GitHub run or push is implied.
+
+[PERSISTENCE.md](PERSISTENCE.md) describes the concrete JDBC tenancy/encrypted-token repository, explicit V1 schema and file-backed durability/concurrency tests. H2 is a test-only dependency; no runtime database or authentication is configured. The private try-on job model has ownership/idempotency/state-transition contracts and mock-adapter tests, with no uploads or provider execution.

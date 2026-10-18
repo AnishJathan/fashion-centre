@@ -32,3 +32,7 @@ The remaining work is real-service implementation and operational readiness, det
 | Browser tests silently depended on a manually running Java API. | Playwright manages readiness for both required local servers; CI configuration builds the JAR before browser checks. |
 
 No new runtime, dependency, provider account, credential or production integration was installed or activated. Remaining independent code work is listed separately from external permissions in READINESS.md.
+
+## Subsequent storage foundation increment
+
+The next authorized increment adds the concrete JDBC repository and explicit V1 schema, with real file-backed durability/concurrency tests. A single maintained H2 test dependency was resolved; it is not a runtime database installation. Independent review added crash recovery, revocation ordering, commit ambiguity and authentication-error sanitization coverage. The private-job domain adds owner-scoped idempotency, atomic revision contracts and checks for revoked identities/references. It remains unwired with a mock test adapter. See [PERSISTENCE.md](PERSISTENCE.md) and the current validation report for exact scope and results.

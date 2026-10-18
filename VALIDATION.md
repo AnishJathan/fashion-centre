@@ -1,6 +1,6 @@
 # Current validation — 18 October 2026
 
-This report covers the local quality pass and the subsequent adversarial pass after local commit `ba5c424`. The previously pushed commit remains `53ffdbc`. Earlier evidence is preserved in [VALIDATION-HISTORY.md](VALIDATION-HISTORY.md). These results establish a working local demo, not production readiness.
+This report covers the quality/adversarial passes (`ba5c424`, `c7ff0cb`) and the subsequent storage-foundation increment. The previously pushed commit remains `53ffdbc`. Earlier evidence is preserved in [VALIDATION-HISTORY.md](VALIDATION-HISTORY.md). These results establish a working local demo and tested unwired foundations, not production readiness.
 
 ## Reproducible checks
 
@@ -10,7 +10,7 @@ This report covers the local quality pass and the subsequent adversarial pass af
 | `node scripts/check-bundle.mjs` | JavaScript 88,397 bytes gzip below 110,000; CSS 9,110 bytes below 12,000. |
 | `npm test` | 31 passed; zero failed/skipped. |
 | `npm run test:ui` | 30 passed in installed Chrome; zero failed/skipped. |
-| `mvn '-Dmaven.repo.local=.m2' -o -B package` from `backend` | 39 passed; zero failures/errors/skips; runnable Spring Boot JAR packaged. No dependency downloads. |
+| `mvn '-Dmaven.repo.local=.m2' -o -B package` from `backend` | 66 passed; zero failures/errors/skips; runnable Spring Boot JAR packaged successfully offline. |
 | `npm audit --json` | Zero reported vulnerabilities in the installed npm dependency graph at check time. Not a Java advisory audit or security certification. |
 | `node scripts/public-smoke.mjs` | Read-only public catalogue browser smoke; see public evidence below. Requires both local servers and network access. |
 
@@ -23,6 +23,14 @@ The second pass adds failed-read/failed-write recovery, malformed historical cur
 Initial full browser execution found two owner-dashboard failures while the API was intentionally stopped for packaging. This exposed an implicit test dependency. Playwright now starts/waits for both the frontend and packaged API when absent. The CI workflow is syntax-checked and uses immutable action pins; GitHub execution remains unverified and unpushed. See [CI.md](CI.md).
 
 After the final 30-test browser pass, the API was stopped deliberately and `npx playwright test e2e/merchant.spec.ts` passed all 3 checks. Playwright started the absent API, waited for readiness and cleaned up its temporary process. The normal local API was then restarted for the preview. This verifies cold API startup on this Windows laptop; it does not establish hosted Linux CI execution.
+
+## Storage foundation evidence
+
+The latest Java package run passed 66 tests: the prior 39, 14 actual JDBC file-backed integration tests and 13 private-job domain tests. JDBC tests exercise process halt/reopen, competing shop claims, row-lock ordering, revoked/expired identities, rollback after mutations, uncommitted-data isolation, ambiguous commit acknowledgement and schema refusal/recovery boundaries. Job tests use an in-memory test adapter for state/idempotency/CAS and authorization races; they do not establish durable job storage.
+
+This increment resolved one new dependency from Maven Central: H2 2.5.252, test scope only (approximately 2.7 MB). Final checks use the local offline Maven cache. No database server/runtime, production datasource, actual photos, persistent service credentials or real encryption keys were configured. Full implementation guarantees and remaining limitations are in [PERSISTENCE.md](PERSISTENCE.md).
+
+The packaged JAR was inspected: it includes `JdbcConnections`, the private-job domain and the V1 migration, and excludes the H2 driver, crash-test writer and test classes. The new storage classes are not Spring beans and the migration is not run at startup.
 
 ## Public source evidence
 
