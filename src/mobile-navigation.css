@@ -1,0 +1,52 @@
+/* Mobile shape only: preserve the existing desktop navigation and brand assets. */
+@media (max-width: 700px) {
+  :root {
+    --mobile-nav-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --mobile-nav-side: max(12px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+    --mobile-nav-clearance: calc(112px + var(--mobile-nav-safe-bottom));
+    scroll-padding-bottom: var(--mobile-nav-clearance);
+  }
+
+  main { padding-bottom: var(--mobile-nav-clearance); }
+
+  .bottom-nav {
+    bottom: calc(12px + var(--mobile-nav-safe-bottom));
+    width: min(480px, calc(100% - var(--mobile-nav-side) - var(--mobile-nav-side)));
+    height: 76px;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 2px;
+    padding: 6px;
+    border: 1px solid #e8def5;
+    border-radius: 999px;
+    background: #fffffff5;
+    box-shadow: 0 6px 24px #35204b1a, 0 1px 4px #35204b0d;
+    align-items: stretch;
+  }
+
+  .bottom-nav a {
+    min-width: 0;
+    min-height: 44px;
+    padding: 4px 2px;
+    gap: 5px;
+    border-radius: 999px;
+    justify-content: center;
+    color: #756a84;
+    font-size: 11px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .bottom-nav a[aria-current="page"] {
+    background: #eee6fc;
+    color: #6030bd;
+    font-weight: 700;
+  }
+
+  .bottom-nav a:focus-visible {
+    outline: 3px solid #7041d9;
+    outline-offset: -4px;
+  }
+
+  .toast { bottom: var(--mobile-nav-clearance); }
+}

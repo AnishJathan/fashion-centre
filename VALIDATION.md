@@ -6,10 +6,10 @@ This report covers the quality/adversarial passes (`ba5c424`, `c7ff0cb`), storag
 
 | Command | Verified result |
 | --- | --- |
-| `npm run build` | TypeScript check and Vite production build passed. JavaScript 284.54 kB / 88.40 kB gzip; CSS 40.07 kB / 9.11 kB gzip. |
-| `node scripts/check-bundle.mjs` | JavaScript 88,397 bytes gzip below 110,000; CSS 9,110 bytes below 12,000. |
+| `npm run build` | TypeScript check and Vite production build passed. JavaScript 284.54 kB / 88.40 kB gzip; CSS 41.16 kB / 9.35 kB gzip. |
+| `node scripts/check-bundle.mjs` | JavaScript 88,397 bytes gzip below 110,000; CSS 9,353 bytes below 12,000. |
 | `npm test` | 31 passed; zero failed/skipped. |
-| `npm run test:ui` | 32 passed in installed Chrome; zero failed/skipped, including the two final complete walkthroughs. |
+| `npm run test:ui` | 36 passed in installed Chrome; zero failed/skipped, including complete walkthroughs and four navigation viewport checks. |
 | `mvn '-Dmaven.repo.local=.m2' -o -B package` from `backend` | 104 passed; zero failures/errors/skips; runnable Spring Boot JAR packaged successfully offline. |
 | `npm audit --json` | Zero reported vulnerabilities in the installed npm dependency graph at check time. Not a Java advisory audit or security certification. |
 | `node scripts/public-smoke.mjs` | Read-only public catalogue browser smoke; see public evidence below. Requires both local servers and network access. |
@@ -23,6 +23,14 @@ The second pass adds failed-read/failed-write recovery, malformed historical cur
 Initial full browser execution found two owner-dashboard failures while the API was intentionally stopped for packaging. This exposed an implicit test dependency. Playwright now starts/waits for both the frontend and packaged API when absent. The CI workflow is syntax-checked and uses immutable action pins; GitHub execution remains unverified and unpushed. See [CI.md](CI.md).
 
 After the final 30-test browser pass, the API was stopped deliberately and `npx playwright test e2e/merchant.spec.ts` passed all 3 checks. Playwright started the absent API, waited for readiness and cleaned up its temporary process. The normal local API was then restarted for the preview. This verifies cold API startup on this Windows laptop; it does not establish hosted Linux CI execution.
+
+## Mobile floating navigation
+
+The requested capsule shape applies only at widths up to 700 pixels. Fashion Centre icons, labels, routes and logo are preserved. Desktop retains its prior 460-pixel-wide navigation with 20-pixel corner radii. Mobile navigation has fully rounded ends, 12-pixel side insets, a violet selected-item pill and bottom clearance including the CSS safe-area inset.
+
+The latest build and bundle budget checks passed, followed by all 36 browser tests (1.3 minutes). The four new viewport checks cover 320, 390, 430 and 1440 pixels, unchanged destinations, selected state, keyboard navigation, 44-pixel minimum touch targets, no horizontal overflow and footer clearance. A simulated 34-pixel safe-area inset moves the navigation to 46 pixels above the viewport bottom and increases content padding to 146 pixels. Physical iPhone safe-area behavior remains unverified. Frontend unit and Java results above are from the preceding integration pass; neither implementation changed in this CSS-only increment.
+
+All five screenshots in `screenshots/navigation/` were visually inspected: the four viewport captures and `nav-390-safe-area-focus.png`. They use a synthetic test catalogue and show the mobile capsule, selected pill, visible keyboard focus, safe-area spacing and unchanged desktop geometry.
 
 ## Storage foundation evidence
 

@@ -18,6 +18,7 @@ import './commerce-controls.css';
 import './checkout-confirmation.css';
 import './live-catalogue.css';
 import './quality.css';
+import './mobile-navigation.css';
 type Load = {
     status: 'loading' | 'ready' | 'error';
     brand?: Brand;
