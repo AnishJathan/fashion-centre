@@ -6,10 +6,10 @@ This report covers the quality/adversarial passes (`ba5c424`, `c7ff0cb`), storag
 
 | Command | Verified result |
 | --- | --- |
-| `npm run build` | TypeScript check and Vite production build passed. JavaScript 287.15 kB / 89.22 kB gzip; CSS 45.53 kB / 10.32 kB gzip. |
-| `node scripts/check-bundle.mjs` | JavaScript 89,218 bytes gzip below 110,000; CSS 10,324 bytes below 12,000. |
+| `npm run build` | TypeScript check and Vite production build passed. JavaScript 286.69 kB / 89.08 kB gzip; CSS 45.23 kB / 10.26 kB gzip. |
+| `node scripts/check-bundle.mjs` | JavaScript 89,083 bytes gzip below 110,000; CSS 10,263 bytes below 12,000. |
 | `npm test` | 33 passed; zero failed/skipped. |
-| `npm run test:ui` | 43 passed in installed Chrome (1.9 minutes); zero failed/skipped, including complete walkthroughs, four navigation viewport checks and seven theme tests. |
+| `npm run test:ui` | 45 passed in installed Chrome (2.2 minutes); zero failed/skipped, including complete walkthroughs, four navigation viewport checks, seven theme tests and two common-home scenarios. |
 | `mvn '-Dmaven.repo.local=.m2' -o -B package` from `backend` | 104 passed; zero failures/errors/skips; runnable Spring Boot JAR packaged successfully offline. |
 | `npm audit --json` | Zero reported vulnerabilities in the installed npm dependency graph at check time. Not a Java advisory audit or security certification. |
 | `node scripts/public-smoke.mjs` | Read-only public catalogue browser smoke; see public evidence below. Requires both local servers and network access. |
@@ -34,13 +34,19 @@ All five screenshots in `screenshots/navigation/` were visually inspected: the f
 
 ## Light and Dark appearance
 
-The quick switch is above each page; **Profile > Appearance** provides Light, Dark and Use device radio controls. A missing preference follows the current system setting and responds to subsequent system changes. An explicit selection persists under `fc.theme.v1`, independently of shopping records. Storage uses the existing read baseline, lock and recovery-copy protections. Failed reads/writes preserve existing data and display an explicit tab-only message. Cross-tab storage events synchronize appearance.
+Theme controls are available only in **Profile > Appearance**, with Light, Dark and Use device radio controls. The former page-global shortcut has been removed. A missing preference follows the current system setting and responds to subsequent system changes. An explicit selection persists under `fc.theme.v1`, independently of shopping records. Storage uses the existing read baseline, lock and recovery-copy protections. Failed reads/writes preserve existing data and display an explicit tab-only message. Cross-tab storage events synchronize appearance.
 
 `public/theme-init.js` runs in the document head before body parsing, with critical light/dark backgrounds in `index.html`. It reads without writing; unit checks verify agreement with the runtime resolver for valid, absent, malformed and blocked storage. This avoids waiting for React before applying the preferred background.
 
-Seven additional browser tests cover keyboard radio/shortcut switching, reload persistence, device changes, cross-tab updates, original-byte recovery, blocked reads/writes and both themes across shopper, brand, owner, demo management, profile, product, cart, checkout, order, login, populated photo preparation and full-screen photo views. Dark text on tested solid surfaces is checked at 4.5:1; disabled controls and photographic gradients are excluded. This is a focused contrast check, not a complete accessibility certification. Photos are asserted to have no CSS filter; only navigation SVGs are recoloured.
+Seven additional browser tests cover keyboard radio switching, reload persistence, device changes, cross-tab updates, original-byte recovery, blocked reads/writes and both themes across shopper, brand, owner, demo management, profile, product, cart, checkout, order, login, populated photo preparation and full-screen photo views. Dark text on tested solid surfaces is checked at 4.5:1; disabled controls and photographic gradients are excluded. This is a focused contrast check, not a complete accessibility certification. Photos are asserted to have no CSS filter; only navigation SVGs are recoloured.
 
 Screenshots in `screenshots/themes/` include both themes at 320, 390, 430 and 1440 pixels, plus screen-by-screen mobile/desktop captures. Both-theme home/nav captures and representative profile, owner, management, preparation, product, checkout, order, login and photo screens were visually inspected. Visual review corrected low-contrast small labels, pale order metadata and the login badge; browser checks also caught and resolved delayed controlled-radio updates. Java/backend code and dependencies are unchanged; the 104 Java results above remain from the preceding integration pass.
+
+## Common homepage and settings-only theme
+
+Fashion Centre home combines all enabled onboarded catalogues under the shared Fashion Centre heading. Its store dropdown, sort dropdown, filter panel and sorting action are removed. Simple search, photographic category browsing, product source labels and links to distinct Brand Centres remain. Home explicitly ignores store-filter and sort state from other screens; navigation also resets search/category controls. Saved-page store filtering and Brand Centre sorting remain available. Product identities and original currencies are unchanged.
+
+Two new browser scenarios cover no stores, one store, two stores, returning from either restricted Brand Centre, returning from a restricted Saved page, searching the combined catalogue, disabling either/both stores and changing/reloading themes through Profile. The fixture stores deliberately use distinct CAD/USD prices. Both-theme screenshots at 390 and 1440 pixels in `screenshots/common-home-*.png` were visually inspected. The existing theme/navigation matrix still covers 320 and 430 pixels. Test fixtures are isolated; the actual app still displays only onboarded fetched data and does not seed sample products. Live source availability and the existing 48-products-per-store bound remain limitations.
 
 ## Storage foundation evidence
 

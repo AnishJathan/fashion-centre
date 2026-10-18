@@ -7,9 +7,6 @@
   --line: #d7c8e9;
   --tint: #f1ebfe;
 }
-.theme-toolbar { display:flex; justify-content:flex-end; margin:-8px 0 12px; }
-.theme-shortcut { display:flex; align-items:center; gap:8px; min-height:44px; padding:8px 14px; border-radius:24px; background:var(--tint); color:var(--accent); font-size:12px; font-weight:600; }
-.theme-shortcut span { font-size:20px; line-height:1; }
 .theme-settings { margin-top:20px; }
 .theme-settings h2 { margin-bottom:12px; }
 .theme-settings fieldset { border:0; padding:0; margin:16px 0; min-width:0; }

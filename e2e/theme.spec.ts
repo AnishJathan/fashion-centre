@@ -45,7 +45,12 @@ for (const width of [320,390,430,1440]) test(`light and dark navigation, profile
   await page.setViewportSize({width,height:900}); await page.emulateMedia({colorScheme:'light'}); await catalogue(page);
   await page.goto('/'); await expect(page.locator('.product')).toHaveCount(1);
   await assertScreen(page,false); await capture(page,`home-light-${width}`);
-  await page.getByRole('button',{name:'Switch to dark theme'}).focus(); await page.keyboard.press('Enter');
+  await expect(page.getByRole('button',{name:/Switch to .* theme/})).toHaveCount(0);
+  await page.locator('.bottom-nav').getByRole('link',{name:'Profile'}).click();
+  await page.getByRole('radio',{name:'Use device'}).focus(); await page.keyboard.press('ArrowLeft');
+  await expect(page.getByRole('radio',{name:'Dark',exact:true})).toBeChecked();
+  await expect.poll(()=>page.evaluate(()=>localStorage.getItem('fc.theme.v1'))).toBe('"dark"');
+  await page.locator('.bottom-nav').getByRole('link',{name:'Discover'}).click();
   await assertScreen(page,true); await capture(page,`home-dark-${width}`);
   const nav = page.locator('.bottom-nav');
   if(width<700) expect((await nav.boundingBox())!.height).toBe(60);
@@ -66,7 +71,9 @@ for (const width of [390,1440]) test(`both themes across shopper, management, ch
   await page.setViewportSize({width,height:900}); await catalogue(page); await page.goto('/');
   for(const dark of [false,true]) {
     const label=dark?'dark':'light';
-    if(await page.locator('html').getAttribute('data-theme')!==label) await page.getByRole('button',{name:`Switch to ${label} theme`}).click();
+    await page.goto('/#/profile');
+    await page.getByRole('radio',{name:dark?'Dark':'Light',exact:true}).check();
+    await expect.poll(()=>page.evaluate(()=>localStorage.getItem('fc.theme.v1'))).toBe(JSON.stringify(label));
     for(const route of ['/owner','/merchant','/brands','/brand/mock','/saved','/profile','/try','/try/'+encodeURIComponent('mock:gid://shopify/Product/1'),'/login']) {
       await page.goto('/#'+route); await assertScreen(page,dark);
       await capture(page,`${route.startsWith('/try/')?'preparation':route.slice(1).replaceAll('/','-')}-${label}-${width}`);

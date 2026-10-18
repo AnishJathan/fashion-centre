@@ -43,10 +43,6 @@ function useTheme() {
   if (!theme) throw new Error('ThemeProvider is required');
   return theme;
 }
-export function ThemeShortcut() {
-  const { resolved, choose, message } = useTheme();
-  return <><div className="theme-toolbar"><button className="theme-shortcut" aria-label={`Switch to ${resolved === 'dark' ? 'light' : 'dark'} theme`} onClick={() => void choose(resolved === 'dark' ? 'light' : 'dark')}><span aria-hidden="true">{resolved === 'dark' ? '☀' : '☾'}</span>{resolved === 'dark' ? 'Light theme' : 'Dark theme'}</button></div>{message.includes('only') && <p className="demo-note" role="status">{message}</p>}</>;
-}
 export function ThemeSettings() {
   const { preference, resolved, choose, message } = useTheme();
   return <section className="commerce-panel theme-settings" aria-labelledby="appearance-heading"><h2 id="appearance-heading">Appearance</h2><p>Choose your look. Your device setting is used until you choose a theme.</p><fieldset><legend>Colour theme</legend><div className="theme-options">{(['light', 'dark', 'system'] as const).map(value => <label key={value}><input type="radio" name="theme" value={value} checked={preference === value} onChange={() => void choose(value)}/>{value === 'system' ? 'Use device' : value === 'light' ? 'Light' : 'Dark'}</label>)}</div></fieldset><p className="fine">Currently {resolved}. Photos keep their original colours.</p>{message && <p role="status">{message}</p>}</section>;
