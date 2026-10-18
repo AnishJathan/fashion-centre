@@ -29,7 +29,7 @@ public final class JdbcConnections implements EncryptedConnections.Repository {
  private static PreparedStatement statement(Connection connection,String sql)throws SQLException{var statement=connection.prepareStatement(sql);statement.setQueryTimeout(5);return statement;}
  private static void schema(Connection connection)throws SQLException{
   try(var query=statement(connection,"SELECT singleton, version FROM fc_schema_version");var rows=query.executeQuery()){
-   if(!rows.next()||rows.getInt(1)!=1||rows.getInt(2)!=1||rows.next())throw rejected("CONNECTION_SCHEMA_UNSUPPORTED");
+   if(!rows.next()||rows.getInt(1)!=1||(rows.getInt(2)!=1&&rows.getInt(2)!=2)||rows.next())throw rejected("CONNECTION_SCHEMA_UNSUPPORTED");
   }
  }
  @FunctionalInterface private interface Operation<T>{T run(Connection connection,Actor actor)throws SQLException;}

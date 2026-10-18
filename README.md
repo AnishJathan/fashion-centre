@@ -17,7 +17,7 @@ java -jar target/fashion-centre-api-0.1.0.jar
 In a separate terminal at the project root: `npm run dev`.
 Or, after building, `powershell -File scripts/start-local.ps1` starts both hidden processes if ports are free.
 
-Open http://127.0.0.1:5173. Java listens only at http://127.0.0.1:8081. Existing Node/JDK/Maven and installed Chrome are used. No new runtime or dependency installation was needed.
+Open http://127.0.0.1:5173. Java listens only at http://127.0.0.1:8081. Existing Node/JDK/Maven and installed Chrome are used; no browser or runtime installation was needed. Maven resolves the test-only H2 dependency on the first build, after which the documented offline checks use the local cache.
 
 ## First visit
 Open **Manage demo stores**, then explicitly onboard Mock Shop and/or Elysian Thread. This browser stores the choice. The Java API fetches the allowlisted public fictional catalogue. No products or stores are automatically onboarded, and network failure never falls back to invented inventory. Disable a store to hide its products; re-enable to fetch again without deleting cart, orders or saved references.
@@ -58,4 +58,4 @@ See [VALIDATION.md](VALIDATION.md) for current evidence, [READINESS.md](READINES
 
 The second adversarial pass adds failed-read preservation, a shared app-state lock across store changes and checkout, current-source order labels, still-PNG checks, bounded photo-viewer loading and OAuth ownership/scope-integrity regressions. [CI.md](CI.md) documents the local-only verification workflow; no GitHub run or push is implied.
 
-[PERSISTENCE.md](PERSISTENCE.md) describes the concrete JDBC tenancy/encrypted-token repository, explicit V1 schema and file-backed durability/concurrency tests. H2 is a test-only dependency; no runtime database or authentication is configured. The private try-on job model has ownership/idempotency/state-transition contracts and mock-adapter tests, with no uploads or provider execution.
+[PERSISTENCE.md](PERSISTENCE.md) describes the JDBC tenancy/encrypted-token repository, durable private-job repository, explicit V1/V2 migrations and file-backed durability/concurrency tests. The worker uses injected recoverable-provider and private-storage ports tested with synthetic adapters. H2 is a test-only dependency; no runtime database, authentication, provider or storage adapter is configured. Generation remains disabled, multipart upload parsing is disabled, and setting `fashion-centre.try-on.enabled=true` deliberately rejects startup until production integration is implemented. There is no automatic migration or worker activation.

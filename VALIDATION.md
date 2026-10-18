@@ -1,6 +1,6 @@
 # Current validation — 18 October 2026
 
-This report covers the quality/adversarial passes (`ba5c424`, `c7ff0cb`) and the subsequent storage-foundation increment. The previously pushed commit remains `53ffdbc`. Earlier evidence is preserved in [VALIDATION-HISTORY.md](VALIDATION-HISTORY.md). These results establish a working local demo and tested unwired foundations, not production readiness.
+This report covers the quality/adversarial passes (`ba5c424`, `c7ff0cb`), storage foundation (`70c20bf`) and subsequent durable private-job/worker increment. The previously pushed commit remains `53ffdbc`. Earlier evidence is preserved in [VALIDATION-HISTORY.md](VALIDATION-HISTORY.md). These results establish a working local demo and tested unwired foundations, not production readiness.
 
 ## Reproducible checks
 
@@ -10,7 +10,7 @@ This report covers the quality/adversarial passes (`ba5c424`, `c7ff0cb`) and the
 | `node scripts/check-bundle.mjs` | JavaScript 88,397 bytes gzip below 110,000; CSS 9,110 bytes below 12,000. |
 | `npm test` | 31 passed; zero failed/skipped. |
 | `npm run test:ui` | 30 passed in installed Chrome; zero failed/skipped. |
-| `mvn '-Dmaven.repo.local=.m2' -o -B package` from `backend` | 66 passed; zero failures/errors/skips; runnable Spring Boot JAR packaged successfully offline. |
+| `mvn '-Dmaven.repo.local=.m2' -o -B package` from `backend` | 104 passed; zero failures/errors/skips; runnable Spring Boot JAR packaged successfully offline. |
 | `npm audit --json` | Zero reported vulnerabilities in the installed npm dependency graph at check time. Not a Java advisory audit or security certification. |
 | `node scripts/public-smoke.mjs` | Read-only public catalogue browser smoke; see public evidence below. Requires both local servers and network access. |
 
@@ -26,11 +26,29 @@ After the final 30-test browser pass, the API was stopped deliberately and `npx 
 
 ## Storage foundation evidence
 
-The latest Java package run passed 66 tests: the prior 39, 14 actual JDBC file-backed integration tests and 13 private-job domain tests. JDBC tests exercise process halt/reopen, competing shop claims, row-lock ordering, revoked/expired identities, rollback after mutations, uncommitted-data isolation, ambiguous commit acknowledgement and schema refusal/recovery boundaries. Job tests use an in-memory test adapter for state/idempotency/CAS and authorization races; they do not establish durable job storage.
+The prior storage-foundation package run passed 66 tests: the earlier 39, 14 actual merchant JDBC file-backed integration tests and 13 private-job domain tests. Merchant JDBC tests exercise process halt/reopen, competing shop claims, row-lock ordering, revoked/expired identities, rollback after mutations, uncommitted-data isolation, ambiguous commit acknowledgement and schema refusal/recovery boundaries. The original job-domain tests use an in-memory adapter; the subsequent increment adds the durable coverage below.
 
 This increment resolved one new dependency from Maven Central: H2 2.5.252, test scope only (approximately 2.7 MB). Final checks use the local offline Maven cache. No database server/runtime, production datasource, actual photos, persistent service credentials or real encryption keys were configured. Full implementation guarantees and remaining limitations are in [PERSISTENCE.md](PERSISTENCE.md).
 
-The packaged JAR was inspected: it includes `JdbcConnections`, the private-job domain and the V1 migration, and excludes the H2 driver, crash-test writer and test classes. The new storage classes are not Spring beans and the migration is not run at startup.
+The storage classes are not Spring beans and migrations are not run at startup. H2 and crash-test helpers belong only to the test classpath.
+
+## Durable private-job evidence
+
+The final package run passed 104 tests: the prior 66 plus 23 file-backed private-job integration tests, 11 worker tests and 4 runtime configuration/application tests. Package inspection confirms `JdbcPrivateJobs`, `PrivateJobWorker`, `TryOnRuntimeConfiguration` and the V2 SQL are included; the H2 driver, child-process test helpers and test classes are excluded.
+
+The new JDBC suite uses temporary file databases and synthetic session/reference authorities. Coverage includes owner-scoped idempotency, concurrent reservations and independent worker sessions, stale lease fencing, cancellation during a blocked provider poll, receipt recovery through a fresh repository/worker, reference expiry before commit, shared-reference retention and orphaned-result deletion queues. A child JVM halts after simulated provider acceptance but before storing its receipt; recovery does not submit again. Merchant behavior is checked after the explicit V2 migration.
+
+Worker tests use mocked provider/storage ports to exercise intent-before-submission, ambiguous responses, lost receipts, delayed bounded polling, deletion retry/acknowledgement and authority loss between deletions. A final READY claim cannot spend a submission with no remaining poll budget. These tests do not contact Pruna, upload photos or delete actual objects.
+
+The expanded run caught a nondeterministic queue fixture: identical timestamps allowed random UUID ordering to place the healthy job first. The fixture now gives the invalid head an earlier timestamp. Review also added a visibility recheck before returning an idempotent reservation and prevented owner mutations from bypassing a worker fence during polling backoff.
+
+A final regression reproduced a backward clock adjustment making retry metadata unreadable. Retry and reference-triggered cancellation now preserve nondecreasing update timestamps; the regression reopens the database after both operations.
+
+Application-context tests verify that the runtime has no datasource, worker bean or multipart resolver, returns disabled/empty try-on status and refuses job requests. The reserved enable flag fails startup when set to true. This verifies fail-closed configuration, not a production authentication or object-storage integration.
+
+The final 30-test Chrome run passed with the packaged API initially stopped; Playwright started and cleaned up its own API process. The normal preview API was then restarted. Live checks returned HTTP 200 for the frontend and try-on status, with `Cache-Control: no-store`, `enabled: false`, no configured adapters/results, and disconnected merchant readiness with zero connections. A changed-file credential-pattern scan found no matches; this is not a security certification.
+
+The development policy has only three total claims (normally one submit and at most two polls). A real provider needs a practical bounded polling/cost policy. Expiry hides job rows and queues eligible opaque objects for deletion; metadata tombstones are retained, not physically erased. See [PERSISTENCE.md](PERSISTENCE.md) for exact guarantees and missing production work.
 
 ## Public source evidence
 
@@ -49,4 +67,4 @@ First visit: explicitly onboard one or both public demo stores. Follow [README.m
 
 ## Limits
 
-No live authentication, WhatsApp message, merchant install, payment, Pruna generation, real personal-photo upload or deployment was performed. No further Git push is included in this pass. Real touch hardware, Safari/Firefox, screen-reader workflows, production load, durable multi-user persistence and production security assessment remain unverified. See [READINESS.md](READINESS.md) for external prerequisites and work that still requires implementation.
+No live authentication, WhatsApp message, merchant install, payment, Pruna generation, real personal-photo upload or deployment was performed. No further Git push is included in this pass. Real touch hardware, Safari/Firefox, screen-reader workflows, production load, production multi-user persistence and production security assessment remain unverified. See [READINESS.md](READINESS.md) for external prerequisites and work that still requires implementation.

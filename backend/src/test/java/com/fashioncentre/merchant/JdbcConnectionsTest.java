@@ -103,7 +103,7 @@ class JdbcConnectionsTest {
  @Test void unsupportedOrInterruptedSchemaNeverAutoRepairsOrDropsData()throws Exception{
   var source=source();try(var c=source.getConnection();var s=c.createStatement()){s.execute("CREATE TABLE fc_schema_version(singleton INTEGER PRIMARY KEY,version INTEGER NOT NULL)");}
   assertThrows(ShopifyOAuth.Rejected.class,()->repository(source,"owner"));assertThrows(SQLException.class,()->migrate(source));
-  try(var c=source.getConnection();var s=c.createStatement()){s.execute("INSERT INTO fc_schema_version VALUES(1,2)");}assertThrows(ShopifyOAuth.Rejected.class,()->repository(source,"owner"));
+  try(var c=source.getConnection();var s=c.createStatement()){s.execute("INSERT INTO fc_schema_version VALUES(1,3)");}assertThrows(ShopifyOAuth.Rejected.class,()->repository(source,"owner"));
  }
  @Test void repeatedMigrationFailsWithoutDestroyingExistingRecords()throws Exception{
   var source=source();migrate(source);membership(source,"brand","owner");save(repository(source,"owner"),"owner","brand","brand.myshopify.com");assertThrows(SQLException.class,()->migrate(source));assertEquals(1,count(source));assertTrue(repository(source,"owner").read("brand").isPresent());

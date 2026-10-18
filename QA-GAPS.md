@@ -36,3 +36,9 @@ No new runtime, dependency, provider account, credential or production integrati
 ## Subsequent storage foundation increment
 
 The next authorized increment adds the concrete JDBC repository and explicit V1 schema, with real file-backed durability/concurrency tests. A single maintained H2 test dependency was resolved; it is not a runtime database installation. Independent review added crash recovery, revocation ordering, commit ambiguity and authentication-error sanitization coverage. The private-job domain adds owner-scoped idempotency, atomic revision contracts and checks for revoked identities/references. It remains unwired with a mock test adapter. See [PERSISTENCE.md](PERSISTENCE.md) and the current validation report for exact scope and results.
+
+## Durable private jobs and worker review
+
+The following increment replaces the private-job mock-only persistence boundary with a JDBC implementation and explicit V2 migration. Independent review addressed cancellation after reference revocation, compatibility with the V1 merchant repository, starvation behind active leases or revoked work, owner writes during worker backoff, shared-reference retention, orphan-result cleanup, diagnostic sanitization and per-object deletion authority checks. Provider receipts survive repository reopen; ambiguous submissions never automatically resubmit. Tests combine the actual file-backed repository with synthetic worker/provider/storage adapters.
+
+These changes do not configure a runtime identity, database, private object store or provider. The development budget permits three claims total, including submission, and is intentionally too small to serve as a real provider polling policy. Real remote cancellation, result materialization, billing and operational policy remain unimplemented. Runtime configuration refuses generation activation while these adapters are missing.
