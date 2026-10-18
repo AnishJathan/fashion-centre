@@ -7,13 +7,17 @@ The workflow uses read-only repository permission, disables persisted checkout c
 Local equivalents:
 
 ```powershell
+npm ci
 npm run build
 node scripts/check-bundle.mjs
 npm test
+Push-Location backend
+mvn -B package
+Pop-Location
 npm run test:ui
 ```
 
-From `backend`: `mvn '-Dmaven.repo.local=.m2' -o -B package`.
+For repeat runs with a populated default cache, use `mvn -o -B package` from `backend`. This workspace instead has an ignored project-local cache, selected with `mvn '-Dmaven.repo.local=.m2' -o -B package`; a fresh clone does not include it. See README for cached-checkout reuse.
 
 Build the backend JAR before the browser suite. Playwright starts the frontend and packaged loopback API when they are absent and waits for the readiness endpoint before testing. Local runs may reuse the existing app processes; CI never reuses an unrelated server. Most browser scenarios stub catalogue responses; owner-dashboard checks exercise the real disabled readiness API. The suite does not need live provider credentials or public catalogue network access.
 

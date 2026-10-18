@@ -9,7 +9,7 @@ This report covers the quality/adversarial passes (`ba5c424`, `c7ff0cb`), storag
 | `npm run build` | TypeScript check and Vite production build passed. JavaScript 284.54 kB / 88.40 kB gzip; CSS 40.07 kB / 9.11 kB gzip. |
 | `node scripts/check-bundle.mjs` | JavaScript 88,397 bytes gzip below 110,000; CSS 9,110 bytes below 12,000. |
 | `npm test` | 31 passed; zero failed/skipped. |
-| `npm run test:ui` | 30 passed in installed Chrome; zero failed/skipped. |
+| `npm run test:ui` | 32 passed in installed Chrome; zero failed/skipped, including the two final complete walkthroughs. |
 | `mvn '-Dmaven.repo.local=.m2' -o -B package` from `backend` | 104 passed; zero failures/errors/skips; runnable Spring Boot JAR packaged successfully offline. |
 | `npm audit --json` | Zero reported vulnerabilities in the installed npm dependency graph at check time. Not a Java advisory audit or security certification. |
 | `node scripts/public-smoke.mjs` | Read-only public catalogue browser smoke; see public evidence below. Requires both local servers and network access. |
@@ -49,6 +49,31 @@ Application-context tests verify that the runtime has no datasource, worker bean
 The final 30-test Chrome run passed with the packaged API initially stopped; Playwright started and cleaned up its own API process. The normal preview API was then restarted. Live checks returned HTTP 200 for the frontend and try-on status, with `Cache-Control: no-store`, `enabled: false`, no configured adapters/results, and disconnected merchant readiness with zero connections. A changed-file credential-pattern scan found no matches; this is not a security certification.
 
 The development policy has only three total claims (normally one submit and at most two polls). A real provider needs a practical bounded polling/cost policy. Expiry hides job rows and queues eligible opaque objects for deletion; metadata tombstones are retained, not physically erased. See [PERSISTENCE.md](PERSISTENCE.md) for exact guarantees and missing production work.
+
+## Final clean-checkout integration pass
+
+All four local implementation commits after `53ffdbc` were reviewed together. A separate local clone at `c2e55d3` was created without hardlinks; the final two-case walkthrough test was copied into it. No existing `node_modules`, build output or target directory was copied. Dependency caches were reused explicitly, avoiding new downloads:
+
+```powershell
+npm ci --offline --no-audit --no-fund --cache <existing-npm-cache>
+npm run build
+node scripts/check-bundle.mjs
+npm test
+# From the clone's backend directory:
+mvn '-Dmaven.repo.local=<existing-maven-cache>' -o -B package
+# Back at the clone root, with both original preview servers stopped:
+npm run test:ui
+```
+
+The clean copy passed TypeScript/Vite build, unchanged gzip budgets, 31 frontend unit tests, 104 Java tests and all 32 browser tests. Playwright started both the clean copy's frontend and freshly packaged API, waited for readiness, and cleaned up its own processes. The documented `powershell -File scripts/start-local.ps1` then restored the main workspace preview. Tests did not use the user's browser profile.
+
+The new complete navigation tests use synthetic catalogue/readiness responses at 390px and 1440px. They cover onboarding, brand follow, save, cart cancellation, refresh, demo order persistence, browser Back, photo-preparation cancellation and keyboard domain checking, with zero page errors or mutation requests. Other owner tests use the actual disabled API. Public upstream/image fetching was not redundantly repeated in this pass; earlier read-only evidence remains below.
+
+The concrete handover issue found was setup documentation: a fresh checkout needs `npm ci`, a network-capable first Maven build (or an explicitly populated cache), and backend packaging before browser tests. README and CI.md now give that order. No runtime `.env` or sample credentials are required; committed server configuration is loopback-only with multipart parsing disabled. Existing application tests verify no datasource/worker/multipart resolver, blocked generation and disabled merchant connection behavior.
+
+CI YAML was parsed again with duplicate-key rejection. Workflow scripts match package.json, Node 24, Maven packaging and the Java 17 compiler target. Local execution uses JDK 19; generated classes use Java 17 bytecode. Actual Linux/Java 17/hosted Chromium execution remains unverified until an authorized CI run. No runtime/browser install or remote push occurred.
+
+Read-only `git ls-remote` confirmed feature branch `53ffdbc4fb8d6da4ba19c86701b3a63940a5c263` and main `dd75322a1471a522c065b3bafaecff74811af0a5` on 18 October 2026. [HANDOVER.md](HANDOVER.md) records reviewed commits, exact click paths and prioritized implementation versus account prerequisites.
 
 ## Public source evidence
 

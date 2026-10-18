@@ -1,23 +1,37 @@
 # Fashion Centre
 Responsive React/TypeScript frontend with a loopback Java Spring Boot backend. White/violet design and navigation remain; displayed business content now comes only from explicitly onboarded public demo stores.
 
+Start with [HANDOVER.md](HANDOVER.md) for exact click paths, what works today, and the prioritized remaining work.
+
 ## Run locally
-From this directory:
+Prerequisites: Node.js 24, JDK 17 or newer, Maven 3.9, and installed Google Chrome for local browser tests. This laptop uses Node 24 and JDK 19; Java sources compile with `--release 17`. CI targets Linux, Node 24 and Java 17, but has not run remotely yet.
+
+For a fresh checkout, run these commands in order from this directory. Initial dependency resolution needs network access; no credentials or environment file is required.
 ```powershell
+npm ci
 npm run build
 node scripts/check-bundle.mjs
 npm test
+Push-Location backend
+mvn -B package
+Pop-Location
 npm run test:ui
 ```
-From `backend`:
+
+`test:ui` starts the frontend and the **already built** API when absent, then cleans up the processes it started. It uses isolated Chrome contexts, not your personal browser profile. Do not run it before packaging the backend.
+
+To leave the preview running, use two terminals. In the first, from this directory:
 ```powershell
-mvn '-Dmaven.repo.local=.m2' -o -B package
-java -jar target/fashion-centre-api-0.1.0.jar
+java -jar backend/target/fashion-centre-api-0.1.0.jar
 ```
-In a separate terminal at the project root: `npm run dev`.
+In the second, from the same directory: `npm run dev`.
 Or, after building, `powershell -File scripts/start-local.ps1` starts both hidden processes if ports are free.
 
-Open http://127.0.0.1:5173. Java listens only at http://127.0.0.1:8081. Existing Node/JDK/Maven and installed Chrome are used; no browser or runtime installation was needed. Maven resolves the test-only H2 dependency on the first build, after which the documented offline checks use the local cache.
+Open http://127.0.0.1:5173. Java listens only at http://127.0.0.1:8081. Existing Node/JDK/Maven and installed Chrome are used; no browser or runtime installation was needed.
+
+After dependencies have been cached, use `mvn -o -B package` from `backend`. On this development workspace, prior verification used a project-local cache instead: `mvn '-Dmaven.repo.local=.m2' -o -B package`. That ignored cache is **not included in a clone**. To reuse a known cache from a separate checkout, pass its absolute path with `-Dmaven.repo.local=...`. Similarly, `npm ci --offline --cache <existing-cache>` works only when every locked package is cached; do not expect an empty machine to build offline.
+
+The committed `backend/src/main/resources/application.properties` contains only local server settings and disables multipart parsing. There is no required `.env` or sample credential. Never put secrets in Vite `VITE_*` variables: those values are exposed to browser code. The reserved `fashion-centre.try-on.enabled=true` flag rejects startup; supplying credentials does not activate generation.
 
 ## First visit
 Open **Manage demo stores**, then explicitly onboard Mock Shop and/or Elysian Thread. This browser stores the choice. The Java API fetches the allowlisted public fictional catalogue. No products or stores are automatically onboarded, and network failure never falls back to invented inventory. Disable a store to hide its products; re-enable to fetch again without deleting cart, orders or saved references.
