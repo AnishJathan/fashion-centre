@@ -18,6 +18,7 @@ playwright-report/
 blob-report/
 .DS_Store
 Thumbs.db
+backend/secrets.properties
 *.mv.db
 *.trace.db
 *.lock.db
