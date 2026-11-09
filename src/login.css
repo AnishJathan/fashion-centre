@@ -1,1 +1,154 @@
-.login-demo{max-width:540px;margin:0 auto}.login-card{padding:30px;border:1px solid #ece6f4;border-radius:24px;background:white}.login-card h1{font-size:38px;line-height:1.2;margin:24px 0 16px}.login-card h1 em{font-style:normal;color:#7041d9}.login-card p{font-size:14px;color:#6f6a7c}.login-card label{display:block;font-size:13px;font-weight:600;margin:20px 0 8px}.login-card input,.login-card select{width:100%;height:50px;border:1px solid #dfd6ef;border-radius:12px;background:#f8f5fd;padding:12px;font:inherit;color:#1d1929}.login-card .primary{margin-top:22px}.login-card .otp-input{font-size:28px;letter-spacing:10px;text-align:center}.login-card .fine{font-size:12px}.login-actions{display:flex;justify-content:space-between;gap:10px}.login-actions button,.text-action{font-size:12px;color:#7041d9;padding:10px 0}.login-actions button:disabled{color:#8c8396;cursor:default}.login-error{color:#9d2649!important;background:#fff0f4;border-radius:10px;padding:12px}.cancel-login{display:block;margin:20px auto 0;text-decoration:underline;font-size:13px;color:#6f6a7c}.success-mark{width:64px;height:64px;border-radius:50%;background:#f1ebfe;color:#7041d9;display:grid;place-items:center;font-size:32px;margin-top:24px}@media(max-width:700px){.login-card{padding:24px 16px}.login-card h1{font-size:32px}}
+/* .login-demo{max-width:540px;margin:0 auto}.login-card{padding:30px;border:1px solid #ece6f4;border-radius:24px;background:white}.login-card h1{font-size:38px;line-height:1.2;margin:24px 0 16px}.login-card h1 em{font-style:normal;color:#7041d9}.login-card p{font-size:14px;color:#6f6a7c}.login-card label{display:block;font-size:13px;font-weight:600;margin:20px 0 8px}.login-card input,.login-card select{width:100%;height:50px;border:1px solid #dfd6ef;border-radius:12px;background:#f8f5fd;padding:12px;font:inherit;color:#1d1929}.login-card .primary{margin-top:22px}.login-card .otp-input{font-size:28px;letter-spacing:10px;text-align:center}.login-card .fine{font-size:12px}.login-actions{display:flex;justify-content:space-between;gap:10px}.login-actions button,.text-action{font-size:12px;color:#7041d9;padding:10px 0}.login-actions button:disabled{color:#8c8396;cursor:default}.login-error{color:#9d2649!important;background:#fff0f4;border-radius:10px;padding:12px}.cancel-login{display:block;margin:20px auto 0;text-decoration:underline;font-size:13px;color:#6f6a7c}.success-mark{width:64px;height:64px;border-radius:50%;background:#f1ebfe;color:#7041d9;display:grid;place-items:center;font-size:32px;margin-top:24px}@media(max-width:700px){.login-card{padding:24px 16px}.login-card h1{font-size:32px}} */
+
+.login-demo{
+  min-height:100vh;min-height:100dvh;
+  display:grid;place-items:center;
+  padding:24px 16px;box-sizing:border-box;
+  background:
+    radial-gradient(circle at 12% 8%,#efe7ff 0,transparent 42%),
+    radial-gradient(circle at 88% 92%,#e6f0ff 0,transparent 40%),
+    #faf8ff;
+}
+.login-demo .login-card{
+  width:100%;max-width:400px;box-sizing:border-box;
+  background:#fff;border:1px solid #ece6fb;border-radius:24px;
+  padding:36px 28px;text-align:center;
+  box-shadow:0 24px 60px rgba(65,40,140,.14),0 2px 6px rgba(0,0,0,.04);
+}
+.login-card .pill{
+  display:inline-block;font-size:11px;font-weight:600;letter-spacing:.14em;
+  color:#7041d9;background:#f3eeff;padding:6px 12px;border-radius:999px;
+}
+.login-card h1{font-size:30px;line-height:1.15;margin:18px 0 8px;color:#1a1530}
+.login-card h1 em{color:#7041d9;font-style:italic}
+.login-card p{color:#6b6880;font-size:15px;line-height:1.5;margin:0 0 18px}
+.login-card form{text-align:left;display:grid;gap:8px}
+.login-card label{font-size:13px;font-weight:600;color:#3b3654;margin-top:6px}
+.login-card select,
+.login-card input{
+  width:100%;box-sizing:border-box;padding:13px 14px;
+  border:1px solid #e3dcf5;border-radius:14px;background:#fbfaff;
+  font:inherit;font-size:16px;color:#1a1530;outline:none;
+  transition:border-color .2s,box-shadow .2s,background .2s;
+}
+.login-card select:focus,
+.login-card input:focus{
+  border-color:#7041d9;background:#fff;box-shadow:0 0 0 4px rgba(112,65,217,.15);
+}
+.login-card .otp-input{text-align:center;font-size:24px;font-weight:600;letter-spacing:.4em}
+.login-card button.primary{
+  margin-top:14px;padding:15px;border:0;border-radius:999px;
+  background:linear-gradient(135deg,#7041d9,#9a6bff);color:#fff;
+  font:inherit;font-size:16px;font-weight:600;cursor:pointer;
+  box-shadow:0 10px 24px rgba(112,65,217,.3);
+  transition:transform .15s,box-shadow .2s,opacity .2s;
+}
+.login-card button.primary:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 14px 28px rgba(112,65,217,.36)}
+.login-card button.primary:disabled{opacity:.55;cursor:not-allowed}
+.login-actions{display:flex;justify-content:space-between;gap:8px;margin-top:16px}
+.login-actions button{
+  background:none;border:0;padding:8px 4px;cursor:pointer;
+  color:#7041d9;font:inherit;font-size:14px;font-weight:600;
+}
+.login-actions button:disabled{color:#a9a3bf;cursor:default}
+.login-card .fine{font-size:13px;color:#8a85a0;margin:4px 0 0}
+.success-mark{
+  width:64px;height:64px;margin:0 auto 8px;border-radius:50%;
+  display:grid;place-items:center;font-size:30px;color:#fff;
+  background:linear-gradient(135deg,#7041d9,#9a6bff);
+  box-shadow:0 10px 24px rgba(112,65,217,.3);
+}
+.login-card p.login-error{
+  margin:14px 0 0;padding:11px 14px;border-radius:12px;
+  background:#fff1f3;color:#b42344;font-size:14px;text-align:left;
+}
+@media (max-width:420px){
+  .login-demo .login-card{padding:28px 20px;border-radius:20px}
+  .login-card h1{font-size:26px}
+}
+
+.photo-step{display:grid;justify-items:center;gap:6px}
+.photo-step h1{margin-bottom:4px}
+.photo-step p{margin-bottom:10px}
+.photo-tips{list-style:none;padding:0;margin:0 0 6px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.photo-tips li{font-size:12px;font-weight:600;color:#7041d9;background:#f3eeff;border-radius:999px;padding:6px 11px}
+.photo-frame{position:relative;width:100%;aspect-ratio:3/4;border-radius:20px;overflow:hidden;background:#1a1530;margin-top:4px}
+.photo-frame video,.photo-frame img{width:100%;height:100%;object-fit:cover;display:block}
+.photo-frame video{transform:scaleX(-1)}
+.photo-empty{height:100%;display:grid;place-items:center;padding:20px;color:#c9c3e0;font-size:14px}
+.silhouette{position:absolute;left:22%;top:8%;width:56%;height:84%;pointer-events:none}
+.silhouette *{fill:none;stroke:rgba(255,255,255,.8);stroke-width:2;stroke-dasharray:6 6}
+.photo-checking{position:absolute;inset:0;display:grid;place-items:center;background:rgba(26,21,48,.65);color:#fff;font-weight:600;font-size:15px}
+.login-card .photo-actions{display:flex;gap:10px;width:100%;margin-top:6px}
+.login-card .photo-actions button{flex:1;padding:14px;border-radius:999px;font:inherit;font-weight:600;cursor:pointer;margin-top:0}
+.login-card .photo-actions .primary{border:0;color:#fff;background:linear-gradient(135deg,#7041d9,#9a6bff);box-shadow:0 10px 24px rgba(112,65,217,.3)}
+.login-card .photo-actions .secondary{border:1px solid #d9cff3;background:#fff;color:#7041d9}
+.login-card .photo-actions button:disabled{opacity:.55;cursor:not-allowed}
+.photo-choices{display:grid;gap:12px;margin-top:16px;}
+.choice{
+  display:flex;flex-direction:column;align-items:flex-start;gap:4px;
+  text-align:left;padding:16px;border-radius:16px;
+  border:1px solid #ddd;background:#fff;cursor:pointer;
+}
+.choice:hover{border-color:#7041d9;}
+.choice span{font-size:14px;opacity:.7;}
+
+.photo-frame{
+  position:relative;
+  min-height:360px;
+  background:#f4f1fb;
+  border-radius:20px;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.photo-frame{
+  position:relative;
+  height:min(60vh,520px);           /* fixed height, so a tall photo can't push the buttons away */
+  background:#f4f1fb;
+  border-radius:20px;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.photo-frame video{width:100%;height:100%;object-fit:cover;}
+.photo-frame img{width:100%;height:100%;object-fit:contain;}  /* shows the whole photo, no cropping */
+.photo-empty{padding:24px;text-align:center;color:#333;}
+.photo-checking{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.75);color:#222;
+}
+
+/* Let the page scroll if the content is taller than the screen */
+.login-demo{min-height:100dvh;overflow-y:auto;}
+.login-card{overflow:visible;}
+.photo-back{display:flex;justify-content:center;margin-top:12px;}
+
+/* Stack the photo step vertically: heading, photo, buttons, back link */
+.photo-step{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+/* The frame takes its own space, and nothing overlaps it */
+.photo-frame{
+  position:relative;
+  flex:none;
+}
+
+/* Buttons sit below the photo, with clear space above */
+.photo-actions{
+  position:relative;
+  z-index:2;
+  display:flex;
+  gap:12px;
+  justify-content:center;
+  margin-top:8px;
+}
+.photo-actions button{min-width:140px;}
+
+.photo-back{display:flex;justify-content:center;margin-top:4px;}
