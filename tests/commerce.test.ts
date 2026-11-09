@@ -1,30 +1,7 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {products} from '../src/domain.ts';
-import {commerceReducer,initialCommerce,parseCommerce,cartTotal,sizesFor,validQuantity} from '../src/commerce.ts';
-test('cart merges repeated adds by product and size, keeps variants separate, caps quantity',()=>{
- let state=initialCommerce();for(let i=0;i<12;i++)state=commerceReducer(state,{type:'add',product:products[0],size:'M'});
- assert.equal(state.cart.length,1);assert.equal(state.cart[0].quantity,9);
- state=commerceReducer(state,{type:'add',product:products[0],size:'L'});assert.equal(state.cart.length,2);assert.equal(cartTotal(state.cart,products),1190);
- assert.equal(commerceReducer(state,{type:'add',product:products[0],size:'not-a-size'}),state);
- assert.deepEqual(sizesFor(products[4]),['EU 38','EU 39','EU 40','EU 41','EU 42']);
-});
-test('invalid quantities do not mutate the cart; removing twice is safe',()=>{
- let state=commerceReducer(initialCommerce(),{type:'add',product:products[0],size:'M'});
- for(const quantity of [0,-1,10,1.5,NaN,Infinity]){assert.equal(validQuantity(quantity),false);assert.equal(commerceReducer(state,{type:'quantity',productId:'p1',size:'M',quantity}),state);}
- state=commerceReducer(state,{type:'quantity',productId:'p1',size:'M',quantity:3});assert.equal(state.cart[0].quantity,3);
- for(let i=0;i<2;i++)state=commerceReducer(state,{type:'remove',productId:'p1',size:'M'});assert.equal(state.cart.length,0);
-});
-test('demo checkout isolates brands, snapshots prices and cannot duplicate repeated completions',()=>{
- let state=initialCommerce();for(const product of [products[0],products[1]])state=commerceReducer(state,{type:'add',product,size:'M'});
- const action={type:'checkout' as const,brandId:'violet',catalogue:products,id:'DEMO-test-1',date:'2026-10-18'};
- state=commerceReducer(state,action);assert.equal(state.cart.length,1);assert.equal(state.cart[0].productId,'p2');assert.equal(state.orders.length,4);assert.equal(state.orders[0].lines[0].price,119);assert.equal(state.orders[0].sample,true);
- assert.equal(commerceReducer(state,{...action,id:'DEMO-test-2'}),state);assert.equal(commerceReducer(state,action),state);
-});
-test('storage round trip preserves cart, sample orders and preferences; invalid storage is safe',()=>{
- let state=commerceReducer(initialCommerce(),{type:'add',product:products[0],size:'S'});
- state=commerceReducer(state,{type:'preferences',value:{style:'Minimal',fit:'Relaxed',updates:true}});
- assert.deepEqual(parseCommerce(JSON.stringify(state)),state);assert.deepEqual(parseCommerce('{broken'),initialCommerce());
- const corrupt={...state,cart:[{productId:'p1',size:'S',quantity:0},{productId:'missing',size:'M',quantity:1},{productId:'p1',size:'M',quantity:2},{productId:'p1',size:'M',quantity:3}]};
- assert.deepEqual(parseCommerce(JSON.stringify(corrupt)).cart,[{productId:'p1',size:'M',quantity:2}]);
-});
+import {test} from 'node:test';import assert from 'node:assert/strict';import {product} from './fixtures.ts';import {commerceReducer,initialCommerce,parseCommerce,totals,checkoutReady} from '../src/commerce.ts';
+test('new browser has no seeded business records',()=>{assert.deepEqual(initialCommerce().orders,[]);assert.deepEqual(initialCommerce().cart,[])});
+test('only available variants enter cart and quantities remain bounded',()=>{const p=product();let state=initialCommerce();assert.equal(commerceReducer(state,{type:'add',product:p,variantKey:p.variants[1].key}),state);for(let i=0;i<15;i++)state=commerceReducer(state,{type:'add',product:p,variantKey:p.variants[0].key});assert.equal(state.cart[0].quantity,9);assert.equal(state.cart.length,1);assert.equal(commerceReducer(state,{type:'quantity',productId:p.id,size:'M',quantity:0}),state)});
+test('migration preserves legacy cart user orders preferences and archives seeded examples',()=>{const old={cart:[{productId:'p1',size:'M',quantity:2}],orders:[{id:'SAMPLE-1',lines:[]},{id:'DEMO-real',brandId:'violet',date:'2026-10-18',status:'Processing',sample:true,lines:[{productId:'p1',size:'M',quantity:1,name:'Earlier user choice',image:'/images/denim.png',price:119,color:'Blue'}]}],preferences:{style:'Minimal',fit:'Relaxed',updates:true}};const result=parseCommerce(JSON.stringify(old));assert.deepEqual(result.cart,old.cart);assert.equal(result.orders.length,1);assert.equal(result.orders[0].legacy,true);assert.equal(result.orders[0].lines[0].currency,'AUD');assert.equal(result.legacySamples.length,1);assert.deepEqual(result.preferences,old.preferences);assert.deepEqual(parseCommerce(JSON.stringify(result)),result)});
+test('checkout is scoped idempotent and freezes actual variant currency price',()=>{const a=product(),b=product('apparel','USD');let state=initialCommerce();for(const p of [a,b])state=commerceReducer(state,{type:'add',product:p,variantKey:p.variants[0].key});const action={type:'checkout' as const,brandId:'mock',catalogue:[a,b],id:'DEMO-test',date:'2026-10-18'};state=commerceReducer(state,action);assert.equal(state.orders.length,1);assert.equal(state.orders[0].lines[0].currency,'CAD');assert.equal(state.orders[0].lines[0].price,79.95);assert.equal(state.cart[0].brandId,'apparel');assert.equal(commerceReducer(state,action),state);assert.deepEqual(parseCommerce(JSON.stringify(state)),state)});
+test('disable network failure and sold-out variants block checkout without removing records',()=>{const p=product();const state=commerceReducer(initialCommerce(),{type:'add',product:p,variantKey:p.variants[0].key});assert.equal(checkoutReady(state.cart,[]),false);assert.equal(commerceReducer(state,{type:'checkout',brandId:'mock',catalogue:[],id:'DEMO-fail',date:'2026-10-18'}),state);const sold={...p,variants:p.variants.map(v=>({...v,available:false}))};assert.equal(checkoutReady(state.cart,[sold]),false)});
+test('different currencies never produce a combined total and mixed shop currency blocks checkout',()=>{assert.deepEqual(totals([{price:79.95,quantity:2,currency:'CAD'},{price:100,quantity:1,currency:'USD'}]),[{currency:'CAD',amount:159.9},{currency:'USD',amount:100}]);const a=product(),b={...product(),id:'other',variants:[{...product().variants[0],key:'different',currency:'USD'}]};let state=initialCommerce();for(const p of [a,b])state=commerceReducer(state,{type:'add',product:p,variantKey:p.variants[0].key});assert.equal(checkoutReady(state.cart,[a,b]),false)});
