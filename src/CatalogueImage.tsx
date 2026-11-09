@@ -1,0 +1,2 @@
+import { useState, type ImgHTMLAttributes } from 'react';
+export function CatalogueImage(props: ImgHTMLAttributes<HTMLImageElement>) { const [failedSrc, setFailedSrc] = useState<string | null>(null); return failedSrc === props.src ? <div className={'image-fallback ' + (props.className || '')} role="img" aria-label={'Photo unavailable: ' + (props.alt || 'catalogue image')}><span>Photo unavailable</span><small>{props.alt}</small></div> : <img {...props} onError={e => { setFailedSrc(props.src || ''); props.onError?.(e); }}/>; }
