@@ -1,0 +1,11 @@
+.try-on-modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:grid;place-items:center;z-index:1000;padding:16px}
+.try-on-card{position:relative;background:#fff;color:#111;border-radius:16px;width:100%;max-width:420px;max-height:92vh;overflow:auto;padding:20px;box-sizing:border-box}
+.try-on-close{position:absolute;top:8px;right:12px;background:none;border:0;font-size:26px;cursor:pointer;color:#111}
+.try-on-hint{color:#666;font-size:14px;margin:4px 0 12px}
+.try-on-image img{width:100%;display:block;border-radius:12px}
+.try-on-empty{aspect-ratio:3/4;display:grid;place-items:center;background:#f3f0fa;border-radius:12px;color:#777}
+.try-on-actions{display:flex;gap:10px;margin-top:12px}
+.try-on-actions button{flex:1;padding:12px;border-radius:999px;border:1px solid #111;cursor:pointer}
+.try-on-actions .primary{background:#111;color:#fff}
+.try-on-actions button:disabled{opacity:.5;cursor:default}
+.try-on-card [role="status"],.try-on-card [role="alert"]{margin-top:10px;font-size:14px}

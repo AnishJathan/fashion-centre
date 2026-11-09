@@ -12,11 +12,13 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.http.HttpHeaders;
+import java.net.URI;
 
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
-
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class PrunaService {
@@ -109,6 +111,47 @@ public class PrunaService {
                 .body(Map.class);
     }
 
+    public String uploadImageAndGetUrl(byte[] imageBytes, String fileName) {
+         Map<String, Object> response = uploadImage(imageBytes, fileName);
 
+    if (response != null
+            && response.get("urls") instanceof Map<?, ?> urls
+            && urls.get("get") instanceof String getUrl) {
+        return getUrl;
+    }
+
+    throw new ResponseStatusException(
+            HttpStatus.BAD_GATEWAY,
+            "Pruna upload response did not include a file URL");
+}
+
+public byte[] downloadResult(String predictionId) {
+    Map<String, Object> status = getPredictionStatus(predictionId);
+
+    if (!"succeeded".equals(status.get("status"))) {
+        throw new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "The try-on is not finished yet");
+    }
+
+    Object generationUrl = status.get("generation_url");
+    if (!(generationUrl instanceof String urlString) || urlString.isBlank()) {
+        throw new ResponseStatusException(
+                HttpStatus.BAD_GATEWAY,
+                "Pruna did not return a result URL");
+    }
+
+    byte[] bytes = restClient.get()
+            .uri(URI.create(urlString))
+            .retrieve()
+            .body(byte[].class);
+
+    if (bytes == null || bytes.length == 0) {
+        throw new ResponseStatusException(
+                HttpStatus.BAD_GATEWAY,
+                "Pruna returned an empty result image");
+    }
+    return bytes;
+}
 
 }

@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.ResponseEntity;
 
 @RestController
 @RequestMapping("/api/try-on")
@@ -59,31 +60,34 @@ public class PrunaController {
         return prunaService.getPredictionStatus(predictionId);
     }
 
-    //TO UPLOAD AN IMAGE TO PRUNA API
-    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public Map<String, Object> uploadImage(
-            @RequestParam("file") MultipartFile file) {
-
-        if (file.isEmpty()) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Please upload an image file"
-            );
-        }
-
-        try {
-            return prunaService.uploadImage(
-                    file.getBytes(),
-                    file.getOriginalFilename() != null
-                            ? file.getOriginalFilename()
-                            : "image.jpg"
-            );
-        } catch (java.io.IOException e) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Could not read uploaded image"
-            );
-        }
+@GetMapping("/{predictionId}/result")
+public ResponseEntity<byte[]> getResult(@PathVariable String predictionId) {
+    if (predictionId == null || predictionId.isBlank()) {
+        throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Prediction ID is required");
     }
+
+    byte[] image = prunaService.downloadResult(predictionId);
+    return ResponseEntity.ok()
+            .contentType(MediaType.IMAGE_JPEG)
+            .body(image);
+}
+
+@PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+public Map<String, String> uploadImage(@RequestParam("file") MultipartFile file) {
+    if (file.isEmpty()) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Please upload an image file");
+    }
+    try {
+        String fileName = file.getOriginalFilename() != null
+                ? file.getOriginalFilename()
+                : "image.jpg";
+        String url = prunaService.uploadImageAndGetUrl(file.getBytes(), fileName);
+        return Map.of("url", url);
+    } catch (java.io.IOException e) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Could not read uploaded image");
+    }
+}
 
 }

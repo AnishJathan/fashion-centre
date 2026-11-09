@@ -1,30 +1,204 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useState,type FormEvent} from 'react';
+import {PhotoCapture} from './PhotoCapture';
 
-/** Presentation-only authentication prototype. Never creates a session or sends a request. */
-export function LoginDemo({close}:{close:()=>void}) {
- const [step,setStep]=useState<'phone'|'code'|'success'>('phone');
- const [country,setCountry]=useState('+61');
- const [phone,setPhone]=useState('');
- const [code,setCode]=useState('');
- const [error,setError]=useState('');
- const [expiresAt,setExpiresAt]=useState(0);
- const [resendAt,setResendAt]=useState(0);
- const [now,setNow]=useState(Date.now());
- const [expired,setExpired]=useState(false);
- const [attempts,setAttempts]=useState(0);
- const [message,setMessage]=useState('');
- useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer)},[]);
- const remaining=Math.max(0,Math.ceil((expiresAt-now)/1000));
- const cooldown=Math.max(0,Math.ceil((resendAt-now)/1000));
- const isExpired=expired||(step==='code'&&remaining===0);
- const reset=()=>{setStep('phone');setCode('');setError('');setMessage('');setExpired(false);setAttempts(0)};
- function issueDemoCode(){const time=Date.now();setNow(time);setExpiresAt(time+120000);setResendAt(time+30000);setCode('');setError('');setExpired(false);setAttempts(0);setStep('code');setMessage('Demo code ready. No WhatsApp message was sent.');}
- function start(){if(!/^\d{7,12}$/.test(phone.replace(/[\s()-]/g,''))){setError('Enter 7–12 digits, without the country code. A sample number is fine.');return}issueDemoCode();}
- function verify(){if(isExpired){setError('This demo code has expired. Request another code.');return}if(attempts>=3){setError('Too many demo attempts. Request a new code.');return}if(code!=='123456'){setAttempts(n=>n+1);setError('That code does not match. For this simulation, enter 123456.');return}setStep('success');setCode('');setError('');setMessage('');}
- return <section className="login-demo"><button className="back" onClick={close}>← Back to Fashion Centre</button><div className="login-card"><span className="pill">WHATSAPP OTP · UI SIMULATION</span>
- {step==='phone'?<><h1>Your style.<br/><em>All together.</em></h1><p>In the planned experience, we’ll send a one-time code to your WhatsApp number.</p><p className="demo-note">This local demo sends nothing. Use a sample number; it stays only in this screen’s memory.</p><form onSubmit={e=>{e.preventDefault();start()}}><label htmlFor="country">Country code</label><select id="country" value={country} onChange={e=>setCountry(e.target.value)}><option value="+61">Australia +61</option><option value="+91">India +91</option><option value="+1">US / Canada +1</option><option value="+44">United Kingdom +44</option></select><label htmlFor="phone">WhatsApp number</label><input id="phone" type="tel" autoComplete="off" placeholder="400 000 000" value={phone} onChange={e=>setPhone(e.target.value)} maxLength={18}/><button type="submit" className="primary wide">Continue with demo OTP →</button></form><button className="text-action" onClick={()=>setError('Simulated delivery failure. Nothing was sent. Please try the demo again.')}>Simulate delivery failure</button></>:
- step==='code'?<><h1>Check WhatsApp.</h1><p>In the live flow, a code would arrive at <strong>{country} •••• {phone.replace(/\D/g,'').slice(-3)}</strong>.</p><div className="demo-note">Demo code: <strong>123456</strong><br/>No message sent. This code cannot authenticate anyone.</div><form onSubmit={e=>{e.preventDefault();verify()}}><label htmlFor="otp">Enter 6-digit code</label><input id="otp" className="otp-input" inputMode="numeric" autoComplete="off" maxLength={6} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,''))} placeholder="000000"/><p className="fine">{isExpired?'Demo code expired':`Demo code expires in ${remaining}s`}</p><button type="submit" className="primary wide">Verify demo code</button></form><div className="login-actions"><button disabled={cooldown>0} onClick={issueDemoCode}>{cooldown>0?`Resend in ${cooldown}s`:'Resend demo code'}</button><button onClick={reset}>Change number</button></div><button className="text-action" onClick={()=>{setExpired(true);setResendAt(0);setMessage('Demo expiry simulated. You can request another code.')}}>Simulate expiry</button></>:
- <><div className="success-mark">✓</div><h1>You’re ready<br/>to explore.</h1><p>Demo verification complete.</p><div className="demo-note">No account was created and no authenticated session exists. Your favourites remain saved only in this browser.</div><button className="primary wide" onClick={close}>Continue browsing →</button><button className="text-action" onClick={reset}>Restart simulation</button></>}
- {error&&<p role="alert" className="login-error">{error}</p>}{message&&<p role="status" className="fine">{message}</p>}{step!=='success'&&<button className="cancel-login" onClick={close}>Cancel and browse</button>}
- </div></section>
+const API='/api/auth';
+type Step='phone'|'code'|'photo'|'success';
+
+const PHONE_LENGTH:Record<string,number>={'+61':9,'+91':10,'+1':10,'+44':10};
+
+async function postJson<T>(path:string,body:unknown){
+  const res=await fetch(`${API}${path}`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    credentials:'include',
+    body:JSON.stringify(body),
+  });
+  const data=(await res.json().catch(()=>null)) as T|null;
+  return {ok:res.ok,status:res.status,data};
+}
+
+// Returns the national digits (without country code or trunk 0) and the full number
+function normalisePhone(country:string,input:string){
+  const code=country.replace('+','');
+  const trimmed=input.trim();
+  let digits=trimmed.replace(/\D/g,'');
+  if(trimmed.startsWith('+')||trimmed.startsWith('00')){
+    digits=digits.replace(/^00/,'');
+    if(digits.startsWith(code)) digits=digits.slice(code.length);
+  }
+  digits=digits.replace(/^0/,'');
+  return {digits,number:`+${code}${digits}`};
+}
+
+export function LoginDemo({close}:{close:()=>void}){
+  const [step,setStep]=useState<Step>('phone');
+  const [country,setCountry]=useState('+61');
+  const [phone,setPhone]=useState('');
+  const [sentTo,setSentTo]=useState('');
+  const [code,setCode]=useState('');
+  const [error,setError]=useState('');
+  const [uploadError,setUploadError]=useState('');
+  const [busy,setBusy]=useState(false);
+  const [expiresAt,setExpiresAt]=useState(0);
+  const [resendAt,setResendAt]=useState(0);
+  const [now,setNow]=useState(Date.now());
+  const [devCode,setDevCode]=useState('');
+  const [savedNow,setSavedNow]=useState(false); // true only right after a photo was saved in this visit
+
+  useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t)},[]);
+
+  const remaining=Math.max(0,Math.ceil((expiresAt-now)/1000));
+  const cooldown=Math.max(0,Math.ceil((resendAt-now)/1000));
+
+  async function requestCode(){
+    const {digits,number}=normalisePhone(country,phone);
+    if(digits.length!==PHONE_LENGTH[country]){
+      setError(`Enter a ${PHONE_LENGTH[country]}-digit WhatsApp number for ${country}.`);
+      return;
+    }
+    setBusy(true);setError('');
+    try{
+      const r=await postJson<{expiresInSeconds?:number;resendInSeconds?:number;devCode?:string}>('/request-code',{phone:number});
+      if(!r.ok){
+        setError(r.status===429
+          ?'Too many requests. Please wait a few minutes.'
+          :'We could not send the code. Check the number and try again.');
+        return;
+      }
+      setDevCode(r.data?.devCode ?? '');
+      const t=Date.now();setNow(t);
+      setExpiresAt(t+(r.data?.expiresInSeconds??120)*1000);
+      setResendAt(t+(r.data?.resendInSeconds??30)*1000);
+      setSentTo(number);
+      setCode('');
+      setStep('code');
+    }catch{
+      setError('Network error. Check your connection and try again.');
+    }finally{
+      setBusy(false);
+    }
+  }
+
+  async function verifyCode(e:FormEvent){
+    e.preventDefault();
+    if(code.length!==6){setError('Enter the 6-digit code.');return}
+    setBusy(true);setError('');
+    try{
+      const r=await postJson<{ok:boolean;hasPhoto?:boolean}>('/verify-code',{phone:sentTo,code});
+      if(!r.ok){
+        setError(r.status===410
+          ?'This code has expired. Request a new one.'
+          :r.status===429
+            ?'Too many attempts. Request a new code.'
+            :'That code is not correct.');
+        return;
+      }
+      // Returning user with a saved photo: skip the photo step
+      setSavedNow(false);
+      setStep(r.data?.hasPhoto?'success':'photo');
+    }catch{
+      setError('Network error. Check your connection and try again.');
+    }finally{
+      setBusy(false);
+    }
+  }
+
+  async function savePhoto(file:Blob){
+    setBusy(true);setUploadError('');
+    try{
+      const form=new FormData();
+      form.append('file',file,'full-body.jpg');
+      const res=await fetch('/api/users/me/photo',{method:'POST',body:form,credentials:'include'});
+      if(!res.ok){
+        setUploadError(res.status===401
+          ?'Your session expired. Please sign in again.'
+          :'We could not save your photo. Please try again.');
+        return;
+      }
+      setSavedNow(true);
+      setStep('success');
+    }catch{
+      setUploadError('Network error. Check your connection and try again.');
+    }finally{
+      setBusy(false);
+    }
+  }
+
+  return(
+    <section className="login-demo">
+      <div className="login-card">
+        <span className="pill">
+          {step==='photo'?'STEP 2 OF 2':'WHATSAPP VERIFICATION'}
+        </span>
+
+        {step==='phone'&&(
+          <>
+            <h1>Your style.<br/><em>All together.</em></h1>
+            <p>We’ll send a one-time code to your WhatsApp number.</p>
+            <form onSubmit={e=>{e.preventDefault();requestCode()}}>
+              <label htmlFor="country">Country code</label>
+              <select id="country" value={country} onChange={e=>setCountry(e.target.value)}>
+                <option value="+61">Australia +61</option>
+                <option value="+91">India +91</option>
+                <option value="+1">US / Canada +1</option>
+                <option value="+44">United Kingdom +44</option>
+              </select>
+              <label htmlFor="phone">WhatsApp number</label>
+              <input id="phone" type="tel" autoComplete="tel-national" placeholder="400 000 000"
+                value={phone} onChange={e=>setPhone(e.target.value)} maxLength={18}/>
+              <button type="submit" className="primary wide" disabled={busy}>
+                {busy?'Sending code…':'Send code on WhatsApp →'}
+              </button>
+            </form>
+          </>
+        )}
+
+        {step==='code'&&(
+          <>
+            <h1>Check WhatsApp.</h1>
+            <p>We sent a code to <strong>{sentTo.slice(0,3)} •••• {sentTo.slice(-3)}</strong>.</p>
+            {devCode&&<p className="fine">Dev Code: {devCode}</p>}
+            <form onSubmit={verifyCode}>
+              <label htmlFor="otp">Enter 6-digit code</label>
+              <input id="otp" className="otp-input" inputMode="numeric" autoComplete="one-time-code"
+                maxLength={6} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,''))}
+                placeholder="000000"/>
+              <p className="fine">{remaining>0?`Code expires in ${remaining}s`:'This code has expired.'}</p>
+              <button type="submit" className="primary wide" disabled={busy||remaining===0}>
+                {busy?'Checking…':'Verify code'}
+              </button>
+            </form>
+            <div className="login-actions">
+              <button disabled={cooldown>0||busy} onClick={requestCode}>
+                {cooldown>0?`Resend in ${cooldown}s`:'Resend code'}
+              </button>
+              <button onClick={()=>{setStep('phone');setError('')}}>Change number</button>
+            </div>
+          </>
+        )}
+
+        {step==='photo'&&(
+          <PhotoCapture onAccepted={savePhoto} busy={busy} uploadError={uploadError}/>
+        )}
+
+        {step==='success'&&(
+          <>
+            <div className="success-mark">✓</div>
+            <h1>{savedNow?'You’re all set.':'Welcome back.'}</h1>
+            <p>{savedNow
+              ?'Your full-body photo is ready for try-on.'
+              :'Your full-body photo is saved and ready for try-on.'}</p>
+            <button className="primary wide" onClick={close}>Start browsing →</button>
+            {!savedNow&&(
+              <button className="secondary wide" onClick={()=>{setUploadError('');setStep('photo')}}>
+                Take a new photo
+              </button>
+            )}
+          </>
+        )}
+
+        {error&&<p role="alert" className="login-error">{error}</p>}
+      </div>
+    </section>
+  );
 }
