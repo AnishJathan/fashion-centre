@@ -198,6 +198,7 @@ export function LoginDemo({close}:{close:()=>void}){
         )}
 
         {error&&<p role="alert" className="login-error">{error}</p>}
+        <button className="secondary wide" disabled={busy} onClick={close}>Back to local profile</button>
       </div>
     </section>
   );
