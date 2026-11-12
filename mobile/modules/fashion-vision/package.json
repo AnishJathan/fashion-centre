@@ -1,0 +1,7 @@
+{
+  "name": "fashion-vision",
+  "version": "0.1.0",
+  "private": true,
+  "description": "On-device image quality and body pose analysis for Fashion Centre",
+  "main": "index.ts"
+}
