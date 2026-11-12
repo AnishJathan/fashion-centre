@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Fashion Centre",
+    "slug": "fashion-centre",
+    "scheme": "fashioncentre",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.fashioncentre.preview"
+    },
+    "android": {
+      "predictiveBackGestureEnabled": true,
+      "package": "com.fashioncentre.preview"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose a photo for your private Fashion Centre preview or account photo.",
+          "cameraPermission": "Take a full-body photo for Fashion Centre. You choose whether to upload it.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Fashion Centre checks your pose and photo quality on this device before you choose whether to upload.",
+          "recordAudioAndroid": false
+        }
+      ]
+    ],
+    "platforms": ["ios", "android"]
+  }
+}

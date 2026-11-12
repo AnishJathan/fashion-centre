@@ -1,0 +1,184 @@
+import type { Product } from "../src/core/domain.ts";
+export const product = (brandId = "mock", currency = "CAD"): Product => ({
+  id: brandId + ":gid://shopify/Product/1",
+  brandId,
+  brandName: brandId === "mock" ? "Test Store" : "Other Store",
+  name: "Test Shirt",
+  category: "Shirts",
+  image: "",
+  moreVariants: false,
+  variants: [
+    {
+      key: brandId + ":gid://shopify/ProductVariant/1",
+      id: "gid://shopify/ProductVariant/1",
+      title: "M",
+      available: true,
+      amount: 79.95,
+      currency,
+      options: { Size: "M" },
+    },
+    {
+      key: brandId + ":gid://shopify/ProductVariant/2",
+      id: "gid://shopify/ProductVariant/2",
+      title: "L",
+      available: false,
+      amount: 81,
+      currency,
+      options: { Size: "L" },
+    },
+  ],
+});
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import {
+  commerceReducer,
+  initialCommerce,
+  parseCommerce,
+  totals,
+  checkoutReady,
+} from "../src/core/commerce.ts";
+test("new browser has no seeded business records", () => {
+  assert.deepEqual(initialCommerce().orders, []);
+  assert.deepEqual(initialCommerce().cart, []);
+});
+test("only available variants enter cart and quantities remain bounded", () => {
+  const p = product();
+  let state = initialCommerce();
+  assert.equal(
+    commerceReducer(state, {
+      type: "add",
+      product: p,
+      variantKey: p.variants[1].key,
+    }),
+    state,
+  );
+  for (let i = 0; i < 15; i++)
+    state = commerceReducer(state, {
+      type: "add",
+      product: p,
+      variantKey: p.variants[0].key,
+    });
+  assert.equal(state.cart[0].quantity, 9);
+  assert.equal(state.cart.length, 1);
+  assert.equal(
+    commerceReducer(state, {
+      type: "quantity",
+      productId: p.id,
+      size: "M",
+      quantity: 0,
+    }),
+    state,
+  );
+});
+test("migration preserves legacy cart user orders preferences and archives seeded examples", () => {
+  const old = {
+    cart: [{ productId: "p1", size: "M", quantity: 2 }],
+    orders: [
+      { id: "SAMPLE-1", lines: [] },
+      {
+        id: "DEMO-real",
+        brandId: "violet",
+        date: "2026-10-18",
+        status: "Processing",
+        sample: true,
+        lines: [
+          {
+            productId: "p1",
+            size: "M",
+            quantity: 1,
+            name: "Earlier user choice",
+            image: "/images/denim.png",
+            price: 119,
+            color: "Blue",
+          },
+        ],
+      },
+    ],
+    preferences: { style: "Minimal", fit: "Relaxed", updates: true },
+  };
+  const result = parseCommerce(JSON.stringify(old));
+  assert.deepEqual(result.cart, old.cart);
+  assert.equal(result.orders.length, 1);
+  assert.equal(result.orders[0].legacy, true);
+  assert.equal(result.orders[0].lines[0].currency, "AUD");
+  assert.equal(result.legacySamples.length, 1);
+  assert.deepEqual(result.preferences, old.preferences);
+  assert.deepEqual(parseCommerce(JSON.stringify(result)), result);
+});
+test("checkout is scoped idempotent and freezes actual variant currency price", () => {
+  const a = product(),
+    b = product("apparel", "USD");
+  let state = initialCommerce();
+  for (const p of [a, b])
+    state = commerceReducer(state, {
+      type: "add",
+      product: p,
+      variantKey: p.variants[0].key,
+    });
+  const action = {
+    type: "checkout" as const,
+    brandId: "mock",
+    catalogue: [a, b],
+    id: "DEMO-test",
+    date: "2026-10-18",
+  };
+  state = commerceReducer(state, action);
+  assert.equal(state.orders.length, 1);
+  assert.equal(state.orders[0].lines[0].currency, "CAD");
+  assert.equal(state.orders[0].lines[0].price, 79.95);
+  assert.equal(state.cart[0].brandId, "apparel");
+  assert.equal(commerceReducer(state, action), state);
+  assert.deepEqual(parseCommerce(JSON.stringify(state)), state);
+});
+test("disable network failure and sold-out variants block checkout without removing records", () => {
+  const p = product();
+  const state = commerceReducer(initialCommerce(), {
+    type: "add",
+    product: p,
+    variantKey: p.variants[0].key,
+  });
+  assert.equal(checkoutReady(state.cart, []), false);
+  assert.equal(
+    commerceReducer(state, {
+      type: "checkout",
+      brandId: "mock",
+      catalogue: [],
+      id: "DEMO-fail",
+      date: "2026-10-18",
+    }),
+    state,
+  );
+  const sold = {
+    ...p,
+    variants: p.variants.map((v) => ({ ...v, available: false })),
+  };
+  assert.equal(checkoutReady(state.cart, [sold]), false);
+});
+test("different currencies never produce a combined total and mixed shop currency blocks checkout", () => {
+  assert.deepEqual(
+    totals([
+      { price: 79.95, quantity: 2, currency: "CAD" },
+      { price: 100, quantity: 1, currency: "USD" },
+    ]),
+    [
+      { currency: "CAD", amount: 159.9 },
+      { currency: "USD", amount: 100 },
+    ],
+  );
+  const a = product(),
+    b = {
+      ...product(),
+      id: "other",
+      variants: [
+        { ...product().variants[0], key: "different", currency: "USD" },
+      ],
+    };
+  let state = initialCommerce();
+  for (const p of [a, b])
+    state = commerceReducer(state, {
+      type: "add",
+      product: p,
+      variantKey: p.variants[0].key,
+    });
+  assert.equal(checkoutReady(state.cart, [a, b]), false);
+});
