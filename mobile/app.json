@@ -43,6 +43,14 @@
           "recordAudioAndroid": false
         }
       ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "# Room instantiates the WorkManager database by reflection during app startup.\n-keep class androidx.work.impl.WorkDatabase_Impl { public <init>(); }"
+          }
+        }
+      ],
       "expo-web-browser"
     ],
     "platforms": [

@@ -129,7 +129,11 @@ jobs:
           npx --no-install expo prebuild --platform android --no-install
           cd android
           NODE_ENV=production ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a --max-workers=2
-          unzip -tq app/build/outputs/apk/release/app-release.apk assets/index.android.bundle
+          apk=app/build/outputs/apk/release/app-release.apk
+          unzip -tq "$apk" assets/index.android.bundle
+          # WorkManager initializes Room before the first activity is created.
+          "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" dex code \
+            --class androidx.work.impl.WorkDatabase_Impl --method '<init>()V' "$apk" > /dev/null
       - if: matrix.platform == 'ios-simulator'
         name: Compile and package standalone Simulator app
         run: |
