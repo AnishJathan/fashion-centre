@@ -21,7 +21,12 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
       - run: npm ci
+      - name: Install Expo config for shared web sources
+        run: npm ci --prefix mobile
       - run: npm run build
       - run: npm run check:bundle
       - run: npm test
@@ -31,6 +36,12 @@ jobs:
         run: npm run test:ui
         env:
           CI: 'true'
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fashion-centre-web
+          path: dist/
+          if-no-files-found: error
 
   backend:
     runs-on: ubuntu-24.04
@@ -45,7 +56,7 @@ jobs:
           java-version: '17'
           cache: maven
           cache-dependency-path: backend/pom.xml
-      - run: mvn -B --no-transfer-progress -f backend/pom.xml package
+      - run: mvn -B --no-transfer-progress -s .github/maven-ci.xml -f backend/pom.xml package
       - name: Check credential-free demo API
         run: |
           sh scripts/start-demo-api.sh &
@@ -76,3 +87,63 @@ jobs:
       - run: npm ci
       - run: npm run verify
       - run: npm run test:native-quality
+
+  native-preview:
+    name: Build ${{ matrix.platform }} preview
+    needs: mobile
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            runner: ubuntu-24.04
+            artifact: mobile/android/app/build/outputs/apk/release/app-release.apk
+          - platform: ios-simulator
+            runner: macos-26
+            artifact: mobile/dist/FashionCentre-simulator.zip
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://fashion-centre.fashion-centre-cloudflare.workers.dev' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - if: matrix.platform == 'android'
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: npm ci
+      - if: matrix.platform == 'android'
+        name: Compile standalone ARM64 test APK
+        run: |
+          npx --no-install expo prebuild --platform android --no-install
+          cd android
+          NODE_ENV=production ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a --max-workers=2
+          unzip -tq app/build/outputs/apk/release/app-release.apk assets/index.android.bundle
+      - if: matrix.platform == 'ios-simulator'
+        name: Compile and package standalone Simulator app
+        run: |
+          npx --no-install expo prebuild --platform ios --no-install
+          pod install --project-directory=ios
+          NODE_ENV=production xcodebuild -workspace ios/FashionCentre.xcworkspace -scheme FashionCentre \
+            -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath ios/build ARCHS=arm64 CODE_SIGNING_ALLOWED=NO build
+          app=ios/build/Build/Products/Release-iphonesimulator/FashionCentre.app
+          test -s "$app/main.jsbundle"
+          mkdir -p dist
+          ditto -c -k --keepParent "$app" dist/FashionCentre-simulator.zip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fashion-centre-${{ matrix.platform }}
+          path: ${{ matrix.artifact }}
+          if-no-files-found: error
