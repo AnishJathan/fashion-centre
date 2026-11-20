@@ -13,6 +13,7 @@ function badge(id: string, name: string, theme: 'light' | 'dark', platform = 'io
   const React = { Fragment: 'Fragment', createElement: (type: string, props: any, ...children: any[]) => ({ type, props: { ...props, children } }) };
   const modules: Record<string, any> = {
     react: { __esModule: true, default: React },
+    './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
     'react-native': { Text: 'Text', View: 'View', Platform: { select: (values: any) => values[platform] ?? values.default } },
     'react-native-svg': { __esModule: true, default: 'Svg', Circle: 'Circle', Path: 'Path', Rect: 'Rect' },
     './brandExperience': experience,
@@ -64,8 +65,8 @@ test('local monograms reflect current names and stay fixed while the adjacent ac
     assert.equal(label.props.allowFontScaling, false);
     assert.ok(label.props.style.fontSize <= 13);
   }
-  for (const [platform, expected] of [['ios', 'Georgia'], ['android', 'serif'], ['web', 'Georgia']]) {
-    assert.equal(badge('atelier-demo', 'Atelier Demo', 'light', platform).all.find(node => node.type === 'Text')!.props.style.fontFamily, expected);
+  for (const platform of ['ios', 'android', 'web']) {
+    assert.equal(badge('atelier-demo', 'Atelier Demo', 'light', platform).all.find(node => node.type === 'Text')!.props.style.fontFamily, 'DMSerifText');
   }
 });
 

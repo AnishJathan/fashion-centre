@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Image, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { Text } from "./Typography";
+import { Animated, Image, Pressable, View, useWindowDimensions } from "react-native";
 import { edits, phoneCoverAspect } from './editorial';
 import { displayFont, metrics, motion } from './design';
 import { useReducedMotion } from './Motion';

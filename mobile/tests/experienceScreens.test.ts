@@ -53,6 +53,7 @@ function harness(initialMood = 'all', catalogue = products) {
   };
   const imports: Record<string, any> = {
     react: { __esModule: true, default: React, ...React },
+    './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
     'react-native': {
       ...Object.fromEntries(['Image', 'Modal', 'Pressable', 'ScrollView', 'Text', 'View'].map(name => [name, name])),
       Platform: { OS: 'ios' }, useWindowDimensions: () => ({ width: 390, height: 844, fontScale: 1 }),

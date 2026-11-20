@@ -28,6 +28,8 @@ For iOS, configure a reachable API origin and run `npm run ios` on a Mac with Xc
 
 The [design guide](../docs/design.md) describes the shared tokens, navigation and discovery controls.
 
+Shopper sign-in offers Google and WhatsApp. The country picker searches by name, ISO abbreviation or calling code. Merchants use **Merchant sign-in with Shopify** or the brand-owner dashboard. Both providers use the system browser and return to the installed app. Rebuild the native app when adding the Expo WebBrowser module. [Provider setup and callback URLs](../backend/README.md#google-and-shopify-sign-in)
+
 ## Code map
 
 | Area | Files |
@@ -39,6 +41,10 @@ The [design guide](../docs/design.md) describes the shared tokens, navigation an
 | Native vision | [Android ML Kit and iOS Apple Vision](modules/fashion-vision/) |
 
 The demo keeps shoppers, carts, orders, and preferences on device. Camera readiness analysis runs on device. Account photo upload and provider jobs are separate actions that require a configured backend. Live sign-in, saved-photo delivery, and paid generation require their own device verification.
+
+## Try on a garment
+
+Sign in, open a product, and tap **Try On**. If you need an account photo, choose one from your library or take one with the camera. Review the preview and confirm the upload. The app returns to the same garment. Review the saved photo and confirm generation to send the two images to Pruna. Choosing a gallery photo requires no camera permission. Use a project-owned sample photo for device tests. Each confirmed generation can incur a provider charge.
 
 ## Verify
 

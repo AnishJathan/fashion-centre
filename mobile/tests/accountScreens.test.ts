@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import ts from "typescript";
+import { defaultCountry } from "../src/phoneCountries.ts";
 import { phoneCoverAspect } from "../src/editorial.ts";
 import { metrics, pageLayout } from "../src/design.ts";
 import { normalisePhone, resolutionWarning, safeGarmentUrl } from "../src/photo/validation.ts";
@@ -45,7 +46,7 @@ function componentHarness(
     refIndex = 0;
   const env = {
     require: (asset: string) => { assert.equal(asset, "../assets/editorial/field-wide.jpg"); return 1; },
-    metrics, phoneCoverAspect,
+    metrics, phoneCoverAspect, defaultCountry,
     pageLayout,
     React: {
       Fragment: "Fragment",
@@ -88,7 +89,8 @@ function componentHarness(
         "Title",
         "Body",
         "Card",
-        "Choices",
+        "CountryPicker",
+        "GoogleSignInButton",
         "Field",
         "Button",
         "AccountNotice",
@@ -465,6 +467,7 @@ test("photo preparation is compact without removing the usable-garment gate", ()
   const routes: any[] = [];
   const h = componentHarness("AccountScreens.tsx", "ActiveAccountScreen", {
     useApp: () => ({ products: [product] }),
+    isPickingLibraryPhoto: () => false,
     safeGarmentUrl,
     resolutionWarning,
     Image: { getSize: (_: string, success: (width: number, height: number) => void) => success(1000, 1600) },
@@ -511,17 +514,17 @@ test("compact personal-photo previews still require both local acknowledgements"
 });
 
 
-test("Try On preparation offers camera capture without a photo-library option", async () => {
+test("Try On preparation offers both library selection and camera capture", async () => {
   const h = photoHarness(false);
   const labels = () => all(h.render(), "Button").map(button => button.props.label);
-  assert.ok(!labels().includes("Choose from photos"));
+  assert.ok(labels().includes("Choose from photos"));
   assert.ok(!labels().includes("Choose a different photo"));
   assert.ok(labels().includes("Take a photo"));
   assert.match(find(h.render(), "AccountSection").props.description, /^Take an upright photo/);
   find(h.render(), "Button", "Take a photo").props.onPress();
   await flush();
   assert.deepEqual(h.selections, [true]);
-  assert.ok(!labels().includes("Choose from photos"));
+  assert.ok(labels().includes("Choose from photos"));
   assert.ok(!labels().includes("Choose a different photo"));
   assert.ok(labels().includes("Take a photo"));
   assert.equal(all(h.render(), "ConsentRow").length, 2);
@@ -529,13 +532,13 @@ test("Try On preparation offers camera capture without a photo-library option", 
   assert.deepEqual(h.uploads, []);
 });
 
-test("account photos require a scanned frame and explicit save consent", async () => {
+test("account photos support scanning and gallery selection with explicit save consent", async () => {
   const h = photoHarness(true);
   assert.ok(find(h.render(), "Button", "Scan full body automatically"));
   acceptScan(h);
   await flush();
   assert.deepEqual(h.selections, []);
-  assert.ok(!all(h.render(), "Button").some(b => b.props.label === "Choose from photos"));
+  assert.ok(all(h.render(), "Button").some(b => b.props.label === "Choose from photos"));
   assert.ok(find(h.render(), "PhotoPreview"));
   assert.equal(find(h.render(), "Button", "Save photo to account").props.disabled, true);
   assert.deepEqual(h.uploads, []);
@@ -550,6 +553,7 @@ function savedTryOnHarness(options: { signedOut?: boolean; photoStatus?: number;
   let releasePhoto = () => {}, background = () => {};
   const h = componentHarness("AccountScreens.tsx", "SavedTryOn", {
     useApp: () => ({ products: [product] }),
+    isPickingLibraryPhoto: () => false,
     safeGarmentUrl,
     apiUrl: (path: string) => "https://configured.example" + path,
     configuredUrl: (path: string) => "https://configured.example" + path,
@@ -597,7 +601,7 @@ test("saved-photo Try On treats sign-in as a calm prerequisite with exact action
   assert.equal(all(screen, "ConsentRow").length, 0);
   find(screen, "Button", "Sign in to continue").props.onPress();
   find(screen, "Button", "Prepare a photo locally").props.onPress();
-  assert.deepEqual(h.routes, [{ name: "login" }, { name: "prepare", productId: h.product.id, brandId: "brand" }]);
+  assert.deepEqual(h.routes, [{ name: "login", productId: h.product.id, brandId: "brand" }, { name: "prepare", productId: h.product.id, brandId: "brand" }]);
   assert.deepEqual(h.requests, [{ path: "/api/auth/me", method: "GET" }]);
   assert.deepEqual(h.alerts, []);
 });
@@ -611,9 +615,13 @@ test("missing saved photo has a specific next step; expired authentication stays
     assert.equal(all(screen, "PhotoPreview").length, 0);
     assert.equal(all(screen, "ConsentRow").length, 0);
     assert.equal(all(screen, "AccountNotice").length, 0);
-    const label = photoStatus === 404 ? "Add an account photo" : "Sign in to continue";
-    find(screen, "Button", label).props.onPress();
-    assert.deepEqual(h.routes, [{ name: "login" }]);
+    if(photoStatus === 404){
+      assert.equal(find(screen,"PhotoEditor").props.upload,true);
+      assert.deepEqual(h.routes,[]);
+    }else{
+      find(screen,"Button","Sign in to continue").props.onPress();
+      assert.deepEqual(h.routes,[{name:"login", productId:h.product.id, brandId:"brand"}]);
+    }
     assert.deepEqual(h.requests.map(request => request.method), ["GET", "HEAD"]);
   }
 });

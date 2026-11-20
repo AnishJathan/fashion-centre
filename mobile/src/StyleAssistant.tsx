@@ -1,8 +1,9 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
+import { Text, TextInput } from "./Typography";
 import {
   AccessibilityInfo, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable,
-  ScrollView, Text, TextInput, View, findNodeHandle, useWindowDimensions,
-} from 'react-native';
+  ScrollView, View, findNodeHandle, useWindowDimensions,
+} from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, Path, RadialGradient, Stop } from 'react-native-svg';
 import { useReducedMotion } from './Motion';

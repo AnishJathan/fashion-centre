@@ -23,6 +23,7 @@ function harness() {
   };
   const modules: Record<string, any> = {
     react: { __esModule: true, default: react, ...react },
+    './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
     "react-native": { Pressable: "Pressable", Text: "Text", View: "View", useWindowDimensions: () => window },
     "./ui": { ...Object.fromEntries(["Badge", "Body", "Button", "Card", "Heading", "Icon", "Photo", "Title"].map(name => [name, name])), usePalette: () => ({}) },
     "./core/domain": domain,

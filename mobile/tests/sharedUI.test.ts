@@ -98,6 +98,7 @@ function harness(
   );
   const modules: Record<string, any> = {
     react: { __esModule: true, default: react, ...react },
+    './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
     "react-native": {
       ...native,
       Platform: { OS: options.os || "ios" },

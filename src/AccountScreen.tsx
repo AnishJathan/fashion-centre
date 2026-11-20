@@ -1,10 +1,13 @@
 import {useEffect,useState,type FormEvent} from 'react';
+import {CountryPicker} from './CountryPicker';
+import {BrandLink} from './StoreNavigation';
+import {browserSignIn, takeSignInResult} from './providerSignIn';
+import {defaultCountry, normalisePhone, type PhoneCountry} from '../mobile/src/phoneCountries';
+import googleMark from '../mobile/assets/identity/google-g.png';
 import {PhotoCapture} from './PhotoCapture';
 
 const API='/api/auth';
 type Step='phone'|'code'|'photo'|'success';
-
-const PHONE_LENGTH:Record<string,number>={'+61':9,'+91':10,'+1':10,'+44':10};
 
 async function postJson<T>(path:string,body:unknown){
   const res=await fetch(`${API}${path}`,{
@@ -17,28 +20,16 @@ async function postJson<T>(path:string,body:unknown){
   return {ok:res.ok,status:res.status,data};
 }
 
-// Returns the national digits (without country code or trunk 0) and the full number
-function normalisePhone(country:string,input:string){
-  const code=country.replace('+','');
-  const trimmed=input.trim();
-  let digits=trimmed.replace(/\D/g,'');
-  if(trimmed.startsWith('+')||trimmed.startsWith('00')){
-    digits=digits.replace(/^00/,'');
-    if(digits.startsWith(code)) digits=digits.slice(code.length);
-  }
-  digits=digits.replace(/^0/,'');
-  return {digits,number:`+${code}${digits}`};
-}
-
-export default function AccountScreen({close}:{close:()=>void}){
+export default function AccountScreen({close,studio=false}:{close:()=>void;studio?:boolean}){
   const [step,setStep]=useState<Step>('phone');
-  const [country,setCountry]=useState('+61');
+  const [country,setCountry]=useState<PhoneCountry>(defaultCountry);
   const [phone,setPhone]=useState('');
   const [sentTo,setSentTo]=useState('');
   const [code,setCode]=useState('');
   const [error,setError]=useState('');
   const [uploadError,setUploadError]=useState('');
   const [busy,setBusy]=useState(false);
+  const [openingGoogle,setOpeningGoogle]=useState(false);
   const [expiresAt,setExpiresAt]=useState(0);
   const [resendAt,setResendAt]=useState(0);
   const [now,setNow]=useState(Date.now());
@@ -47,15 +38,47 @@ export default function AccountScreen({close}:{close:()=>void}){
 
   useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t)},[]);
 
+  useEffect(()=>{
+    const abort=new AbortController();
+    const result=takeSignInResult();
+    setError(result.message);
+    void (async()=>{
+      try {
+        const response=await fetch(API+'/me',{credentials:'include',cache:'no-store',signal:abort.signal});
+        if (!response.ok) throw Error();
+        const me=await response.json();
+        if (typeof me.id!=='string' || !me.id) throw Error();
+        if (!abort.signal.aborted) setStep(me.hasPhoto?'success':'photo');
+      } catch {
+        if (!abort.signal.aborted && result.returned) setError('Couldn’t confirm your session. Please sign in again.');
+      }
+    })();
+    return ()=>abort.abort();
+  },[]);
+
+  async function google(){
+    setBusy(true);setOpeningGoogle(true);setError('');
+    try { await browserSignIn('google', undefined, studio); }
+    catch (cause) {setError(cause instanceof Error?cause.message:'Couldn’t start Google sign-in.');setBusy(false);setOpeningGoogle(false);}
+  }
+
+  async function logout(){
+    setBusy(true);setError('');
+    try {
+      const res=await fetch(API+'/logout',{method:'POST',credentials:'include'});
+      if(!res.ok) throw Error();
+      setPhone('');setSentTo('');setCode('');setDevCode('');setSavedNow(false);setUploadError('');setStep('phone');
+    } catch {setError('Couldn’t sign out. Please try again.');}
+    finally {setBusy(false);}
+  }
+
   const remaining=Math.max(0,Math.ceil((expiresAt-now)/1000));
   const cooldown=Math.max(0,Math.ceil((resendAt-now)/1000));
 
   async function requestCode(){
-    const {digits,number}=normalisePhone(country,phone);
-    if(digits.length!==PHONE_LENGTH[country]){
-      setError(`Enter a ${PHONE_LENGTH[country]}-digit WhatsApp number for ${country}.`);
-      return;
-    }
+    let number:string;
+    try { number=normalisePhone(country.dial,phone); }
+    catch (cause) {setError(cause instanceof Error?cause.message:'Check your phone number.');return;}
     setBusy(true);setError('');
     try{
       const r=await postJson<{expiresInSeconds?:number;resendInSeconds?:number;devCode?:string}>('/request-code',{phone:number});
@@ -128,28 +151,28 @@ export default function AccountScreen({close}:{close:()=>void}){
     <section className="login-demo">
       <div className="login-card">
         <span className="pill">
-          {step==='photo'?'STEP 2 OF 2':'WHATSAPP VERIFICATION'}
+          {step==='phone'?'Welcome back':step==='code'?'WhatsApp verification':'Your account'}
         </span>
 
         {step==='phone'&&(
           <>
             <h1>Sign in to <em>Fashion Centre</em></h1>
-            <p>We’ll send a one-time code to your WhatsApp number.</p>
-            <form onSubmit={e=>{e.preventDefault();requestCode()}}>
-              <label htmlFor="country">Country code</label>
-              <select id="country" value={country} onChange={e=>setCountry(e.target.value)}>
-                <option value="+61">Australia +61</option>
-                <option value="+91">India +91</option>
-                <option value="+1">US / Canada +1</option>
-                <option value="+44">United Kingdom +44</option>
-              </select>
+            <button className="google-signin wide" type="button" aria-busy={openingGoogle} disabled={busy} onClick={google}>
+              <img src={googleMark} width="20" height="20" alt=""/>{openingGoogle?'Opening Google…':'Continue with Google'}
+            </button>
+            <p className="signin-divider">or use WhatsApp</p>
+            <form onSubmit={e=>{e.preventDefault();void requestCode();}}>
               <label htmlFor="phone">WhatsApp number</label>
-              <input id="phone" type="tel" autoComplete="tel-national" placeholder="400 000 000"
-                value={phone} onChange={e=>setPhone(e.target.value)} maxLength={18}/>
+              <div className="phone-entry">
+                <CountryPicker country={country} onChange={setCountry} disabled={busy}/>
+                <input id="phone" type="tel" autoComplete="tel-national" placeholder="Mobile number"
+                  value={phone} onChange={e=>setPhone(e.target.value)} maxLength={22} disabled={busy}/>
+              </div>
               <button type="submit" className="primary wide" disabled={busy}>
-                {busy?'Sending code…':'Send code on WhatsApp →'}
+                {busy&&!openingGoogle?'Sending code…':'Send code on WhatsApp →'}
               </button>
             </form>
+            <BrandLink className="merchant-login-link" href="#/owner">For stores</BrandLink>
           </>
         )}
 
@@ -178,7 +201,11 @@ export default function AccountScreen({close}:{close:()=>void}){
         )}
 
         {step==='photo'&&(
-          <PhotoCapture onAccepted={savePhoto} busy={busy} uploadError={uploadError}/>
+          <>
+            <p role="status">You’re signed in. Add a photo for try-on whenever you’re ready.</p>
+            <PhotoCapture onAccepted={savePhoto} busy={busy} uploadError={uploadError}/>
+            <button className="secondary wide" disabled={busy} onClick={close}>Skip photo and start browsing</button>
+          </>
         )}
 
         {step==='success'&&(
@@ -188,7 +215,7 @@ export default function AccountScreen({close}:{close:()=>void}){
             <p>{savedNow
               ?'Your full-body photo is ready for try-on.'
               :'Your full-body photo is saved and ready for try-on.'}</p>
-            <button className="primary wide" onClick={close}>Start browsing →</button>
+            <button className="primary wide" onClick={close}>{studio?'Return to Try On':'Start browsing →'}</button>
             {!savedNow&&(
               <button className="secondary wide" onClick={()=>{setUploadError('');setStep('photo')}}>
                 Take a new photo
@@ -197,8 +224,9 @@ export default function AccountScreen({close}:{close:()=>void}){
           </>
         )}
 
+        {(step==='photo'||step==='success')&&<button className="text-action wide" disabled={busy} onClick={logout}>Sign out</button>}
         {error&&<p role="alert" className="login-error">{error}</p>}
-        <button className="secondary wide" disabled={busy} onClick={close}>Back to local profile</button>
+        <button className="secondary wide" disabled={busy} onClick={close}>{studio?'Back to Try On':'Back to local profile'}</button>
       </div>
     </section>
   );

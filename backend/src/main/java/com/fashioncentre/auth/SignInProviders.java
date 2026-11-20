@@ -1,0 +1,147 @@
+package com.fashioncentre.auth;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fashioncentre.merchant.ShopifyOAuth;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.server.ResponseStatusException;
+
+/** Only this backend exchanges provider credentials. Shopify online grants identify the acting staff member. */
+@Component
+class SignInProviders {
+    static final String BASE = "/api/auth/sign-in/";
+    static final String APP_RETURN = "fashioncentre://auth/complete";
+    private static final String GOOGLE_KEYS = "https://www.googleapis.com/oauth2/v3/certs";
+    private final String origin, googleId, googleSecret, shopifyId, shopifySecret;
+    private final RestClient http;
+    private final JwtDecoder googleTokens;
+
+    @Autowired
+    SignInProviders(@Value("${auth.public-origin:}") String origin,
+                    @Value("${auth.google-client-id:}") String googleId, @Value("${auth.google-client-secret:}") String googleSecret,
+                    @Value("${auth.shopify-client-id:}") String shopifyId, @Value("${auth.shopify-client-secret:}") String shopifySecret) {
+        this(origin, googleId, googleSecret, shopifyId, shopifySecret, client(), NimbusJwtDecoder.withJwkSetUri(GOOGLE_KEYS).build());
+    }
+
+    SignInProviders(String origin, String googleId, String googleSecret, String shopifyId, String shopifySecret,
+                    RestClient http, JwtDecoder googleTokens) {
+        this.origin = origin.isBlank() ? "" : validateOrigin(origin);
+        this.googleId = googleId;
+        this.googleSecret = googleSecret;
+        this.shopifyId = shopifyId;
+        this.shopifySecret = shopifySecret;
+        this.http = http;
+        this.googleTokens = googleTokens;
+    }
+
+    private static RestClient client() {
+        var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).followRedirects(HttpClient.Redirect.NEVER).build();
+        var requests = new JdkClientHttpRequestFactory(client);
+        requests.setReadTimeout(Duration.ofSeconds(10));
+        return RestClient.builder().requestFactory(requests).build();
+    }
+
+    private static String validateOrigin(String value) {
+        URI uri = URI.create(value);
+        boolean local = "http".equals(uri.getScheme()) && "localhost".equals(uri.getHost());
+        if ((!local && !"https".equals(uri.getScheme())) || uri.getHost() == null || uri.getRawUserInfo() != null
+                || uri.getRawQuery() != null || uri.getRawFragment() != null
+                || !(uri.getPath().isEmpty() || uri.getPath().equals("/"))) {
+            throw new IllegalArgumentException("Use HTTPS or HTTP localhost for local Google testing.");
+        }
+        return uri.getScheme() + "://" + uri.getRawAuthority();
+    }
+
+    String origin(String provider) {
+        boolean ready = switch (provider) {
+            case "google" -> !googleId.isBlank() && !googleSecret.isBlank();
+            case "shopify" -> origin.startsWith("https://") && !shopifyId.isBlank() && !shopifySecret.isBlank();
+            default -> throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        };
+        if (origin.isEmpty() || !ready) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
+        return origin;
+    }
+
+    static String shop(String value) {
+        try { return ShopifyOAuth.canonicalShop(value); }
+        catch (ShopifyOAuth.Rejected ex) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST); }
+    }
+
+    static String encode(String value) { return URLEncoder.encode(value, StandardCharsets.UTF_8); }
+
+    private String callback(String provider) { return origin + BASE + provider + "/callback"; }
+
+    URI authorization(String provider, String shop, String state, String browserKey) {
+        String common = "&state=" + state + "&redirect_uri=" + encode(callback(provider));
+        if ("shopify".equals(provider)) {
+            return URI.create("https://" + shop + "/admin/oauth/authorize?client_id=" + encode(shopifyId)
+                    + common + "&scope=read_products&grant_options%5B%5D=per-user");
+        }
+        return URI.create("https://accounts.google.com/o/oauth2/v2/auth?client_id=" + encode(googleId) + common
+                + "&response_type=code&scope=openid%20profile&nonce=" + nonce(browserKey)
+                + "&code_challenge_method=S256&code_challenge=" + SignInStore.challenge(browserKey));
+    }
+
+    private static String nonce(String key) { return AuthService.sha256("google-nonce:" + key); }
+
+    record Identity(String subject, String firstName, Instant expires) {}
+
+    Identity exchange(String provider, String shop, Map<String, String> query, String browserKey) {
+        String code = query.get("code");
+        if (code == null || code.isBlank() || code.length() > 2048) throw new IllegalArgumentException("Missing code");
+        if ("shopify".equals(provider)) {
+            long timestamp = Long.parseLong(query.getOrDefault("timestamp", ""));
+            long now = Instant.now().getEpochSecond();
+            if (!shop.equals(query.get("shop")) || timestamp < now - 300 || timestamp > now + 60
+                    || !ShopifyOAuth.validHmac(query, shopifySecret.getBytes(StandardCharsets.UTF_8))) {
+                throw new IllegalArgumentException("Invalid Shopify callback");
+            }
+            JsonNode grant = http.post().uri("https://" + shop + "/admin/oauth/access_token")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("client_id", shopifyId, "client_secret", shopifySecret, "code", code))
+                    .retrieve().body(JsonNode.class);
+            if (grant == null || grant.path("access_token").asText("").isBlank()) throw new IllegalArgumentException("Missing grant");
+            JsonNode actor = grant.path("associated_user").path("id");
+            long ttl = Math.min(86400, grant.path("expires_in").asLong(0));
+            if (!actor.isIntegralNumber() || !actor.asText().matches("[1-9][0-9]{0,19}") || ttl <= 0)
+                throw new IllegalArgumentException("Missing online identity");
+            return new Identity(actor.asText(), null, Instant.now().plusSeconds(ttl));
+        }
+        var form = new LinkedMultiValueMap<String, String>();
+        form.set("grant_type", "authorization_code");
+        form.set("code", code);
+        form.set("client_id", googleId);
+        form.set("client_secret", googleSecret);
+        form.set("redirect_uri", callback(provider));
+        form.set("code_verifier", browserKey);
+        JsonNode grant = http.post().uri("https://oauth2.googleapis.com/token").contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(form).retrieve().body(JsonNode.class);
+        if (grant == null || !grant.path("id_token").isTextual()) throw new IllegalArgumentException("Missing ID token");
+        Jwt jwt = googleTokens.decode(grant.get("id_token").textValue());
+        String issuer = jwt.getClaimAsString("iss"), azp = jwt.getClaimAsString("azp"), sub = jwt.getSubject();
+        if (!("https://accounts.google.com".equals(issuer) || "accounts.google.com".equals(issuer))
+                || jwt.getExpiresAt() == null || !jwt.getExpiresAt().isAfter(Instant.now())
+                || jwt.getAudience() == null || !jwt.getAudience().contains(googleId)
+                || ((azp != null || jwt.getAudience().size() > 1) && !googleId.equals(azp))
+                || !nonce(browserKey).equals(jwt.getClaimAsString("nonce"))
+                || sub == null || sub.isBlank() || sub.length() > 255) throw new IllegalArgumentException("Invalid Google identity");
+        String name = jwt.getClaimAsString("given_name");
+        return new Identity(sub, name == null ? null : name.substring(0, Math.min(80, name.length())), null);
+    }
+}

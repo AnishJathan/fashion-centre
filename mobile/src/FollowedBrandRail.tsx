@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, AppState, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Text, displayFont } from "./Typography";
+import { AccessibilityInfo, AppState, Pressable, ScrollView, View, useWindowDimensions } from "react-native";
 import { useIsFocused } from '@react-navigation/native';
 import { useApp } from './state';
 import { Icon, usePalette } from './ui';
@@ -61,7 +62,7 @@ export function FollowedBrandRail({ navigate }: { navigate: (route: Route) => vo
             const identity = brandExperience(brand.id, app.theme), colors = identity.palette;
             return <Pressable key={brand.id} accessibilityRole="button" accessibilityLabel={`Open ${brand.name} storefront`} onFocus={() => focusEntry(brand.id)} onBlur={() => setFocusedEntry(null)} onPress={() => { setPaused(true); navigate({ name: 'brand', brandId: brand.id }); }} style={({ pressed }) => ({ width: entryWidth, minHeight: 64, flexDirection: 'column', alignItems: 'center', gap: 2, paddingHorizontal: 2, borderRadius: 24, borderWidth: 1, borderColor: focusedEntry === brand.id ? colors.accent : 'transparent', backgroundColor: pressed ? colors.tint : 'transparent', opacity: pressed ? .78 : 1 })}>
               <BrandRailBadge id={brand.id} name={brand.name} theme={app.theme} />
-              <Text numberOfLines={scale >= 1.3 ? undefined : 2} style={{ alignSelf: 'stretch', minHeight: 26, textAlign: 'center', includeFontPadding: false, fontFamily: identity.serif ? Platform.select({ ios: 'Georgia', android: 'serif', default: 'Georgia' }) : undefined, fontSize: 11, lineHeight: 13, fontWeight: identity.serif ? '600' : '700', letterSpacing: -.15, color: colors.text }}>{brand.name}</Text>
+              <Text numberOfLines={scale >= 1.3 ? undefined : 2} style={{ alignSelf: 'stretch', minHeight: 26, textAlign: 'center', includeFontPadding: false, fontFamily: identity.serif ? displayFont : undefined, fontSize: 11, lineHeight: 13, fontWeight: identity.serif ? '600' : '700', letterSpacing: -.15, color: colors.text }}>{brand.name}</Text>
             </Pressable>;
           })}
         </ScrollView>

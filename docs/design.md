@@ -10,11 +10,17 @@ Fashion Centre uses a warm paper background, russet actions and charcoal text in
 | Discovery photography, copy and actions | [Shared copy](../mobile/src/editorial.ts), [web cover](../src/EditorialCover.tsx), [native cover](../mobile/src/EditorialCover.tsx) |
 | Native shopping filters and category layout | [CommerceHome](../mobile/src/CommerceHome.tsx) |
 
-Use 16 units for phone gutters and 24 on larger screens. Use 8 between related controls, 16 between groups and 24 for sections and card corners. Chips, buttons and the navigation bar are pill shaped. Reserve at least 48 units for touch controls. Let labels wrap when system text grows.
+Use DM Serif Text for editorial and page headings. Use Inter for body copy, product information, buttons, inputs, and navigation. Both clients load the same local font assets. In native screens, import Text and TextInput from Typography to preserve the shared weight mapping and system text scaling.
 
-The navigation footer has four equal destinations. A sand oval identifies the current icon. The opaque surface retains contrast over either theme. The scrolling viewport ends above the footer, which owns its safe-area inset. The native style helper opens from the header. On Discover, the category chips have their own horizontally scrollable row below search and filters.
+Use 16 units for phone gutters and 24 on larger screens. Use 8 between related controls, 16 between groups and 24 for sections and card corners. Use 12-unit corners for buttons and fields, 6 for checkbox indicators, and pills for the bottom navigation dock, its selected indicator, and compact badges. Home leads with search, categories and store entrances. Inside a store, keep its name visible alongside marketplace navigation. Reserve at least 48 units for touch controls. Let labels wrap when system text grows.
 
-Respect the system reduced-motion setting for page transitions, cover changes and tab feedback. Keep product and editorial images separate so a styling suggestion never substitutes for the selected product. Run [verification](verification.md) after changing either renderer.
+For web layouts at least 1024 CSS pixels wide with a fine pointer and hover, [desktop styles](../src/desktop.css) place shopping filters and store entrances beside the collection. Profile and try-on panels use two columns. Keep the catalogue reading order usable when these columns collapse.
+
+Place Back and store-return controls in the second row beneath the screen title. Omit this row on root screens without a return destination.
+
+The navigation footer has four equal destinations. A sand oval identifies the current icon. A tinted glass pill floats over scrolling content. The selected tab stretches briefly and settles. Both renderers reserve the dock height and system inset at the end of the scroll area. Reduced transparency uses a solid surface. On cold launch, two fine elliptical lines settle around the app monogram while the interface initializes. Reduced motion shows the static mark. The native style helper opens from the header. On Discover, the category chips have their own horizontally scrollable row below search and filters.
+
+Respect the system reduced-motion setting for page transitions, cover changes and tab feedback. Let the outer card clip its thumbnail. Use a centered cover crop and apply padding to the caption. Full-screen catalogue photos and personal photo reviews show the complete image. Keep product and editorial images separate so a styling suggestion never substitutes for the selected product. Run [verification](verification.md) after changing either renderer.
 
 ## App icon
 
@@ -22,4 +28,12 @@ The header and launcher use the same [DM Serif Text F outline](../mobile/src/bra
 
 ## Release verification
 
-The local demo exposes sample Shopify catalogues and local shopping. Production phone sign-in, account-photo storage and Pruna jobs require the configured HTTPS backend. Live Shopify installation and Google/Apple sign-in are outside the current client integration. Before store submission, verify the live account, merchant and photo flows with the intended services, complete consented physical-device camera checks, and build with the distribution identities and backend origin for that release.
+The shopper screen offers Google and WhatsApp with a searchable country-code picker. The merchant dashboard uses Shopify Admin sign-in. Web, iOS and Android use the same country choices and calling-code validation. The credential-free demo exposes sample catalogues and local shopping. For live sign-in, configure the [provider callbacks](../backend/README.md#google-and-shopify-sign-in) and verify account access with the intended services. Store installation, Apple sign-in and physical-device camera acceptance still require separate release work.
+
+## Try On studio
+
+The studio shows up to 16 recently opened products and stores in each browser or app installation. Product detail visits also count toward the owning store. Reopening a piece moves it to the front. The studio resolves saved IDs against the current catalogue and store scope before displaying them. A recent piece opens its garment review. A store opens its collection. The account check reads photo status without downloading the image. Upload and generation require separate actions.
+
+## Shopper profile
+
+Profile brings together the shopper’s account, shopping shortcuts, try-on photo, followed stores, preferences and help. Name edits go to the signed-in account. Local orders, bags, follows, preferences and backups use device storage. Store checkouts collect delivery addresses and payment details. The shared FAQ lives in `mobile/src/core/profileOptions.ts`.

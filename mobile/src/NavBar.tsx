@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Animated, Pressable, Text, View, useWindowDimensions } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import { Text } from "./Typography";
+import { Animated, Pressable, View, useWindowDimensions } from "react-native";
+import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { metrics, motion, visibleBadgeCount } from './design';
 import { useReducedMotion } from './Motion';
@@ -31,7 +32,7 @@ export function NavBar({ route, bagQuantity, onSelectTab, onTryOn }: {
       return;
     }
     selectionScale.setValue(0.88);
-    const animation = Animated.timing(selectionScale, { toValue: 1, duration: motion.press, useNativeDriver: true });
+    const animation = Animated.timing(selectionScale, { toValue: 1, duration: motion.press * 3, useNativeDriver: true });
     animation.start();
     return () => animation.stop();
   }, [current, reducedMotion, selectionScale]);
@@ -42,10 +43,20 @@ export function NavBar({ route, bagQuantity, onSelectTab, onTryOn }: {
     }}>
       <View testID="curved-bottom-nav" accessibilityRole="tablist" accessibilityLabel="Main navigation" style={{
         width: frame.width, height: frame.height, flexDirection: 'row', alignItems: 'stretch',
-        paddingHorizontal: 7, paddingVertical: 3, borderRadius: metrics.controlRadius, borderWidth: 1,
-        backgroundColor: p.dock, borderColor: solidContrast ? p.dockText : p.dockLine,
+        paddingHorizontal: 7, paddingVertical: 3, borderRadius: metrics.pillRadius, borderWidth: 1,
+        backgroundColor: solidContrast ? p.dock : p.dock + 'E3', borderColor: solidContrast ? p.dockText : 'transparent', borderTopWidth: 0,
         shadowColor: '#211810', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6,
       }}>
+        {!solidContrast && <View pointerEvents="none" accessible={false} style={{ position: 'absolute', inset: 0, overflow: 'hidden', borderRadius: metrics.pillRadius }}>
+          <Svg width="100%" height="100%" accessible={false}>
+            <Defs><LinearGradient id="glass" x1="0%" y1="0%" x2="20%" y2="100%">
+              <Stop offset="0" stopColor="#fff4dd" stopOpacity={0.24}/>
+              <Stop offset="0.43" stopColor="#fff4dd" stopOpacity={0.025}/>
+              <Stop offset="1" stopColor="#150e09" stopOpacity={0.12}/>
+            </LinearGradient></Defs>
+            <Rect width="100%" height="100%" rx={frame.height / 2} fill="url(#glass)"/>
+          </Svg>
+        </View>}
         {primaryNavigation.map(({ id, label, path }) => {
           const selected = current === id;
           const count = id === 'cart' ? bagQuantity : 0;
@@ -59,15 +70,18 @@ export function NavBar({ route, bagQuantity, onSelectTab, onTryOn }: {
               onPress={id === 'prepare' ? onTryOn : () => onSelectTab(id)}
               style={({ pressed }) => ({
                 flex: 1, minWidth: metrics.touch, minHeight: metrics.touch, gap: 2,
-                alignItems: 'center', justifyContent: 'center', borderRadius: metrics.controlRadius,
+                alignItems: 'center', justifyContent: 'center', borderRadius: metrics.pillRadius,
                 borderWidth: 2, borderColor: focused === id ? p.dockSelected : 'transparent',
                 opacity: pressed ? 0.78 : 1,
                 transform: [{ scale: pressed && !reducedMotion ? 0.96 : 1 }],
               })}>
               <Animated.View testID={selected ? 'bottom-active-capsule' : undefined} style={{
-                width: 44, height: 26, alignItems: 'center', justifyContent: 'center', borderRadius: metrics.controlRadius,
+                width: 44, height: 26, alignItems: 'center', justifyContent: 'center', borderRadius: metrics.pillRadius,
                 backgroundColor: selected ? p.dockSelected : 'transparent',
-                transform: [{ scale: selected ? selectionScale : 1 }],
+                transform: selected && !reducedMotion ? [
+                  { scaleX: selectionScale.interpolate({inputRange: [.88, .95, 1], outputRange: [.82, 1.09, 1]}) },
+                  { scaleY: selectionScale.interpolate({inputRange: [.88, .95, 1], outputRange: [1.09, .94, 1]}) },
+                ] : [],
               }}>
                 <Svg accessible={false} focusable={false} width={22} height={22} viewBox="0 0 24 24">
                   <Path d={path} fill="none" stroke={selected ? p.dockSelectedInk : p.dockText}
@@ -75,7 +89,7 @@ export function NavBar({ route, bagQuantity, onSelectTab, onTryOn }: {
                 </Svg>
                 {count > 0 && <View accessible={false} style={{
                   position: 'absolute', top: -3, right: -4, minWidth: 16, paddingHorizontal: 3,
-                  borderWidth: 1, borderColor: p.dock, borderRadius: metrics.controlRadius, backgroundColor: p.dockSelected,
+                  borderWidth: 1, borderColor: p.dock, borderRadius: metrics.pillRadius, backgroundColor: p.dockSelected,
                 }}>
                   <Text allowFontScaling={false} style={{ textAlign: 'center', fontWeight: '700', fontSize: 9, lineHeight: 13, color: p.dockSelectedInk }}>{visibleBadgeCount(count)}</Text>
                 </View>}

@@ -63,22 +63,37 @@ public class AuthController {
                 .build();
     }
 
+    public record ProfileNameRequest(String accountId, String firstName) {}
+
+    @PostMapping("/me")
+    public ResponseEntity<Map<String, String>> updateProfileName(
+            @CookieValue(name = SESSION_COOKIE, required = false) String token,
+            @RequestBody ProfileNameRequest request) {
+        String name = auth.updateProfileName(token, request.accountId(), request.firstName());
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(Map.of("firstName", name));
+    }
+
     @GetMapping("/me")
-    public ResponseEntity<Map<String, String>> me(@CookieValue(name = SESSION_COOKIE, required = false) String token) {
+    public ResponseEntity<Map<String, Object>> me(@CookieValue(name = SESSION_COOKIE, required = false) String token) {
         User user = auth.currentUser(token)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not signed in."));
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(Map.of(
                 "id", user.getId(),
-                "phone", mask(user.getPhoneNumber()),
+                "phone", user.getPhoneNumber() == null ? "" : mask(user.getPhoneNumber()),
+                "hasPhoto", user.getPhotoPublicId() != null,
                 "firstName", user.getFirstName() == null ? "" : user.getFirstName()));
     }
 
     private static ResponseCookie cookie(String value, Duration maxAge) {
-        return ResponseCookie.from(SESSION_COOKIE, value)
+        return sessionCookie(SESSION_COOKIE, value, maxAge, "/");
+    }
+
+    static ResponseCookie sessionCookie(String name, String value, Duration maxAge, String path) {
+        return ResponseCookie.from(name, value)
                 .httpOnly(true)
                 .secure(true)
                 .sameSite("Lax")
-                .path("/")
+                .path(path)
                 .maxAge(maxAge)
                 .build();
     }

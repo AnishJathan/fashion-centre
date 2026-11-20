@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { storeThumbnail } from '../mobile/src/storeThumbnail';
 import { CatalogueImage } from './CatalogueImage';
 import { money, productPath, selectProducts, type Brand, type Product } from './domain';
 import { BrandLink } from './StoreNavigation';
@@ -9,12 +10,12 @@ export function CatalogueDirectory({ brands }: { brands: Brand[] }) {
       {brands.map(brand => (
         <BrandLink href={'#/brand/' + brand.id} key={brand.id}>
           {brand.image && (
-            <CatalogueImage key={brand.image} src={brand.image} alt={brand.name + ' catalogue selection'} referrerPolicy="no-referrer" />
+            <CatalogueImage key={brand.image} src={storeThumbnail(brand.image)} alt={brand.name + ' catalogue selection'} referrerPolicy="no-referrer" />
           )}
           <div>
             <strong>{brand.name}</strong>
-            <span>{brand.products.length} loaded products{brand.more ? ' · Partial catalogue' : ''}</span>
-            <b>Visit demo store →</b>
+            <span>{brand.products.length} pieces{brand.more ? ' · Partial catalogue' : ''}</span>
+            <b>{brand.id.startsWith("shop-") ? "Visit store" : "Visit demo store"} →</b>
           </div>
         </BrandLink>
       ))}
@@ -77,8 +78,9 @@ function sortProducts(products: Product[], sort: Sort) {
 }
 
 export function CatalogueBrowser({
-  mode, brandId, brands, products, loading, saved, followed, toggleSaved, toggleFollowed,
+  editorial, mode, brandId, brands, products, loading, saved, followed, toggleSaved, toggleFollowed,
 }: {
+  editorial?: React.ReactNode;
   mode: 'home' | 'store' | 'saved';
   brandId: string;
   brands: Brand[];
@@ -116,113 +118,117 @@ export function CatalogueBrowser({
     setStoreFilter('');
   }
 
+  const storeDirectory = !!brands.length && <section className="home-storefronts" aria-label="Shop by stores">
+          <div className="section-title"><h2>Shop by stores</h2><BrandLink global href="#/brands">All stores →</BrandLink></div>
+          <CatalogueDirectory brands={brands} />
+        </section>;
+  const filtering = Boolean(query.trim()) || category !== "All";
   return (
-    <>
-      <section className="intro">
-        {isHome ? <h2>Browse the catalogue</h2> : <h1>{isSaved ? 'Saved pieces.' : brand?.name || 'Catalogue'}</h1>}
-        {brand && (
-          <button className="secondary" aria-pressed={brandFollowed} onClick={() => toggleFollowed(brand.id)}>
-            {brandFollowed ? 'Following' : 'Follow store'}
-          </button>
-        )}
-        <input className="search"
-            aria-label="Search catalogue"
-            placeholder={brandId ? 'Search this brand' : 'Search products and stores'}
-            value={query}
-            onChange={event => setQuery(event.target.value)}
-        />
-        {!isHome && (
-          <div className="catalogue-controls">
-            {!brandId && (
-              <label>Store
-                <select aria-label="Filter by store" value={storeFilter} onChange={event => setStoreFilter(event.target.value)}>
-                  <option value="">All onboarded stores</option>
-                  {brands.map(store => <option key={store.id} value={store.id}>{store.name}</option>)}
+    <div className="catalogue-layout">
+      <div className="catalogue-filters">
+        <section className={isHome ? "intro discovery-search" : "intro"}>
+          {isHome ? <h2>Browse the catalogue</h2> : <h1>{isSaved ? 'Saved pieces.' : brand?.name || 'Catalogue'}</h1>}
+          {brand && (
+            <button className="secondary" aria-pressed={brandFollowed} onClick={() => toggleFollowed(brand.id)}>
+              {brandFollowed ? 'Following' : 'Follow store'}
+            </button>
+          )}
+          <input className="search"
+              aria-label="Search catalogue"
+              placeholder={brandId ? 'Search this brand' : 'Search products and stores'}
+              value={query}
+              onChange={event => setQuery(event.target.value)}
+          />
+          {!isHome && (
+            <div className="catalogue-controls">
+              {!brandId && (
+                <label>Store
+                  <select aria-label="Filter by store" value={storeFilter} onChange={event => setStoreFilter(event.target.value)}>
+                    <option value="">All onboarded stores</option>
+                    {brands.map(store => <option key={store.id} value={store.id}>{store.name}</option>)}
+                  </select>
+                </label>
+              )}
+              <label>Sort products
+                <select value={sort} onChange={event => setSort(event.target.value as Sort)}>
+                  <option value="featured">Catalogue order</option>
+                  {hasDates && <option value="newest">Newest in catalogue</option>}
+                  <option value="name">Name A–Z</option>
+                  <option value="price">Price: low to high, grouped by currency</option>
                 </select>
               </label>
-            )}
-            <label>Sort products
-              <select value={sort} onChange={event => setSort(event.target.value as Sort)}>
-                <option value="featured">Catalogue order</option>
-                {hasDates && <option value="newest">Newest in catalogue</option>}
-                <option value="name">Name A–Z</option>
-                <option value="price">Price: low to high, grouped by currency</option>
-              </select>
-            </label>
-            {(query || category !== 'All' || storeFilter) && (
-              <button className="secondary" onClick={clearFilters}>Clear filters</button>
-            )}
-          </div>
-        )}
-      </section>
-      {!isSaved && hero && (
-        <section className="hero catalogue-hero">
-          <CatalogueImage
-            key={hero.image}
-            src={hero.image}
-            alt={hero.name + ' from ' + hero.brandName}
-            referrerPolicy="no-referrer"
-          />
-          <BrandLink className="campaign-caption" href={productPath(hero.id)}>
-            <span>FROM {hero.brandName}</span>
-            <strong>{hero.name}</strong>
-          </BrandLink>
-        </section>
-      )}
-      {!isSaved && products.length > 0 && (
-        <section className="categories" aria-label="Shop categories">
-          <button aria-pressed={category === 'All'} onClick={() => setCategory('All')}>Shop all</button>
-          {categories.map(name => {
-            const image = products.find(product => product.category === name && product.image)?.image;
-            return (
-              <button
-                key={name}
-                aria-pressed={category === name}
-                className={category === name ? 'chosen' : ''}
-                onClick={() => setCategory(name)}
-              >
-                {image && <CatalogueImage key={image} src={image} alt="" referrerPolicy="no-referrer" />}
-                <span>{name}</span>
-              </button>
-            );
-          })}
-        </section>
-      )}
-      <section id="collection" tabIndex={-1}>
-        <div className="section-title">
-          <h2>{isSaved ? 'Saved catalogue items' : sort === 'newest' ? 'New arrivals' : category === 'All' ? 'The collection' : category}</h2>
-          <span>{list.length} loaded products</span>
-          {!isHome && !isSaved && hasDates && sort !== 'newest' && (
-            <button className="secondary" onClick={() => setSort('newest')}>View new arrivals</button>
+              {(query || category !== 'All' || storeFilter) && (
+                <button className="secondary" onClick={clearFilters}>Clear filters</button>
+              )}
+            </div>
           )}
-        </div>
-        <CatalogueCards products={list} saved={saved} toggleSaved={toggleSaved} />
-        {!loading && !list.length && <p className="empty">No matching products in the loaded catalogue.</p>}
-        {brands.some(store => (!brandId || brandId === store.id) && store.more) && (
-          <p className="fine">Bounded preview: up to 48 products per store. Additional products may exist.</p>
-        )}
-        {isSaved && unavailableSaved.length > 0 && (
-          <div className="commerce-panel">
-            <h2>Unavailable saved items</h2>
-            <p>These references are retained. Re-enable their store to see current details, or remove a reference yourself.</p>
-            {unavailableSaved.map((id, i) => (
-              <div className="unavailable-reference" key={id}>
-                <span>Saved reference {i + 1}<small>{id}</small></span>
-                <button className="secondary" onClick={() => toggleSaved(id)}>Remove saved reference {i + 1}</button>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-      {isHome && (
-        <section>
-          <div className="section-title">
-            <h2>Shop by stores</h2>
-            <BrandLink href="#/merchant">Manage stores</BrandLink>
-          </div>
-          <CatalogueDirectory brands={brands} />
         </section>
-      )}
-    </>
+        {!isHome && !isSaved && hero && (
+          <section className="hero catalogue-hero">
+            <CatalogueImage
+              key={hero.image}
+              src={hero.image}
+              alt={hero.name + ' from ' + hero.brandName}
+              referrerPolicy="no-referrer"
+            />
+            <BrandLink className="campaign-caption" href={productPath(hero.id)}>
+              <span>FROM {hero.brandName}</span>
+              <strong>{hero.name}</strong>
+            </BrandLink>
+          </section>
+        )}
+        {!isSaved && products.length > 0 && (
+          <section className="categories" aria-label="Shop categories">
+            <button aria-pressed={category === 'All'} onClick={() => setCategory('All')}>Shop all</button>
+            {categories.map(name => {
+              const image = products.find(product => product.category === name && product.image)?.image;
+              return (
+                <button
+                  key={name}
+                  aria-pressed={category === name}
+                  className={category === name ? 'chosen' : ''}
+                  onClick={() => setCategory(name)}
+                >
+                  {image && <CatalogueImage key={image} src={image} alt="" referrerPolicy="no-referrer" />}
+                  <span>{name}</span>
+                </button>
+              );
+            })}
+          </section>
+        )}
+        {isHome && !filtering && storeDirectory}
+      </div>
+      <div className="catalogue-results">
+        {isHome && !filtering && editorial}
+        <section id="collection" tabIndex={-1}>
+          <div className="section-title">
+            <h2>{isSaved ? 'Saved catalogue items' : sort === 'newest' ? 'New arrivals' : category === 'All' ? 'The collection' : category}</h2>
+            <span>{list.length} loaded products</span>
+            {!isHome && !isSaved && hasDates && sort !== 'newest' && (
+              <button className="secondary" onClick={() => setSort('newest')}>View new arrivals</button>
+            )}
+          </div>
+          <CatalogueCards products={list} saved={saved} toggleSaved={toggleSaved} />
+          {!loading && !list.length && <p className="empty">No matching products in the loaded catalogue.</p>}
+          {brands.some(store => (!brandId || brandId === store.id) && store.more) && (
+            <p className="fine">Bounded preview: up to 48 products per store. Additional products may exist.</p>
+          )}
+          {isSaved && unavailableSaved.length > 0 && (
+            <div className="commerce-panel">
+              <h2>Unavailable saved items</h2>
+              <p>These references are retained. Re-enable their store to see current details, or remove a reference yourself.</p>
+              {unavailableSaved.map((id, i) => (
+                <div className="unavailable-reference" key={id}>
+                  <span>Saved reference {i + 1}<small>{id}</small></span>
+                  <button className="secondary" onClick={() => toggleSaved(id)}>Remove saved reference {i + 1}</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {isHome && filtering && storeDirectory}
+      </div>
+    </div>
   );
 }

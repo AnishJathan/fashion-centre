@@ -2,9 +2,11 @@
 
 The discovery cover uses an original generated editorial photograph in `mobile/assets/editorial/field.jpg`. The wide crop retains the subject’s face on phones. The two other edits use the original fictional product concepts described in [the concept artwork notes](../public/images/AI-ASSETS.md). The two renderers share these image files. Live catalogue cards use the corresponding merchant product image.
 
-DM Serif Text is bundled for headings. Its license is in [the font directory](../mobile/assets/fonts/). Primary navigation icons are drawn from the shared paths in [primaryNavigation.ts](../mobile/src/primaryNavigation.ts).
+Inter Regular, Medium, Semibold and Bold are bundled from @expo-google-fonts/inter 0.4.2 under the [SIL Open Font License](../mobile/assets/fonts/Inter-OFL.txt). DM Serif Text is bundled for headings. Its license is in [the font directory](../mobile/assets/fonts/). Primary navigation icons are drawn from the shared paths in [primaryNavigation.ts](../mobile/src/primaryNavigation.ts).
 
 The web camera loads the pinned [Google Pose Landmarker Lite model](https://developers.google.com/edge/mediapipe/solutions/vision/pose_landmarker#models). The Vite build includes the WebAssembly binaries from the installed MediaPipe package. Both live under `/vision/` on the same origin as the app.
+
+The shared sign-in button displays the official multicolour Google mark on white. [Google sign-in branding](https://developers.google.com/identity/branding-guidelines) · [Source PNG](https://developers.google.com/static/identity/images/g-logo.png)
 
 ## Archived prototype artwork
 

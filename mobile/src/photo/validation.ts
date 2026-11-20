@@ -166,30 +166,7 @@ export function validateDimensions(width: number, height: number) {
       "Photo dimensions exceed this preview's limit: 12,000 pixels per edge and 40 megapixels.",
     );
 }
-export function normalisePhone(country: string, input: string) {
-  const lengths: Record<string, number> = {
-    "+61": 9,
-    "+91": 10,
-    "+1": 10,
-    "+44": 10,
-  };
-  const number = input.trim();
-  let digits = number.replace(/\D/g, "");
-  if (number.startsWith("+") || number.startsWith("00")) {
-    if (number.startsWith("00")) digits = digits.slice(2);
-    const dialCode = country.slice(1);
-    if (!digits.startsWith(dialCode)) {
-      throw new Error("The phone number does not match the selected country code.");
-    }
-    digits = digits.slice(dialCode.length);
-  }
-  digits = digits.replace(/^0/, "");
-  if (!lengths[country] || digits.length !== lengths[country])
-    throw new Error(
-      "Enter a valid national number for the selected country code.",
-    );
-  return country + digits;
-}
+export { normalisePhone } from "../phoneCountries.ts";
 export function safeGarmentUrl(value: string, origin: string) {
   if (/^\/images\/[a-zA-Z0-9_.-]+$/.test(value)) return origin + value;
   const u = new URL(value);

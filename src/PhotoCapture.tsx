@@ -1,8 +1,9 @@
 import {useEffect,useRef,useState} from 'react';
+import {inspectPhoto} from './photoPreparation';
 import {analyseLiveFrame,checkPhoto,drawPortraitFrame} from './photoChecks';
 
 type Props={onAccepted:(file:Blob)=>void;busy:boolean;uploadError:string};
-type Mode='choose'|'scan';
+type Mode='choose'|'scan'|'library';
 type Preview={url:string;file:Blob};
 
 const CAMERA_CONSTRAINTS:MediaStreamConstraints={
@@ -19,6 +20,23 @@ export function PhotoCapture({onAccepted,busy,uploadError}:Props){
   const [cameraOn,setCameraOn]=useState(false);
   const [cameraError,setCameraError]=useState('');
 
+  const checkingFile = useRef(0);
+  const [checking,setChecking]=useState(false);
+  useEffect(()=>()=>{checkingFile.current++},[]);
+  async function selectFile(file:File) {
+    const version=++checkingFile.current;
+    setChecking(true);
+    setCameraError('');
+    try {
+      const {width,height}=await inspectPhoto(file);
+      if(version!==checkingFile.current)return;
+      setRatio(width/height);
+      setPreview({url:URL.createObjectURL(file),file});
+      setMode('library');
+    } catch(error) {
+      if(version===checkingFile.current)setCameraError(error instanceof Error?error.message:'Could not read this photo.');
+    } finally { if(version===checkingFile.current)setChecking(false); }
+  }
   const videoRef=useRef<HTMLVideoElement>(null);
   const analysisRef=useRef<HTMLCanvasElement>(null);
   const streamRef=useRef<MediaStream|null>(null);
@@ -133,8 +151,11 @@ export function PhotoCapture({onAccepted,busy,uploadError}:Props){
   if (mode === 'choose') return (
     <section className="photo-step">
       <h1>Add your full-body photo</h1>
-      <p>Stand back in even light with your head and feet in view. The camera captures a frame when you hold still.</p>
-      <button className="primary" onClick={() => setMode('scan')}>Scan full body</button>
+      <p>Choose a full-body JPEG, PNG or WebP up to 10 MiB, or use the camera to scan.</p>
+      <label>Choose from photos <input type="file" accept="image/jpeg,image/png,image/webp" disabled={checking || busy} onChange={e=>{const file=e.currentTarget.files?.[0];e.currentTarget.value='';if(file)void selectFile(file)}} /></label>
+      {checking && <p role="status">Checking photo…</p>}
+      {cameraError && <p role="alert">{cameraError}</p>}
+      <button className="secondary" disabled={checking || busy} onClick={() => setMode('scan')}>Scan full body</button>
     </section>
   );
   return (
@@ -153,10 +174,10 @@ export function PhotoCapture({onAccepted,busy,uploadError}:Props){
       </div>
       {uploadError && <p role="alert" className="login-error">{uploadError}</p>}
       {preview && <div className="photo-actions">
-        <button className="secondary" onClick={() => setPreview(null)} disabled={busy}>Retake</button>
+        <button className="secondary" onClick={() => {setPreview(null);if(mode==='library')setMode('choose')}} disabled={busy}>{mode==='library'?'Choose another photo':'Retake'}</button>
         <button className="primary" onClick={() => onAccepted(preview.file)} disabled={busy}>{busy ? 'Saving…' : 'Save to my account'}</button>
       </div>}
-      <button className="text-action" onClick={() => { setPreview(null); setMode('choose'); }} disabled={busy}>Close camera</button>
+      <button className="text-action" onClick={() => { setPreview(null); setMode('choose'); }} disabled={busy}>{mode==='library'?'Cancel':'Close camera'}</button>
       <canvas ref={analysisRef} hidden />
     </section>
   );

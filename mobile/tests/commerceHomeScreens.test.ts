@@ -37,7 +37,7 @@ function harness(catalogue = products, dimensions = { width: 390, height: 844, f
     catalogueLoading: false, catalogueError: '', theme: palette === palettes.dark ? 'dark' : 'light',
     registrations: catalogue.map(p => ({ id: p.brandId, enabled: true })),
     products: catalogue, saved: [] as string[], followed: [] as string[],
-    brands: catalogue.map(p => ({ id: p.brandId, name: p.brandName, image: '', products: [p], more: false })),
+    brands: catalogue.filter((p,i) => catalogue.findIndex(item => item.brandId === p.brandId) === i).map(p => ({ id: p.brandId, name: p.brandName, image: '', products: [p], more: false })),
     commerce: { cart: [{ productId: 'retained', quantity: 2 }] },
     toggleSaved: () => assert.fail('Home must not change retained saved data'),
     toggleFollowed: (id: string) => { actions.push(['follow', id]); state.followed = state.followed.includes(id) ? state.followed.filter(x => x !== id) : [...state.followed, id]; },
@@ -63,6 +63,7 @@ function harness(catalogue = products, dimensions = { width: 390, height: 844, f
   };
   const imports: Record<string, any> = {
     react: { __esModule: true, default: React, ...React },
+    './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
     'react-native': { ...Object.fromEntries(['Pressable', 'ScrollView', 'Text', 'TextInput', 'View', 'FlatList', 'KeyboardAvoidingView', 'ActivityIndicator'].map(n => [n, n])),
       Platform: { OS: platform },
       Keyboard: { dismiss: () => { keyboardDismissals++; } },
@@ -78,8 +79,9 @@ function harness(catalogue = products, dimensions = { width: 390, height: 844, f
     './state': { useApp: () => state }, './commerceHome': home, './core/domain': domain,
     './EditorialCover': { EditorialCover: 'EditorialCover' },
     './FollowedBrandRail': { FollowedBrandRail: 'FollowedBrandRail' },
+    './storeThumbnail': { storeThumbnail: (uri: string) => uri },
     './BrandMark': { BrandMark: 'BrandMark' },
-    './ui': { Button: 'Button', Icon: 'Icon', Photo: 'Photo', usePalette: () => palette },
+    './ui': { useDockInset: () => 0, Button: 'Button', Icon: 'Icon', Photo: 'Photo', usePalette: () => palette },
   };
   const module = { exports: {} as any };
   new Function('require', 'module', 'exports', 'fetch', 'requestAnimationFrame', 'cancelAnimationFrame', source)((name: string) => {
@@ -243,11 +245,11 @@ test('product rails retain a separate Try On route with the exact selected produ
   h.dispose();
 });
 
-test('followed-brand discovery remains first without a duplicate search-row Try On', () => {
+test('catalogue search precedes followed-brand discovery without a duplicate search-row Try On', () => {
   const h = harness();
   const all = h.all();
   const rail = all.find(node => node.type === 'FollowedBrandRail')!;
-  assert.ok(all.indexOf(rail) < all.findIndex(node => node.props.testID === 'home-discovery-controls'));
+  assert.ok(all.indexOf(rail) > all.findIndex(node => node.props.testID === 'home-discovery-controls'));
   assert.equal(typeof rail.props.navigate, 'function');
   assert.equal(h.controls('Prepare your try-on photo').length, 0);
   assert.deepEqual(h.routes, []);
@@ -291,18 +293,18 @@ test('home configures compact collections, categories, brand marks and product c
   }
 });
 
-test('home reaches actual products before value promotions and its compact brand directory', () => {
+test('home shows the store directory before products and value promotions', () => {
   const h = harness();
   const nodes = h.all();
   const firstProduct = nodes.findIndex(n => n.props.accessibilityLabel === 'View Demo Tops');
   const valueHeader = nodes.findIndex(n => n.type === 'Text' && content(n) === 'Value picks');
-  const directoryHeader = nodes.findIndex(n => n.type === 'Text' && content(n) === 'Discover brands');
+  const directoryHeader = nodes.findIndex(n => n.type === 'Text' && content(n) === 'Shop by stores');
   assert.ok(nodes.findIndex(n => n.type === 'FollowedBrandRail') < firstProduct);
-  assert.ok(firstProduct > 0 && firstProduct < valueHeader && valueHeader < directoryHeader);
+  assert.ok(directoryHeader >= 0 && directoryHeader < firstProduct && firstProduct < valueHeader);
   assert.equal(h.controls('Explore the full catalogue').length, 0, 'No oversized duplicate footer CTA');
   for (const product of products) {
     const browse = h.controls(`Browse ${product.brandName}`)[0];
-    assert.ok(style(browse.props.style).minHeight <= 48);
+    assert.equal(browse.props.accessibilityRole, 'button');
     assert.ok(!content(browse).includes('Follow'));
   }
   h.dispose();
@@ -502,7 +504,7 @@ test('home automatically appends one unique batch per frame and stops honestly a
   const catalogue = manyProducts();
   const h = harness([...catalogue, catalogue[2], catalogue[0]]);
   assert.equal(shown(h).length, 6);
-  assert.equal(h.controls('Follow Demo store 1').length, 0, 'Discovery modules cannot push the paging threshold below the product feed');
+  assert.equal(h.controls('Follow Demo store 1').length, 1, 'Stores remain reachable before paging');
   listIn(h).props.onEndReached(); listIn(h).props.onEndReached(); h.render();
   assert.equal(h.frames.size, 1);
   assert.equal(h.controls('Showing more pieces…')[0].props.disabled, true);
@@ -560,7 +562,7 @@ test('editorial cover and compact filters scroll with the product feed', () => {
     assert.deepEqual(children.map((node: any) => node.props.testID), ['home-product-feed']);
     const list = listIn(h);
     const header = h.all().findIndex(node => node.type === 'EditorialCover');
-    assert.ok(header >= 0 && header < h.all().findIndex(node => node.props.testID === 'home-browse-controls'));
+    assert.ok(header > h.all().findIndex(node => node.props.testID === 'home-browse-controls'));
     assert.equal(style(list.props.style).flex, 1);
     assert.ok(style(list.props.contentContainerStyle).paddingBottom >= 24);
     assert.ok(style(list.props.contentContainerStyle).paddingLeft >= 8);

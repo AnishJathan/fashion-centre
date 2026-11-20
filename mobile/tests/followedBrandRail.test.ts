@@ -66,6 +66,7 @@ function harness(options: { brands?: Brand[]; followed?: string[]; focused?: boo
   };
   const modules: Record<string, any> = {
     react: { __esModule: true, default: react, ...react },
+    './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
     'react-native': {
       ...Object.fromEntries(['Pressable', 'ScrollView', 'Text', 'View'].map(name => [name, name])),
       AccessibilityInfo: { isReduceMotionEnabled: () => motionQuery.promise, isScreenReaderEnabled: () => readerQuery.promise, addEventListener: subscribe },

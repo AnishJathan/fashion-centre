@@ -12,6 +12,25 @@ for (const width of [320, 390, 430, 1440]) {
     await page.addInitScript(() => localStorage.setItem('fc.stores.v1', JSON.stringify([{ id: 'mock', enabled: true, onboardedAt: '2026-10-18' }])));
     await page.goto('/');
     await expect(page.locator('.product')).toHaveCount(1);
+    await page.locator('.page-content').evaluate(el => Promise.all(el.getAnimations().map(a => a.finished)));
+    const filters = (await page.getByRole('textbox', { name: 'Search catalogue' }).boundingBox())!;
+    const cover = (await page.locator('.editorial-cover').boundingBox())!;
+    if (width >= 1024) {
+      expect(filters.x + filters.width).toBeLessThan(cover.x);
+    } else {
+      expect(filters.y + filters.height).toBeLessThan(cover.y);
+    }
+    for (const selector of ['.product-photo', '.home-storefronts .brand-grid a']) {
+      const frame = page.locator(selector).first();
+      const image = frame.locator('img');
+      await expect(image).toHaveCSS('object-fit', 'cover');
+      const outer = (await frame.boundingBox())!;
+      const inner = (await image.boundingBox())!;
+      expect(Math.abs(inner.x - outer.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(inner.y - outer.y)).toBeLessThanOrEqual(1);
+      if (selector === '.product-photo' || width <= 700) expect(Math.abs(inner.width - outer.width)).toBeLessThanOrEqual(2);
+      if (selector === '.product-photo' || width > 700) expect(Math.abs(inner.height - outer.height)).toBeLessThanOrEqual(2);
+    }
     const nav = page.getByRole('navigation', { name: 'Main navigation' });
     const links = nav.getByRole('link');
     await expect(links).toHaveText(['Discover', 'Try on', 'Bag', 'Profile']);
@@ -30,7 +49,7 @@ for (const width of [320, 390, 430, 1440]) {
       expect(metrics.bottom).toBeCloseTo(10, 0);
       expect(metrics.height).toBe(64);
       expect(metrics.radius).toBeGreaterThanOrEqual(metrics.height / 2);
-      expect(metrics.scrollBottom).toBeLessThanOrEqual(900 - metrics.bottom - metrics.height - 8);
+      expect(metrics.scrollBottom).toBe(900);
       for (const link of await links.all()) {
         const box = (await link.boundingBox())!;
         expect(box.width).toBeGreaterThanOrEqual(48);
@@ -57,7 +76,7 @@ for (const width of [320, 390, 430, 1440]) {
       expect(await links.nth(3).evaluate(e => getComputedStyle(e).outlineWidth)).toBe('3px');
       await page.keyboard.press('Enter');
       await expect(page).toHaveURL(/#\/profile$/);
-      await expect(page.getByRole('heading',{name:'Your local space.'})).toBeVisible();
+      await expect(page.getByRole('heading',{name:'Your profile'})).toBeVisible();
       await expect.poll(async () => {
         await page.evaluate(() => document.getElementById('app-scroll')!.scrollTo(0, document.getElementById('app-scroll')!.scrollHeight));
         const footer = (await page.locator('main footer').boundingBox())!;
@@ -65,7 +84,7 @@ for (const width of [320, 390, 430, 1440]) {
       }).toBeLessThan(0);
       await page.evaluate(() => document.documentElement.style.setProperty('--mobile-nav-safe-bottom', '34px'));
       expect(await nav.evaluate(e => innerHeight - e.getBoundingClientRect().bottom)).toBe(44);
-      expect(await page.locator('#app-scroll').evaluate(e => innerHeight - e.getBoundingClientRect().bottom)).toBeGreaterThanOrEqual(116);
+      await expect.poll(() => page.locator('#app-scroll').evaluate(e => parseFloat(getComputedStyle(e, '::after').height))).toBeGreaterThanOrEqual(116);
       await expect.poll(async () => {
         await page.evaluate(() => document.getElementById('app-scroll')!.scrollTo(0, document.getElementById('app-scroll')!.scrollHeight));
         const footer = (await page.locator('main footer').boundingBox())!;
@@ -78,3 +97,13 @@ for (const width of [320, 390, 430, 1440]) {
     }
   });
 }
+
+test('reduced motion opens the app without animating the seal or the selected tab', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await expect(page.locator('#launch-reveal')).toBeHidden();
+  const nav = page.getByRole('navigation', { name: 'Main navigation' });
+  await nav.getByRole('link', { name: 'Profile' }).click();
+  await expect(nav.locator('[aria-current] .nav-symbol')).toHaveCSS('animation-name', 'none');
+  await expect(page.locator('#launch-reveal')).toBeHidden();
+});

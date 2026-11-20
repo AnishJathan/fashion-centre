@@ -9,7 +9,12 @@
     <meta name="description" content="Explore fashion collections, browse independent stores and prepare a virtual try-on with Fashion Centre.">
     <title>Fashion Centre · Discover</title>
     <style>html{background:var(--background);color-scheme:light}html[data-theme="dark"]{color-scheme:dark}</style>
+    <link rel="stylesheet" href="/src/launch.css">
     <script src="/theme-init.js"></script>
   </head>
-  <body><div id="app"></div><script type="module" src="/src/main.tsx"></script></body>
+  <body>
+    <div id="launch-reveal" aria-hidden="true">
+      <div class="launch-seal"><i></i><i></i><img src="/favicon.svg" width="76" height="76" alt=""></div>
+    </div>
+    <div id="app"></div><script type="module" src="/src/main.tsx"></script></body>
 </html>

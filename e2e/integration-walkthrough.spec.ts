@@ -44,14 +44,14 @@ for (const width of [390, 1440]) test(`complete shopper and merchant handover th
     await page.getByRole('link', { name: /Your demo orders/ }).click();
     await expect(page.locator('.order-card')).toHaveCount(1);
     await page.goBack();
-    await expect(page.getByRole('heading', { name: 'Your local space.', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Your profile', exact: true })).toBeVisible();
     await page.locator('footer').getByRole('link', { name: 'Saved', exact: true }).click();
     await expect(page.locator('.product')).toHaveCount(1);
     await page.locator('.product-title').click();
     await page.getByRole('link', { name: 'Prepare a try-on photo' }).click();
-    await expect(page.getByRole('button', { name: /Generate try-on.*not connected/ })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Continue to try-on' })).toBeEnabled();
     await page.getByRole('button', { name: 'Cancel preparation' }).click();
-    await expect(page.getByRole('heading', { name: 'No try-on results yet.' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Recently viewed pieces' })).toBeVisible();
     await page.locator('.bottom-nav').getByRole('link', { name: 'Profile', exact: true }).click();
     await page.getByRole('link', { name: 'Brand-owner dashboard', exact: true }).click();
     await page.getByLabel('Shopify store domain').focus();

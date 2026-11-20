@@ -1,5 +1,6 @@
 import React from 'react';
-import { Platform, Text, View } from 'react-native';
+import { Text, displayFont } from "./Typography";
+import { View } from "react-native";
 import Svg, { Circle, Path } from 'react-native-svg';
 import { brandExperience } from './brandExperience';
 
@@ -25,7 +26,7 @@ export function BrandRailBadge({ id, name, theme }: { id: string; name: string; 
           <Circle cx={6} cy={6} r={1} fill={p.onAccent} fillOpacity={.6} />
         </>}
       </Svg>
-      <Text allowFontScaling={false} style={{ fontFamily: serif ? Platform.select({ ios: 'Georgia', android: 'serif', default: 'Georgia' }) : undefined, fontSize: serif ? 13 : 11, lineHeight: 17, fontWeight: serif ? '500' : '800', letterSpacing: serif ? -.7 : -.4, color: p.onAccent }}>{initials}</Text>
+      <Text allowFontScaling={false} style={{ fontFamily: serif ? displayFont : undefined, fontSize: serif ? 13 : 11, lineHeight: 17, fontWeight: serif ? '500' : '800', letterSpacing: serif ? -.7 : -.4, color: p.onAccent }}>{initials}</Text>
     </View>
   </View>;
 }

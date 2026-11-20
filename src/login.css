@@ -6,6 +6,23 @@
 .login-card h1 em { color: var(--accent); font-style: normal; }
 .login-card p { color: var(--muted); }
 .login-card form { display: grid; gap: var(--compactGap); }
+.google-signin { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 10px 16px; border: 1px solid #747775; border-radius: var(--controlRadius); background: #fff; color: #1f1f1f; font: 500 1rem/1.4 var(--body); }
+.google-signin img { object-fit: contain; }
+.google-signin:disabled { opacity: .65; }
+.signin-divider { display: flex; align-items: center; gap: 12px; margin: var(--sectionGap) 0 0; font-size: .875rem; }
+.signin-divider::before, .signin-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.phone-entry { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: var(--compactGap); }
+.phone-entry > input { width: 100%; min-width: 0; min-height: 48px; }
+.dial-picker { position: relative; }
+.dial-trigger, .dial-menu [role="option"] { display: flex; align-items: center; gap: 8px; min-height: 48px; color: var(--text); }
+.dial-trigger { padding: 0 12px; border: 1px solid var(--controlLine); border-radius: var(--controlRadius); background: var(--surface); }
+.dial-iso { color: var(--muted); font-size: .8rem; }
+.dial-menu { position: absolute; z-index: 5; top: calc(100% + 6px); left: 0; width: min(17rem, calc(100vw - 80px)); padding: 8px; border: 1px solid var(--controlLine); border-radius: var(--insetRadius); background: var(--surface); box-shadow: 0 6px 20px rgb(0 0 0 / .18); }
+.dial-menu input { width: 100%; min-width: 0; }
+.dial-menu [role="listbox"] { max-height: 13rem; overflow-y: auto; }
+.dial-menu [role="option"] { width: 100%; justify-content: space-between; text-align: left; padding: 8px 12px; border-radius: var(--insetRadius); }
+.dial-menu [aria-selected="true"], .dial-menu [role="option"]:hover { background: var(--tint); }
+.merchant-login-link { display: inline-flex; min-height: 48px; align-items: center; color: var(--muted); font-size: .85rem; text-decoration: underline; }
 .login-card label { margin-top: var(--compactGap); font-weight: 600; }
 .login-card .primary { margin-top: var(--gap); }
 .login-card .otp-input { letter-spacing: .3em; font-size: 1.4rem; }

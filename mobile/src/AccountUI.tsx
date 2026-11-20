@@ -1,9 +1,9 @@
 import React, { useState } from "react";
+import { Text } from "./Typography";
 import {
   ActivityIndicator,
   Image,
   Pressable,
-  Text,
   View,
   useWindowDimensions,
   type ImageProps,
@@ -40,7 +40,7 @@ export function ConsentRow({
         padding: metrics.gap,
         borderWidth: 1,
         borderRadius: metrics.controlRadius,
-        borderColor: checked ? p.accent : p.line,
+        borderColor: checked ? p.accent : p.controlLine,
         backgroundColor: checked ? p.tint : p.surface,
         opacity: disabled ? 0.6 : pressed ? 0.75 : 1,
       })}
@@ -52,7 +52,7 @@ export function ConsentRow({
           height: 22,
           width: 22,
           flexShrink: 0,
-          borderRadius: 3,
+          borderRadius: 6,
           borderWidth: 1.5,
           borderColor: checked ? p.accent : p.muted,
           backgroundColor: checked ? p.accent : p.surface,

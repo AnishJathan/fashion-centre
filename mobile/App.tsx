@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Text } from "./src/Typography";
 import {
   ActivityIndicator,
   Keyboard,
   Platform,
   ScrollView,
-  Text,
   View,
   useWindowDimensions,
 } from "react-native";
@@ -32,6 +32,7 @@ import { ShoppingScreen } from "./src/ShoppingScreens";
 import { SettingsScreen } from "./src/SettingsScreens";
 import { AccountScreen } from "./src/AccountScreens";
 import {
+  DockInset,
   Body,
   Button,
   Icon,
@@ -43,7 +44,8 @@ import {
 } from "./src/ui";
 import { brandExperience } from "./src/brandExperience";
 import { AppMark, BrandMark } from "./src/BrandMark";
-import { isRootTab, tabDestination, tryOnDestination, type BottomTabName } from "./src/shellPresentation";
+import { LaunchReveal } from "./src/LaunchReveal";
+import { bottomNavFrame, isRootTab, tabDestination, tryOnDestination, type BottomTabName } from "./src/shellPresentation";
 import { NavBar } from "./src/NavBar";
 import { StyleAssistant } from "./src/StyleAssistant.tsx";
 import {
@@ -69,12 +71,12 @@ const labels: Record<RouteName, string> = {
   checkout: "Demo checkout",
   orders: "Bag & orders",
   order: "Order record",
-  profile: "Your space",
+  profile: "Profile",
   settings: "Settings",
   owner: "For brands",
   login: "Your account",
   "login-demo": "OTP simulation",
-  prepare: "Photo preparation",
+  prepare: "Try-on studio",
   photos: "Catalogue photos",
   "try-on": "Saved-photo try-on",
 };
@@ -93,7 +95,7 @@ function ShellContent({
   const app = useApp(),
     palette = usePalette(),
     insets = useSafeAreaInsets();
-  const { height: viewportHeight } = useWindowDimensions();
+  const { height: viewportHeight, width, fontScale } = useWindowDimensions();
   const route = cleanRoute({
     ...nativeRoute.params,
     name: nativeRoute.name as RouteName,
@@ -140,7 +142,8 @@ function ShellContent({
     };
   }, []);
   function switchTab(name: BottomTabName) {
-    const { name: destination, ...params } = tabDestination(name, route);
+    const previewStore = app.sources?.some(source => source.key === route.brandId && source.preview);
+    const { name: destination, ...params } = name === "home" && previewStore ? {name} : tabDestination(name, route);
     Keyboard.dismiss();
     if (
       destination === route.name &&
@@ -152,7 +155,7 @@ function ShellContent({
   const openTryOn = () => {
     Keyboard.dismiss();
     if (route.name === "prepare") return;
-    const { name, ...params } = tryOnDestination(route, app.products, app.brands);
+    const { name, ...params } = tryOnDestination(route, app.brands);
     // This is an action, not a root-tab switch: Back returns to this screen.
     // Use the validated destination directly instead of inheriting stale scope.
     navigation.navigate(name, params);
@@ -173,31 +176,36 @@ function ShellContent({
       headerTintColor: palette.text,
       headerTitleStyle: { fontSize: 16, fontWeight: "700" },
       contentStyle: { backgroundColor: palette.background },
-      // One compact header owns back, store identity, switch and exit. No second store bar.
+      // The identity row stays stable. Return and store navigation sit below it.
       header: () => (
         <PaletteProvider palette={palette}><View style={{ paddingTop: insets.top, paddingLeft: Math.max(metrics.gap, insets.left), paddingRight: Math.max(metrics.gap, insets.right), backgroundColor: palette.background, borderBottomWidth: 1, borderColor: palette.line }}>
           <View testID="compact-shell-header" style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: 4 }}>
-            {!!route.brandId && brandRoot ? (
-              <IconButton name="arrow-left" label="Exit store view and return to Fashion Centre" onPress={exitStore} />
-            ) : !isRootTab(route.name) || !!route.brandId ? (
-              <IconButton name="arrow-left" label="Go back" onPress={back} />
-            ) : null}
             {!brand && (route.name === "home" || route.name === "login") && <AppMark background={palette.accent} ink={palette.onAccent} />}
             {!!brand && <BrandMark id={brand.id} name={brand.name} size={24} />}
             <View style={{ flex: 1, minWidth: 0, paddingHorizontal: 4, paddingVertical: 5 }}>
               <Text accessibilityRole="header" style={{ color: palette.text, fontSize: 21, lineHeight: 27, fontFamily: displayFont }}>{brand?.name || (route.name === "login" ? "Fashion Centre" : labels[route.name])}</Text>
+              {!!route.brandId && brandRoot && <Text style={{color:palette.muted,fontSize:12}}>Storefront</Text>}
               {!!route.brandId && !brandRoot && <Text style={{ color: palette.muted, fontSize: 12, lineHeight: 16 }}>{labels[route.name]}</Text>}
             </View>
             {showTabs && <StyleAssistant products={app.products} onNavigate={go} brandId={route.brandId} currentProductId={route.productId} catalogueLoading={app.catalogueLoading} catalogueError={app.catalogueError} launcherMode="inline" />}
             {route.name === "profile" && <IconButton name="settings" label="Open settings" onPress={() => go({ name: "settings" })} />}
+          </View>
+          {(!isRootTab(route.name) || !!route.brandId) && <View testID="shell-return-row" style={{ minHeight: metrics.touch, flexDirection: "row", alignItems: "center" }}>
+            {!!route.brandId && brandRoot ? (
+              <IconButton name="arrow-left" caption="Marketplace" label="Exit store view and return to Fashion Centre" onPress={exitStore} />
+            ) : !isRootTab(route.name) || !!route.brandId ? (
+              <IconButton name="arrow-left" caption="Back" label="Go back" onPress={back} />
+            ) : null}
+            <View style={{flex: 1}}/>
             {!!route.brandId && <IconButton name="grid" label={`Switch store, current store ${brand?.name || route.brandId}`} onPress={() => go({ name: "brands" })} />}
             {!!route.brandId && !brandRoot && <IconButton name="home" label="Exit store view and return to Fashion Centre" onPress={exitStore} />}
-          </View>
+          </View>}
         </View></PaletteProvider>
       ),
     });
   }, [navigation, route.name, route.brandId, route.productId, brand?.name, app.theme, app.products, app.catalogueLoading, app.catalogueError, showTabs, palette.surface, palette.text, palette.background, palette.line, palette.tint, palette.accent, palette.muted, insets.top, insets.left, insets.right]);
   const dockVisible = showTabs && !keyboardVisible;
+  const dockFrame = bottomNavFrame(width, fontScale, insets);
   const isAccount = ["login", "login-demo", "prepare", "try-on"].includes(
     route.name,
   );
@@ -211,7 +219,7 @@ function ShellContent({
         paddingTop: route.name === "photos" ? insets.top : 0,
       }}
     >
-      {(!isAccount || !!app.error || !!app.notice) && (
+      {((!isAccount && !route.brandId) || !!app.error || !!app.notice) && (
         <ScrollView
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator
@@ -222,7 +230,7 @@ function ShellContent({
           }}
           contentContainerStyle={{ flexGrow: 0 }}
         >
-          {!isAccount && (
+          {!isAccount && !route.brandId && (
             <View
               style={{
                 paddingHorizontal: Math.max(16, insets.left, insets.right),
@@ -244,7 +252,7 @@ function ShellContent({
                   flexShrink: 1,
                 }}
               >
-                Demo catalogues · No live purchases
+                Independent stores · Separate baskets
               </Text>
             </View>
           )}
@@ -302,6 +310,7 @@ function ShellContent({
           )}
         </ScrollView>
       )}
+      <DockInset.Provider value={dockVisible ? dockFrame.height + dockFrame.bottom : 0}>
       <View testID="screen-viewport" style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
       {!app.ready ? (
         <Screen>
@@ -317,12 +326,13 @@ function ShellContent({
         <ShoppingScreen route={route} navigate={go} back={back} />
       )}
       </View>
+      </DockInset.Provider>
       {dockVisible && (
-        <View testID="shell-bottom-navigation" style={{ flexShrink: 0, paddingTop: metrics.compactGap, backgroundColor: palette.background, borderTopWidth: 1, borderTopColor: palette.line }}>
+        <View testID="shell-bottom-navigation" pointerEvents="box-none" style={{ position: "absolute", left: 0, right: 0, bottom: 0 }}>
         <NavBar
           route={route}
           bagQuantity={app.commerce.cart
-            .filter(line => !route.brandId || line.brandId === route.brandId)
+            .filter(line => !route.brandId || route.brandId.startsWith("shop-") || line.brandId === route.brandId)
             .reduce((count, line) => count + line.quantity, 0)}
           onSelectTab={switchTab}
           onTryOn={openTryOn}
@@ -338,6 +348,16 @@ function Navigator() {
     p = usePalette();
   const reducedMotion = useReducedMotion();
   const pendingLink = useRef<Route | null>(null);
+  const [viewedRoute, setViewedRoute] = useState<Route | null>(null);
+  function trackScreen() {
+    const screen = navigationRef.getCurrentRoute();
+    if (screen) setViewedRoute(cleanRoute({ ...screen.params, name: screen.name }));
+  }
+  const viewedProduct = viewedRoute?.name === "product" ? app.products.find(item => item.id === viewedRoute.productId) : undefined;
+  const viewedStore = viewedProduct?.brandId ?? (viewedRoute?.name === "brand" ? app.brands.find(store => store.id === viewedRoute.brandId)?.id : undefined);
+  useEffect(() => {
+    if (viewedStore && app.ready) void app.visit(viewedStore, viewedProduct?.id);
+  }, [viewedStore, viewedProduct?.id, app.ready]);
   function openLink(route: Route) {
     if (!navigationRef.isReady()) {
       pendingLink.current = route;
@@ -383,7 +403,9 @@ function Navigator() {
             border: p.line,
           },
         }}
+        onStateChange={trackScreen}
         onReady={() => {
+          trackScreen();
           if (pendingLink.current) {
             openLink(pendingLink.current);
             pendingLink.current = null;
@@ -408,24 +430,12 @@ function Navigator() {
               key={name}
               name={name}
               component={Shell}
-              options={({ navigation }) => ({
+              options={{
                 title: labels[name],
+                animation: reducedMotion ? "none" : isRootTab(name) ? "fade" : "slide_from_right",
                 headerShown: name !== "photos",
-                headerBackVisible: !isRootTab(name),
-                ...(!isRootTab(name) &&
-                name !== "photos" &&
-                !navigation.canGoBack()
-                  ? {
-                      headerLeft: () => (
-                        <IconButton
-                          name="arrow-left"
-                          label="Back to Fashion Centre"
-                          onPress={() => navigation.replace("home")}
-                        />
-                      ),
-                    }
-                  : {}),
-              })}
+                headerBackVisible: false,
+              }}
             />
           ))}
         </Stack.Navigator>
@@ -467,12 +477,21 @@ class ErrorBoundary extends React.Component<
 }
 
 export default function App() {
-  const [fontsReady, fontError] = useFonts({ [displayFont]: require("./assets/fonts/DMSerifText-Regular.ttf") });
-  if (!fontsReady && !fontError) return null;
+  const [fontsReady, fontError] = useFonts({ [displayFont]: require("./assets/fonts/DMSerifText-Regular.ttf"),
+    InterRegular: require("./assets/fonts/Inter-Regular.ttf"),
+    InterMedium: require("./assets/fonts/Inter-Medium.ttf"),
+    InterSemibold: require("./assets/fonts/Inter-Semibold.ttf"),
+    InterBold: require("./assets/fonts/Inter-Bold.ttf") });
+
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
-        <MotionProvider><AppProvider><Navigator /></AppProvider></MotionProvider>
+        <MotionProvider><AppProvider>
+          <View style={{ flex: 1 }}>
+            {(fontsReady || fontError) && <Navigator />}
+            <LaunchReveal fontsReady={!!(fontsReady || fontError)} />
+          </View>
+        </AppProvider></MotionProvider>
       </SafeAreaProvider>
     </ErrorBoundary>
   );

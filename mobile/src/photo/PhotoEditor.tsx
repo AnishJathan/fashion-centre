@@ -1,6 +1,7 @@
 import { preparationReady } from "./preparation";
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, View, Text } from "react-native";
+import { Text } from "../Typography";
+import { Alert, View } from "react-native";
 import { apiFetch } from "../core/api";
 import { metrics } from "../design";
 import { Body, Button, Card, Icon, usePalette } from "../ui";
@@ -65,7 +66,8 @@ export function PhotoEditor({
   useEffect(() => {
     if (!garmentReady) setReview(false);
   }, [garmentReady]);
-  async function capture() {
+  const fromLibrary = useRef(false);
+  async function capture(source: "camera" | "library" = "camera") {
     if (!alive.current || working.current) return;
     working.current = true;
     clear();
@@ -75,7 +77,8 @@ export function PhotoEditor({
     setMessage("");
     let next: LocalPhoto | null = null;
     try {
-      next = await takePhoto();
+      next = await takePhoto(source);
+      fromLibrary.current = source === "library";
       if (!alive.current || token !== epoch.current) return;
       current.current = next;
       setPhoto(next);
@@ -103,7 +106,7 @@ export function PhotoEditor({
     const token = epoch.current;
     controller.current = new AbortController();
     try {
-      await requireGoodPhoto(photo.uri);
+      if (!fromLibrary.current) await requireGoodPhoto(photo.uri);
       if (!alive.current || token !== epoch.current) return;
       const form = new FormData();
       appendPhoto(form, "file", photo);
@@ -148,7 +151,7 @@ export function PhotoEditor({
         step={upload ? "Account photo" : "Step 2 · Your photo"}
         title={photo ? "Review your photo" : "Add a full-body photo"}
         description={upload
-          ? "Scan in even light, with your head and feet in view."
+          ? "Choose a full-body photo or scan in even light, with your head and feet in view."
           : "Take an upright photo with your head and feet visible, in clear, even light."}
       />
       <Text style={{ color: p.muted, fontSize: 12, lineHeight: 18 }}>
@@ -168,6 +171,7 @@ export function PhotoEditor({
               void discard(next);
               return;
             }
+            fromLibrary.current = false;
             current.current = next;
             setPhoto(next);
             setScanning(false);
@@ -218,8 +222,10 @@ export function PhotoEditor({
               </Text>
             </View>
           )}
+          <Button label="Choose from photos" disabled={busy} onPress={() => void capture("library")} />
           {upload ? (
             <Button
+              secondary
               label="Scan full body automatically"
               icon="camera"
               disabled={busy || !hasNativeVision}
@@ -320,7 +326,7 @@ export function PhotoEditor({
         <View style={{ gap: metrics.compactGap, paddingTop: 4 }}>
           <Body>
             {upload
-              ? "Full-body position, brightness and sharpness are checked on your device before upload. These checks are guidance, not a guarantee of generation quality."
+              ? "Gallery photos are checked for file type, size and dimensions. Camera scans also check pose, brightness and sharpness."
               : "File type, size and dimensions are checked locally. Preparing a photo does not upload it or generate a result."}
           </Body>
           <Text style={{ color: p.muted, fontSize: 12, lineHeight: 18 }}>

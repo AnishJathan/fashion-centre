@@ -94,7 +94,7 @@ for (const width of [390,1440]) test(`both themes across shopper, management, ch
       ['/brands', 'Brand Centre.'],
       ['/brand/mock', 'Demo collection'],
       ['/saved', 'Saved pieces.'],
-      ['/profile', 'Your local space.'],
+      ['/profile', 'Your profile'],
       ['/try', 'Prepare your next look.'],
     ];
     for (const [route, heading] of pages) {

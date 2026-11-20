@@ -17,7 +17,6 @@ export function ProductDetail({ product, saved, toggleSaved, add, tryOn }: {
 
   return (
     <section className="detail">
-      <BrandLink className="back" href={'#/brand/' + product.brandId}>← {product.brandName}</BrandLink>
       <div className="detail-grid">
         {product.image
           ? <CatalogueImage key={product.image} src={product.image} alt={product.name} referrerPolicy="no-referrer" />
