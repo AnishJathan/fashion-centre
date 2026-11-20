@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 for (const width of [320, 390, 430, 1440]) {
-  test(`navigation shape, clearance and routes at ${width}`, async ({ page }) => {
+  test(`navigation shape, clearance and routes at ${width}`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     await page.route('**/api/integrations/shopify/status', r => r.fulfill({ json: { shops: [{ key: 'mock', name: 'Mock Shop' }] } }));
     await page.route('**/api/integrations/shopify/catalogue/*', r => r.fulfill({ json: {
@@ -46,7 +46,7 @@ for (const width of [320, 390, 430, 1440]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.locator('.catalogue-hero img, .product-photo img').evaluateAll(images => Promise.all(images.map(img => (img as HTMLImageElement).decode().catch(() => {}))));
     await page.evaluate(() => { if (document.activeElement instanceof HTMLElement) document.activeElement.blur(); });
-    await page.screenshot({ path: `test-results/navigation/nav-${width}.png` });
+    await page.screenshot({ path: testInfo.outputPath(`nav-${width}.png`) });
     await links.nth(3).click();
     await expect(page).toHaveURL(/#\/saved$/);
     await expect(links.nth(3)).toHaveAttribute('aria-current', 'page');
@@ -74,7 +74,7 @@ for (const width of [320, 390, 430, 1440]) {
       await links.nth(3).focus();
       await page.keyboard.press('Tab');
       await expect(links.nth(4)).toBeFocused();
-      if (width === 390) await page.screenshot({ path: 'test-results/navigation/nav-390-safe-area-focus.png' });
+      if (width === 390) await page.screenshot({ path: testInfo.outputPath('nav-390-safe-area-focus.png') });
     }
   });
 }

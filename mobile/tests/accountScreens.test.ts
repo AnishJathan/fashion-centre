@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import ts from "typescript";
+import { metrics, pageLayout } from "../src/design.ts";
 import { normalisePhone, resolutionWarning, safeGarmentUrl } from "../src/photo/validation.ts";
 import { preparationReady } from "../src/photo/preparation.ts";
 import { otpFieldMetrics } from "../src/photo/layout.ts";
@@ -42,6 +43,8 @@ function componentHarness(
   let valueIndex = 0,
     refIndex = 0;
   const env = {
+    metrics,
+    pageLayout,
     React: {
       Fragment: "Fragment",
       createElement: (
@@ -420,7 +423,7 @@ test("compact account headers and section labels preserve natural text growth", 
   const section = componentHarness("AccountUI.tsx", "AccountSection", {}, {
     step: "Step 1", title: "Your photo", description: "Check before continuing.",
   }).render();
-  assert.equal(section.props.style.gap, 6);
+  assert.equal(section.props.style.gap, metrics.compactGap);
   assert.equal(section.props.style.height, undefined);
   assert.equal(all(section, "Heading").length, 1);
 });
@@ -434,7 +437,7 @@ test("compact consent rows keep 48px targets, readable labels and disabled seman
   assert.deepEqual(row.props.accessibilityState, { checked: false, disabled: false });
   const style = row.props.style({ pressed: false });
   assert.equal(style.minHeight, 48);
-  assert.equal(style.padding, 10);
+  assert.equal(style.padding, metrics.gap);
   assert.equal(style.height, undefined);
   const label = all(row, "Text")[0];
   assert.equal(label.props.style.fontSize, 14);
@@ -487,7 +490,7 @@ test("compact personal-photo previews still require both local acknowledgements"
   const h = photoHarness(false);
   let screen = h.render();
   const placeholder = all(screen, "View").find(view => view.props.style?.borderStyle === "dashed")!;
-  assert.equal(placeholder.props.style.padding, 12);
+  assert.equal(placeholder.props.style.padding, metrics.gap);
   assert.equal(placeholder.props.style.borderRadius, 12);
   assert.equal(placeholder.props.style.height, undefined);
   find(screen, "Button", "Take a photo").props.onPress();
@@ -692,7 +695,7 @@ test("missing or mismatched-store garments show a useful empty state without gen
 test("selected-garment artwork has a quiet fallback and naturally wrapping compact text", () => {
   const h = componentHarness("AccountUI.tsx", "SelectedGarment", {}, { name: "A long selected garment name", brand: "A brand", uri: "https://cdn.shopify.com/garment.jpg" });
   let screen = h.render();
-  assert.equal(screen.props.style.padding, 10);
+  assert.equal(screen.props.style.padding, metrics.gap);
   assert.equal(find(screen, "Image").props.resizeMode, "contain");
   assert.equal(find(screen, "Image").props.accessibilityLabel, "Selected garment: A long selected garment name");
   assert.ok(all(screen, "View").some(view => view.props.style?.minWidth === 0));
@@ -711,7 +714,7 @@ test("compact notices retain announced errors without a large alert panel", () =
   assert.equal(screen.props.accessibilityRole, "alert");
   assert.equal(screen.props.accessibilityLiveRegion, "polite");
   assert.equal(screen.props.style.backgroundColor, undefined);
-  assert.equal(screen.props.style.paddingVertical, 6);
+  assert.equal(screen.props.style.paddingVertical, metrics.compactGap);
   assert.equal(all(screen, "Status").length, 0);
   assert.match(content(screen), /Check your connection/);
 });

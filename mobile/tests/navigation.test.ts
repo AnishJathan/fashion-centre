@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import {
   cleanRoute,
   parseLink,
-  routeLink,
   scopeRoute,
 } from "../src/navigation.ts";
 
@@ -12,7 +11,20 @@ test("product deep links derive owning brand and survive encoding", () => {
     name: "product" as const,
     productId: "mock:gid://shopify/Product/1",
   };
-  assert.deepEqual(parseLink(routeLink(route)), { ...route, brandId: "mock" });
+  assert.deepEqual(parseLink("fashioncentre://product/mock%3Agid%3A%2F%2Fshopify%2FProduct%2F1"), {
+    ...route,
+    brandId: "mock",
+  });
+  assert.deepEqual(parseLink("fashioncentre://product/123?brand=mock"), {
+    name: "product",
+    productId: "123",
+    brandId: "mock",
+  });
+  assert.deepEqual(parseLink("fashioncentre://product/gid%3A%2F%2Fshopify%2FProduct%2F1?brand=mock"), {
+    name: "product",
+    productId: "gid://shopify/Product/1",
+    brandId: "mock",
+  });
 });
 test("brand context follows cart and profile, explicit product owner wins", () => {
   assert.deepEqual(
@@ -69,5 +81,5 @@ test("malformed and arbitrary links cannot become app destinations", () => {
 test('personal settings retain store scope and have an explicit deep-link route', () => {
   assert.deepEqual(scopeRoute({ name: 'settings' }, { name: 'profile', brandId: 'mock' }), { name: 'settings', brandId: 'mock' });
   assert.deepEqual(parseLink('fashioncentre://settings?brand=mock'), { name: 'settings', brandId: 'mock' });
-  assert.deepEqual(parseLink(routeLink({ name: 'settings' })), { name: 'settings' });
+  assert.deepEqual(parseLink('fashioncentre://settings'), { name: 'settings' });
 });

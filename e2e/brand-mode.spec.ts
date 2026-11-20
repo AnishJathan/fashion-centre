@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-for(const width of [390,1440]) test(`brand identity persists across shopping, history, switching and disabled stores ${width}`,async({page})=>{
+for(const width of [390,1440]) test(`brand identity persists across shopping, history, switching and disabled stores ${width}`,async({page}, testInfo)=>{
  await page.setViewportSize({width,height:900});
  await page.route('**/api/integrations/shopify/status',r=>r.fulfill({json:{shops:[{key:'mock',name:'Demo North'},{key:'apparel',name:'Demo South'}]}}));
  await page.route('**/api/integrations/shopify/catalogue/*',r=>{const id=new URL(r.request().url()).pathname.split('/').pop()!;return r.fulfill({json:{shopKey:id,shopName:id==='mock'?'Demo North':'Demo South',hasNextPage:false,products:[{key:id+':gid://shopify/Product/1',title:id==='mock'?'North shirt':'South trousers',category:'Clothing',image:'/images/campaign.png',moreVariants:false,variants:[{id:'gid://shopify/ProductVariant/1',key:id+':gid://shopify/ProductVariant/1',title:'M',available:true,amount:'25.50',currency:id==='mock'?'CAD':'USD',options:{Size:'M'}}]}]}})});
@@ -35,7 +35,7 @@ for(const width of [390,1440]) test(`brand identity persists across shopping, hi
   await page.locator('.bottom-nav').getByRole('link',{name:'Discover'}).click();await north();
   await page.locator('img').evaluateAll(images=>Promise.all(images.map(i=>i.decode().catch(()=>{}))));
   await page.evaluate(()=>{if(document.activeElement instanceof HTMLElement)document.activeElement.blur()});
-  await page.screenshot({path:`screenshots/brand-mode-${theme.toLowerCase()}-${width}.png`,fullPage:true});
+  await page.screenshot({path:testInfo.outputPath(`brand-mode-${theme.toLowerCase()}-${width}.png`),fullPage:true});
  }
  await page.goto('/#/merchant?brand=mock');await page.getByRole('button',{name:'Disable Demo North',exact:true}).click();
  await page.locator('.bottom-nav').getByRole('link',{name:'Discover'}).click();await expect(page.getByRole('heading',{name:'This store is unavailable.'})).toBeVisible();await expect(page.locator('.product')).toHaveCount(0);

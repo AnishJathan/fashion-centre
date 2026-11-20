@@ -43,7 +43,7 @@ import { brandExperience } from "./src/brandExperience";
 import { BrandMark } from "./src/BrandMark";
 import { bottomNavFrame, isRootTab, tabDestination, tryOnDestination, type BottomTabName } from "./src/shellPresentation";
 import { NavBar } from "./src/NavBar";
-import { StyleAssistant } from "./src/StyleAssistant";
+import { StyleAssistant } from "./src/StyleAssistant.tsx";
 import {
   cleanRoute,
   parseLink,

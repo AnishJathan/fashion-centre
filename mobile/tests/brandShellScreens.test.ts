@@ -32,7 +32,7 @@ function harness(route: Route, dark = false, canGoBack = false) {
     '@react-navigation/native-stack': { createNativeStackNavigator: () => ({ Navigator: 'Stack', Screen: 'StackScreen' }) },
     'react-native-safe-area-context': { SafeAreaProvider: 'SafeAreaProvider', useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }) },
     'expo-status-bar': { StatusBar: 'StatusBar' }, 'expo-linking': {},
-    './src/state': { AppProvider: 'AppProvider', useApp: () => app }, './src/ShoppingScreens': { ShoppingScreen: 'ShoppingScreen' }, './src/SettingsScreens': { SettingsScreen: 'SettingsScreen' }, './src/StyleAssistant': { StyleAssistant: 'StyleAssistant' }, './src/AccountScreens': { AccountScreen: 'AccountScreen' },
+    './src/state': { AppProvider: 'AppProvider', useApp: () => app }, './src/ShoppingScreens': { ShoppingScreen: 'ShoppingScreen' }, './src/SettingsScreens': { SettingsScreen: 'SettingsScreen' }, './src/StyleAssistant.tsx': { StyleAssistant: 'StyleAssistant' }, './src/AccountScreens': { AccountScreen: 'AccountScreen' },
     './src/ui': { ...Object.fromEntries(['Body', 'BottomOverlayProvider', 'Button', 'Icon', 'IconButton', 'PaletteProvider', 'Screen', 'Title'].map(n => [n, n])), usePalette: () => p, useReducedTransparency: () => false },
     './src/BrandMark': { BrandMark: 'BrandMark' }, './src/design': design, './src/brandExperience': experience, './src/shellPresentation': shell, './src/navigation': navigationHelpers,
   };

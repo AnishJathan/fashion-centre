@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  analysisCapabilities,
   normalisePhone,
   safeGarmentUrl,
   validateDimensions,
@@ -9,17 +8,11 @@ import {
   encodedDimensions,
   validateStillPng,
 } from "../src/photo/validation.ts";
-test("native analysis does not invent pose, exposure or capture capability", () => {
-  assert.equal(analysisCapabilities().fullBody, false);
-  assert.equal(analysisCapabilities().brightness, false);
-  assert.equal(analysisCapabilities().sharpness, false);
-  assert.equal(analysisCapabilities().automaticCapture, false);
-  assert.equal(analysisCapabilities(true).fullBody, true);
-  assert.equal(analysisCapabilities(true).automaticCapture, true);
-});
 test("phone normalization matches supported national lengths", () => {
   assert.equal(normalisePhone("+61", "0400 000 000"), "+61400000000");
   assert.equal(normalisePhone("+1", "+1 415 555 0123"), "+14155550123");
+  assert.equal(normalisePhone("+44", "0044 7700 900123"), "+447700900123");
+  assert.throws(() => normalisePhone("+61", "+49 123 4567"), /selected country code/);
   assert.throws(() => normalisePhone("+61", "12"));
 });
 test("safe garment references reject external hosts and credential URLs", () => {

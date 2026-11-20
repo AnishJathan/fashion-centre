@@ -1,4 +1,4 @@
-name: Verify combined application
+name: Verify Fashion Centre
 on:
   pull_request:
   push:
@@ -10,7 +10,7 @@ concurrency:
   group: verify-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  verify:
+  web:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -19,24 +19,60 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: '24'
+          node-version-file: .nvmrc
           cache: npm
-      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
-        with:
-          distribution: temurin
-          java-version: '17'
-          cache: maven
-          cache-dependency-path: backend/pom.xml
       - run: npm ci
       - run: npm run build
-      - run: node scripts/check-bundle.mjs
+      - run: npm run check:bundle
       - run: npm test
-      - name: Backend contract and adversarial tests
-        working-directory: backend
-        run: mvn -B --no-transfer-progress package
       - name: Install isolated CI browser
         run: npx playwright install --with-deps chromium
       - name: Browser regressions with isolated API fixtures
         run: npm run test:ui
         env:
           CI: 'true'
+
+  backend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - run: mvn -B --no-transfer-progress -f backend/pom.xml package
+      - name: Check credential-free demo API
+        run: |
+          sh scripts/start-demo-api.sh &
+          demo_pid=$!
+          trap 'kill "$demo_pid" 2>/dev/null || true' EXIT
+          curl --fail --silent --show-error --retry 30 --retry-connrefused --retry-delay 1 \
+            http://127.0.0.1:8082/api/health
+
+  mobile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: npm ci
+      - run: npm run verify
+      - run: npm run test:native-quality

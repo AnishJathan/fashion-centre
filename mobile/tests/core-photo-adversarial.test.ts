@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   encodedDimensions,
   validateStillPng,
-} from "../src/core/photoPreparation.ts";
+} from "../src/photo/validation.ts";
 
 function chunk(kind: string, length = 0) {
   const bytes = new Uint8Array(length + 12);

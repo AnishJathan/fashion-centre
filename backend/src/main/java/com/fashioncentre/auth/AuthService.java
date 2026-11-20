@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -20,11 +21,11 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class AuthService {
     private static final Pattern E164 = Pattern.compile("^\\+[1-9]\\d{7,14}$");
-    private static final Duration CODE_TTL = Duration.ofMinutes(2);
-    private static final Duration RESEND_WAIT = Duration.ofSeconds(30);
+    static final Duration CODE_TTL = Duration.ofMinutes(2);
+    static final Duration RESEND_WAIT = Duration.ofSeconds(30);
     private static final int MAX_SENDS_PER_HOUR = 5;
     private static final int MAX_ATTEMPTS = 5;
-    private static final Duration SESSION_TTL = Duration.ofDays(30);
+    static final Duration SESSION_TTL = Duration.ofDays(30);
 
     private final SecureRandom random = new SecureRandom();
     private final UserRepository users;
@@ -60,7 +61,7 @@ public class AuthService {
             throw tooMany("Too many codes requested. Try again later.");
         }
 
-        String code = String.format("%06d", random.nextInt(1_000_000));
+        String code = String.format(Locale.ROOT, "%06d", random.nextInt(1_000_000));
         LoginCode lc = new LoginCode();
         lc.setPhoneNumber(phone);
         lc.setCodeHash(codeHash(phone, code));
@@ -80,12 +81,9 @@ public class AuthService {
         requireE164(phone);
         Instant now = Instant.now();
 
-        LoginCode lc = codes.findFirstByPhoneNumberAndUsedFalseOrderByCreatedAtDesc(phone)
+        LoginCode lc = codes.findTopByPhoneNumberOrderByCreatedAtDescIdDesc(phone)
+                .filter(latest -> !latest.isUsed() && latest.getExpiresAt().isAfter(now))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.GONE, "This code has expired. Request a new one."));
-
-        if (lc.getExpiresAt().isBefore(now)) {
-            throw new ResponseStatusException(HttpStatus.GONE, "This code has expired. Request a new one.");
-        }
         if (lc.getAttempts() >= MAX_ATTEMPTS) {
             throw tooMany("Too many attempts. Request a new code.");
         }

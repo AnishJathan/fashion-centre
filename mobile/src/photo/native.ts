@@ -66,13 +66,10 @@ export async function inspectFile(uri: string, type: string) {
   return dimensions;
 }
 export async function choosePhoto(camera: boolean): Promise<LocalPhoto | null> {
-  const permission = camera
-    ? await Picker.requestCameraPermissionsAsync()
-    : await Picker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted)
-    throw new Error(
-      "Permission was not granted. You can change access in your device settings.",
-    );
+  // The system photo picker grants access to the selected image only.
+  if (camera && !(await Picker.requestCameraPermissionsAsync()).granted) {
+    throw new Error("Camera access was not granted. You can change access in your device settings.");
+  }
   const options: Picker.ImagePickerOptions = {
     mediaTypes: ["images"],
     allowsEditing: false,

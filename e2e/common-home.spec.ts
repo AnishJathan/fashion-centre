@@ -1,6 +1,6 @@
 import {test,expect} from '@playwright/test';
 
-for(const width of [390,1440]) test(`common home includes enabled stores and clears previous page restrictions ${width}`,async({page})=>{
+for(const width of [390,1440]) test(`common home includes enabled stores and clears previous page restrictions ${width}`,async({page}, testInfo)=>{
   await page.setViewportSize({width,height:900});
   await page.route('**/api/integrations/shopify/status',r=>r.fulfill({json:{shops:[{key:'mock',name:'Mock Shop'},{key:'apparel',name:'Elysian Thread'}]}}));
   await page.route('**/api/integrations/shopify/catalogue/*',r=>{
@@ -45,7 +45,7 @@ for(const width of [390,1440]) test(`common home includes enabled stores and cle
     await expect(page.locator('.product')).toHaveCount(2);
     await page.locator('img').evaluateAll(imgs=>Promise.all(imgs.map(i=>i.decode().catch(()=>{}))));
     await page.evaluate(()=>{if(document.activeElement instanceof HTMLElement)document.activeElement.blur()});
-    await page.screenshot({path:`screenshots/common-home-${theme.toLowerCase()}-${width}.png`,fullPage:true});
+    await page.screenshot({path:testInfo.outputPath(`common-home-${theme.toLowerCase()}-${width}.png`),fullPage:true});
   }
   await page.goto('/#/merchant'); await page.getByRole('button',{name:'Disable Mock Shop',exact:true}).click(); await home(1);
   await expect(page.locator('.product-title')).toHaveText('South trousers');

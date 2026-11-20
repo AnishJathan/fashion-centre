@@ -30,7 +30,7 @@ function normalisePhone(country:string,input:string){
   return {digits,number:`+${code}${digits}`};
 }
 
-export function LoginDemo({close}:{close:()=>void}){
+export default function AccountScreen({close}:{close:()=>void}){
   const [step,setStep]=useState<Step>('phone');
   const [country,setCountry]=useState('+61');
   const [phone,setPhone]=useState('');
