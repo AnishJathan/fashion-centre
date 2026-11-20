@@ -32,8 +32,8 @@ Use a physical-device build for camera, file access, and app lifecycle changes. 
 
 Earlier reports are in the [history folder](history/README.md). Check CI on the commit you intend to merge.
 
-### Contributor build emails
+### Contributor build notifications
 
-After each completed **Verify Fashion Centre** run, **Email contributor builds** sends one message from sattva.tech.team@gmail.com with links to the iOS Simulator app, web distribution and Android APK. Failed and cancelled builds include any available downloads and a link to the logs. GitHub sign-in and repository access are required for downloads.
+Every completed verification run posts its available iOS Simulator, web and Android downloads in the [build thread](https://github.com/AnishJathan/fashion-centre/issues/6). The workflow mentions GitHub accounts listed as human contributors and the author of an associated pull request. GitHub handles private email addresses. Contributors choose email delivery for participating and mentions in their [notification settings](https://github.com/settings/notifications). People whose commits are unlinked can subscribe to the thread or associate their commit email with their GitHub account.
 
-In Settings → Secrets and variables → Actions, set the repository secret `BUILD_MAIL_RECIPIENTS` to the contributor mailing list or comma-separated email addresses. Maintain this list when the team changes. Set `BUILD_MAIL_PASSWORD` to a Gmail app password for the sender. The notification workflow runs from the default branch, including when the build originated on a pull request. A delivery failure appears as a separate failed notification run.
+To retry a missed announcement, run **Notify contributors of builds** on the default branch and enter its verification run ID. An already announced attempt is skipped.
