@@ -31,3 +31,9 @@ npm run test:native-quality
 Use a physical-device build for camera, file access, and app lifecycle changes. Test Flyway on a disposable MySQL instance before deploying a migration. Real WhatsApp delivery, R2, paid Pruna jobs, and merchant installation require their own test environment and authorized test data.
 
 Earlier reports are in the [history folder](history/README.md). Check CI on the commit you intend to merge.
+
+### Contributor build emails
+
+After each completed **Verify Fashion Centre** run, **Email contributor builds** sends one message from sattva.tech.team@gmail.com with links to the iOS Simulator app, web distribution and Android APK. Failed and cancelled builds include any available downloads and a link to the logs. GitHub sign-in and repository access are required for downloads.
+
+In Settings → Secrets and variables → Actions, set the repository secret `BUILD_MAIL_RECIPIENTS` to the contributor mailing list or comma-separated email addresses. Maintain this list when the team changes. Set `BUILD_MAIL_PASSWORD` to a Gmail app password for the sender. The notification workflow runs from the default branch, including when the build originated on a pull request. A delivery failure appears as a separate failed notification run.
