@@ -1,12 +1,21 @@
 // Public preview downloads only. No application bindings or credentials.
+const androidRepair = "/repairs/android-startup/FashionCentre-Android.apk";
+// These published builds predate the Room constructor keep rule.
+const recalledRuns = new Set(["44779514420", "44829228214", "44830739550"]);
+
 export default {
   async fetch(request) {
-    const match = new URL(request.url).pathname.match(/^\/builds\/(\d{1,10})\/(\d{1,18})\/(\d{1,5})\/(FashionCentre-(?:Android\.apk|iOS-Simulator\.zip|Web\.zip))$/);
-    if (!match) return new Response("Build file not found.", {status: 404});
+    const url = new URL(request.url);
+    const match = url.pathname.match(/^\/builds\/(\d{1,10})\/(\d{1,18})\/(\d{1,5})\/(FashionCentre-(?:Android\.apk|iOS-Simulator\.zip|Web\.zip))$/);
+    const repair = url.pathname === androidRepair;
+    if (!match && !repair) return new Response("Build file not found.", {status: 404});
     if (!["GET", "HEAD"].includes(request.method)) return new Response(null, {status: 405, headers: {Allow: "GET, HEAD"}});
-    const [, number, run, attempt, file] = match;
+    const [, number, run, attempt, file] = match || ["", "0", "", "", "FashionCentre-Android.apk"];
+    if (file.endsWith(".apk") && recalledRuns.has(run)) {
+      return Response.redirect(new URL(androidRepair, url), 307);
+    }
     const tag = "preview-downloads-" + Math.floor(Number(number) / 100);
-    const asset = run + "-" + attempt + "-" + file;
+    const asset = repair ? "android-startup-fix-FashionCentre-Android.apk" : run + "-" + attempt + "-" + file;
     const headers = new Headers({"User-Agent": "Fashion-Centre-Downloads"});
     for (const name of ["Range", "If-Range"]) {
       if (request.headers.has(name)) headers.set(name, request.headers.get(name));
