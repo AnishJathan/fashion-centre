@@ -1,12 +1,10 @@
 import { requireOptionalNativeModule } from "expo-modules-core";
 import { assessAnalysis, type NativeAnalysis } from "./quality";
-import { analysisCapabilities } from "./validation";
 interface VisionModule {
   analyze(uri: string, sampleSide: number): Promise<NativeAnalysis>;
 }
 const module = requireOptionalNativeModule<VisionModule>("FashionVision");
 export const hasNativeVision = !!module;
-export const capabilities = analysisCapabilities(hasNativeVision);
 export const visionUnavailableMessage =
   "On-device photo analysis requires a Fashion Centre development or release build. Expo Go does not include this custom module. Build the app with npm run ios or npm run android.";
 export async function analyzePhoto(uri: string, live = false) {

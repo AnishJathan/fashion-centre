@@ -2,6 +2,7 @@ import { preparationReady } from "./preparation";
 import React, { useEffect, useRef, useState } from "react";
 import { Alert, View, Text } from "react-native";
 import { apiFetch } from "../core/api";
+import { metrics } from "../design";
 import { Body, Button, Card, Icon, usePalette } from "../ui";
 import {
   AccountNotice,
@@ -182,11 +183,11 @@ export function PhotoEditor({
           {!photo && !busy && (
             <View
               style={{
-                padding: 12,
-                gap: 8,
+                padding: metrics.gap,
+                gap: metrics.compactGap,
                 alignItems: "center",
                 backgroundColor: p.tint,
-                borderRadius: 12,
+                borderRadius: metrics.cardRadius,
                 borderWidth: 1,
                 borderStyle: "dashed",
                 borderColor: p.line,
@@ -325,7 +326,7 @@ export function PhotoEditor({
         />
       )}
       {!scanning && (
-        <View style={{ gap: 8, paddingTop: 4 }}>
+        <View style={{ gap: metrics.compactGap, paddingTop: 4 }}>
           <Body>
             {upload
               ? "Full-body position, brightness and sharpness are checked on your device before upload. These checks are guidance, not a guarantee of generation quality."

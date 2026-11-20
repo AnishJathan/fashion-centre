@@ -42,7 +42,7 @@ The complete click-through regression runs at 390px and 1440px with synthetic ca
 
 The persistence/worker code is packaged but unwired. Only synthetic test authorities, objects and provider responses are used. No migration runs at startup. The three-claim development worker budget is not a practical live-provider policy; expired jobs retain metadata tombstones rather than physically purging them.
 
-The final handover pass fixes fresh-checkout instructions and adds the complete navigation regressions. See [README.md](README.md) for install/build/start commands and [VALIDATION.md](VALIDATION.md) for exact final checks.
+The final handover pass fixes fresh-checkout instructions and adds the complete navigation regressions. See [README.md](../../README.md) for install/build/start commands and [VALIDATION.md](VALIDATION.md) for exact final checks.
 
 ## Prioritized remaining work
 

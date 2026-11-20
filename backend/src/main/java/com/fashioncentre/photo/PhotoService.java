@@ -11,10 +11,13 @@ import java.time.Instant;
 import java.util.Iterator;
 
 import javax.imageio.IIOImage;
+import javax.imageio.IIOException;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
 import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
+import javax.imageio.stream.MemoryCacheImageInputStream;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -31,13 +34,16 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import static com.fashioncentre.photo.PhotoStorage.MAX_PHOTO_BYTES;
+
 @Service
 @RequiredArgsConstructor
 public class PhotoService {
 
-    private static final long MAX_BYTES = 10L * 1024 * 1024;
-    private static final int MIN_HEIGHT = 1000;      // smallest accepted height, in pixels
-    private static final int TARGET_HEIGHT = 2000;   // photos taller than this are scaled down
+    private static final int MAX_EDGE = 12_000;
+    private static final long MAX_PIXELS = 40_000_000;
+    private static final int MIN_HEIGHT = 1000;
+    private static final int TARGET_HEIGHT = 2000;
     private static final float JPEG_QUALITY = 0.92f;
 
     private final S3Client s3;
@@ -51,17 +57,11 @@ public class PhotoService {
         if (file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No photo received.");
         }
-        if (file.getSize() > MAX_BYTES) {
+        if (file.getSize() > MAX_PHOTO_BYTES) {
             throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "The photo must be 10 MB or smaller.");
         }
 
-        byte[] original = file.getBytes();
-        if (!isJpegOrPng(original)) {
-            throw new ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
-                    "Please upload a JPEG or PNG photo. Other formats are converted in the browser.");        }
-
-        // Every stored photo becomes a JPEG of a consistent size
-        byte[] jpeg = normalize(original);
+        byte[] jpeg = normalize(file.getBytes());
 
         String key = "users/" + user.getId() + "/photo";
         s3.putObject(
@@ -77,40 +77,62 @@ public class PhotoService {
         users.save(user);
     }
 
-    // Checks the file's first bytes: JPEG starts with FF D8 FF, PNG starts with 89 'P' 'N' 'G'
-    private static boolean isJpegOrPng(byte[] b) {
-        boolean jpeg = b.length >= 3 && (b[0] & 0xFF) == 0xFF && (b[1] & 0xFF) == 0xD8 && (b[2] & 0xFF) == 0xFF;
-        boolean png = b.length >= 4 && (b[0] & 0xFF) == 0x89 && b[1] == 'P' && b[2] == 'N' && b[3] == 'G';
-        return jpeg || png;
+    private static byte[] normalize(byte[] original) throws IOException {
+        try (var input = new MemoryCacheImageInputStream(new ByteArrayInputStream(original))) {
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
+            if (!readers.hasNext()) throw unsupportedPhoto();
+            ImageReader reader = readers.next();
+            try {
+                String format = reader.getFormatName();
+                if (!format.equalsIgnoreCase("JPEG") && !format.equalsIgnoreCase("PNG")) throw unsupportedPhoto();
+                reader.setInput(input, true, true);
+                int width = reader.getWidth(0);
+                int height = reader.getHeight(0);
+                validateDimensions(width, height);
+
+                var parameters = reader.getDefaultReadParam();
+                int sample = Math.max(1, height / TARGET_HEIGHT);
+                parameters.setSourceSubsampling(sample, sample, 0, 0);
+                return encodeJpeg(resize(reader.read(0, parameters), width, height));
+            } catch (IIOException ex) {
+                throw unsupportedPhoto();
+            } finally {
+                reader.dispose();
+            }
+        }
     }
 
-    // Decodes the photo, checks its shape, scales it to TARGET_HEIGHT at most, and encodes it as JPEG
-    private static byte[] normalize(byte[] original) throws IOException {
-        BufferedImage source = ImageIO.read(new ByteArrayInputStream(original));
-        if (source == null) {
-            throw new ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Use a JPEG or PNG photo.");
-        }
+    private static ResponseStatusException unsupportedPhoto() {
+        return new ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Use a valid JPEG or PNG photo.");
+    }
 
-        int w = source.getWidth();
-        int h = source.getHeight();
-        if (h < MIN_HEIGHT || h <= w) {
+    private static void validateDimensions(int width, int height) {
+        if (width <= 0 || height < MIN_HEIGHT || height <= width) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Use a tall photo held upright, at least " + MIN_HEIGHT + " px high.");
         }
+        if (width > MAX_EDGE || height > MAX_EDGE || (long) width * height > MAX_PIXELS) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "The photo must be at most 12,000 pixels per edge and 40 megapixels.");
+        }
+    }
 
-        int newH = Math.min(h, TARGET_HEIGHT);
-        int newW = Math.round(w * (newH / (float) h));
+    private static BufferedImage resize(BufferedImage source, int width, int height) {
+        int newH = Math.min(height, TARGET_HEIGHT);
+        int newW = Math.max(1, Math.round(width * newH / (float) height));
 
-        // Draw onto a plain white RGB image. This removes PNG transparency, which JPEG cannot store.
+        // Fill PNG transparency with white before JPEG encoding.
         BufferedImage out = new BufferedImage(newW, newH, BufferedImage.TYPE_INT_RGB);
-        Graphics2D g = out.createGraphics();
-        g.setColor(Color.WHITE);
-        g.fillRect(0, 0, newW, newH);
-        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g.drawImage(source, 0, 0, newW, newH, null);
-        g.dispose();
-
-        return encodeJpeg(out);
+        Graphics2D graphics = out.createGraphics();
+        try {
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(0, 0, newW, newH);
+            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            graphics.drawImage(source, 0, 0, newW, newH, null);
+        } finally {
+            graphics.dispose();
+        }
+        return out;
     }
 
     private static byte[] encodeJpeg(BufferedImage image) throws IOException {

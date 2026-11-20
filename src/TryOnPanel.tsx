@@ -1,119 +1,189 @@
-import {useEffect,useRef,useState} from 'react';
-import type {Product} from './domain';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { Product } from './domain';
+import './try-on.css';
 
-const API='/api/try-on';
-const PHOTO_API='/api/users/me/photo';
+const API = '/api/try-on';
+const PHOTO_API = '/api/users/me/photo';
+const POLL_INTERVAL_MS = 1_500;
+const TRY_ON_TIMEOUT_MS = 90_000;
 
-type Phase='idle'|'working'|'done'|'error';
-type PhotoState='loading'|'ready'|'missing'|'signed-out';
+type Phase = 'idle' | 'working' | 'error' | 'uncertain';
+type PhotoState = 'loading' | 'ready' | 'missing' | 'signed-out' | 'unavailable';
 
-export function TryOnPanel({product,onClose}:{product:Product;onClose:()=>void}){
-  const [savedPhoto,setSavedPhoto]=useState<string|null>(null);
-  const [photoState,setPhotoState]=useState<PhotoState>('loading');
-  const [resultUrl,setResultUrl]=useState<string|null>(null);
-  const [phase,setPhase]=useState<Phase>('idle');
-  const [message,setMessage]=useState('');
-  const cancelled=useRef(false);
+function waitForNextPoll(signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    signal.throwIfAborted();
+    const interval = window.setTimeout(() => {
+      signal.removeEventListener('abort', stopWaiting);
+      resolve();
+    }, POLL_INTERVAL_MS);
+    function stopWaiting() {
+      window.clearTimeout(interval);
+      reject(signal.reason);
+    }
+    signal.addEventListener('abort', stopWaiting, { once: true });
+  });
+}
 
-  // Stop polling if the panel closes
-  useEffect(()=>{cancelled.current=false;return()=>{cancelled.current=true}},[]);
+export function TryOnPanel({ product, onClose }: { product: Product; onClose: () => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const request = useRef<AbortController | null>(null);
+  const [savedPhoto, setSavedPhoto] = useState<string | null>(null);
+  const [photoState, setPhotoState] = useState<PhotoState>('loading');
+  const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [phase, setPhase] = useState<Phase>('idle');
+  const [message, setMessage] = useState('');
 
-  useEffect(()=>{
-    const onKey=(e:KeyboardEvent)=>{if(e.key==='Escape') onClose()};
-    addEventListener('keydown',onKey);
-    return()=>removeEventListener('keydown',onKey);
-  },[onClose]);
+  function cancelRequest() {
+    const controller = request.current;
+    request.current = null;
+    controller?.abort();
+  }
 
-  // Load the user's saved full-body photo
-  useEffect(()=>{
-    let url:string|null=null;
-    (async()=>{
-      try{
-        const res=await fetch(PHOTO_API,{credentials:'include'});
-        if(res.status===401){ setPhotoState('signed-out'); return; }
-        if(!res.ok){ setPhotoState('missing'); return; }
-        url=URL.createObjectURL(await res.blob());
-        if(cancelled.current){ URL.revokeObjectURL(url); return; }
+  useLayoutEffect(() => {
+    const node = dialog.current;
+    node?.showModal();
+    return () => {
+      cancelRequest();
+      node?.close();
+    };
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let url: string | null = null;
+
+    async function loadSavedPhoto() {
+      try {
+        const response = await fetch(PHOTO_API, {
+          credentials: 'include',
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          setPhotoState(response.status === 401 ? 'signed-out' : response.status === 404 ? 'missing' : 'unavailable');
+          return;
+        }
+        const image = await response.blob();
+        controller.signal.throwIfAborted();
+        url = URL.createObjectURL(image);
         setSavedPhoto(url);
         setPhotoState('ready');
-      }catch{
-        if(!cancelled.current) setPhotoState('missing');
+      } catch {
+        if (!controller.signal.aborted) setPhotoState('unavailable');
       }
-    })();
-    return()=>{ if(url) URL.revokeObjectURL(url); };
-  },[]);
+    }
 
-  async function runTryOn(){
+    void loadSavedPhoto();
+    return () => {
+      controller.abort();
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, []);
+
+  function close() {
+    cancelRequest();
+    onClose();
+  }
+
+  async function runTryOn() {
+    if (request.current || photoState !== 'ready' || phase === 'uncertain') return;
+
+    const controller = new AbortController();
+    request.current = controller;
+    const { signal } = controller;
+    const fetchOptions = { credentials: 'include' as const, cache: 'no-store' as const, signal };
+    const deadline = window.setTimeout(() => controller.abort(new Error('The try-on timed out.')), TRY_ON_TIMEOUT_MS);
+    let providerMayHaveStarted = false;
+
     setPhase('working');
     setResultUrl(null);
     setMessage('Preparing the outfit…');
-    try{
-      const garmentRes=await fetch(product.image);
-      if(!garmentRes.ok) throw new Error('Could not load this product image.');
+    try {
+      const garment = await fetch(product.image, { signal, credentials: 'omit', referrerPolicy: 'no-referrer' });
+      if (!garment.ok) throw new Error('Could not load this product image.');
 
-      const form=new FormData();
-      form.append('garment',await garmentRes.blob(),`${product.id}.jpg`);
+      const form = new FormData();
+      form.append('garment', await garment.blob(), 'garment.jpg');
+      signal.throwIfAborted();
 
       setMessage('Dressing you in this outfit…');
-      const startRes=await fetch(`${API}/me`,{method:'POST',body:form,credentials:'include'});
-      if(startRes.status===401) throw new Error('Please sign in to try on outfits.');
-      if(startRes.status===409) throw new Error('Add your full-body photo first.');
-      if(!startRes.ok) throw new Error('Could not start the try-on.');
-      const {id}=await startRes.json() as {id:string};
+      providerMayHaveStarted = true;
+      const start = await fetch(API + '/me', { ...fetchOptions, method: 'POST', body: form });
+      if (!start.ok) {
+        if (start.status >= 400 && start.status < 500 && start.status !== 408) providerMayHaveStarted = false;
+        if (start.status === 401) throw new Error('Please sign in to try on outfits.');
+        if (start.status === 409) throw new Error('Add your full-body photo first.');
+        throw new Error('Could not start the try-on.');
+      }
+      const id: unknown = (await start.json()).id;
+      if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]{1,200}$/.test(id)) {
+        throw new Error('Could not identify the try-on.');
+      }
+      const statusUrl = API + '/' + id;
 
-      // Poll for up to about 90 seconds
-      for(let i=0;i<60;i++){
-        await new Promise(r=>setTimeout(r,1500));
-        if(cancelled.current) return;
-        const statusRes=await fetch(`${API}/${id}`);
-        if(!statusRes.ok) throw new Error('Could not check the try-on status.');
-        const job=await statusRes.json() as {status:string};
-        if(job.status==='succeeded'){
-          setResultUrl(`${API}/${id}/result`);
-          setPhase('done');
+      for (;;) {
+        await waitForNextPoll(signal);
+        const response = await fetch(statusUrl, fetchOptions);
+        if (!response.ok) throw new Error('Could not check the try-on status.');
+        const { status } = await response.json();
+        signal.throwIfAborted();
+        if (status === 'succeeded') {
+          setResultUrl(statusUrl + '/result');
+          setPhase('idle');
           setMessage('');
           return;
         }
-        if(job.status==='failed') throw new Error('The try-on failed. Please try again.');
+        if (status === 'failed' || status === 'canceled') {
+          providerMayHaveStarted = false;
+          throw new Error('The try-on did not finish. Please try again.');
+        }
       }
-      throw new Error('This is taking too long. Please try again.');
-    }catch(err){
-      if(cancelled.current) return;
-      setPhase('error');
-      setMessage(err instanceof Error?err.message:'Something went wrong.');
+    } catch (error) {
+      if (request.current !== controller) return;
+      setPhase(providerMayHaveStarted ? 'uncertain' : 'error');
+      setMessage(providerMayHaveStarted
+        ? 'The try-on may still be processing. Submitting again could start another generation.'
+        : error instanceof Error ? error.message : 'Something went wrong.');
+    } finally {
+      window.clearTimeout(deadline);
+      if (request.current === controller) request.current = null;
     }
   }
 
-  return(
-    <div className="try-on-modal" role="dialog" aria-modal="true" aria-label={`Try on ${product.name}`}>
-      <div className="try-on-card">
-        <button className="try-on-close" onClick={onClose} aria-label="Close try-on">×</button>
-        <h2>{product.name}</h2>
-        <p className="try-on-hint">Uses the full-body photo saved in your account.</p>
+  return (
+    <dialog
+      className="try-on-card"
+      aria-label={`Try on ${product.name}`}
+      ref={dialog}
+      onCancel={event => {
+        event.preventDefault();
+        close();
+      }}
+    >
+      <button className="try-on-close" onClick={close} aria-label="Close try-on">×</button>
+      <h2>{product.name}</h2>
+      <p className="try-on-hint">Uses the full-body photo saved in your account.</p>
 
-        <div className="try-on-image">
-          {resultUrl
-            ? <img src={resultUrl} alt={`You wearing ${product.name}`}/>
-            : savedPhoto
-              ? <img src={savedPhoto} alt="Your saved photo"/>
-              : <div className="try-on-empty">
-                  {photoState==='loading'?'Loading your photo…':'No photo yet'}
-                </div>}
-        </div>
-
-        <div className="try-on-actions">
-          {photoState==='ready'&&(
-            <button className="primary" onClick={runTryOn} disabled={phase==='working'}>
-              {resultUrl?'Try again':'Try on'}
-            </button>
-          )}
-        </div>
-
-        {phase==='working'&&<p role="status">{message}</p>}
-        {phase==='error'&&<p role="alert">{message}</p>}
-        {photoState==='missing'&&<p>Add your full-body photo in your account to try outfits on.</p>}
-        {photoState==='signed-out'&&<p>Sign in to try on outfits with your photo.</p>}
+      <div className="try-on-image">
+        {resultUrl ? <img src={resultUrl} alt={`You wearing ${product.name}`} />
+          : savedPhoto ? <img src={savedPhoto} alt="Your saved photo" />
+          : <div className="try-on-empty">{photoState === 'loading' ? 'Loading your photo…' : 'Photo unavailable'}</div>}
       </div>
-    </div>
+
+      {photoState === 'ready' && phase !== 'uncertain' && (
+        <div className="try-on-actions">
+          <button className="primary" onClick={() => void runTryOn()} disabled={phase === 'working'}>
+            {resultUrl ? 'Try again' : 'Try on'}
+          </button>
+        </div>
+      )}
+
+      {phase === 'working' && <p role="status">{message}</p>}
+      {(phase === 'error' || phase === 'uncertain') && <p role="alert">{message}</p>}
+      {photoState === 'missing' && <p>Add your full-body photo in your account to try outfits on.</p>}
+      {photoState === 'signed-out' && <p>Sign in to try on outfits with your photo.</p>}
+      {photoState === 'unavailable' && <p role="alert">Could not load your saved photo. Reopen try-on to retry.</p>}
+    </dialog>
   );
 }

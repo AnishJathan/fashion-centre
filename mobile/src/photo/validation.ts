@@ -32,7 +32,7 @@ export function resolutionWarning(width: number, height: number) {
     ? "The shorter edge is below 768 pixels. A sharper original may preserve more detail. This is local guidance, not a Pruna requirement or a quality score."
     : "";
 }
-/** PNG animation is not a still photo. Inspect chunk framing before asking the browser to decode. */
+/** Check chunk framing and reject animated PNGs before decoding. */
 export function validateStillPng(bytes: Uint8Array) {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let at = 8;
@@ -166,16 +166,6 @@ export function validateDimensions(width: number, height: number) {
       "Photo dimensions exceed this preview's limit: 12,000 pixels per edge and 40 megapixels.",
     );
 }
-export const analysisCapabilities = (nativeModuleAvailable = false) =>
-  Object.freeze({
-    dimensions: true,
-    type: true,
-    size: true,
-    fullBody: nativeModuleAvailable,
-    brightness: nativeModuleAvailable,
-    sharpness: nativeModuleAvailable,
-    automaticCapture: nativeModuleAvailable,
-  });
 export function normalisePhone(country: string, input: string) {
   const lengths: Record<string, number> = {
     "+61": 9,
@@ -183,11 +173,15 @@ export function normalisePhone(country: string, input: string) {
     "+1": 10,
     "+44": 10,
   };
-  let digits = input.replace(/\D/g, "");
-  if (input.trim().startsWith("+") || input.trim().startsWith("00")) {
-    digits = digits.replace(/^00/, "");
-    if (digits.startsWith(country.slice(1)))
-      digits = digits.slice(country.length - 1);
+  const number = input.trim();
+  let digits = number.replace(/\D/g, "");
+  if (number.startsWith("+") || number.startsWith("00")) {
+    if (number.startsWith("00")) digits = digits.slice(2);
+    const dialCode = country.slice(1);
+    if (!digits.startsWith(dialCode)) {
+      throw new Error("The phone number does not match the selected country code.");
+    }
+    digits = digits.slice(dialCode.length);
   }
   digits = digits.replace(/^0/, "");
   if (!lengths[country] || digits.length !== lengths[country])

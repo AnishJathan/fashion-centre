@@ -28,8 +28,9 @@ Dependencies verified from official documentation:
 - `androidx.exifinterface:exifinterface:1.4.2`:
   https://developer.android.com/jetpack/androidx/releases/exifinterface
 
-SDK versions inherit the installed Expo module Gradle plugin (SDK 58 defaults:
-compile SDK 36 and minimum SDK 24); there is no independently pinned Android toolchain.
+The module inherits SDK versions from the installed Expo Gradle plugin and React
+Native version catalog. Use the generated Android project's settings when
+installing the SDK, NDK and build tools.
 
 Run pure-Java checks from the mobile root: `sh tests/native-java/run.sh`.
 A JDK on PATH or JAVA_HOME is required. Tests use synthetic pixels only. They do

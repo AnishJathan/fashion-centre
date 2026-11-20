@@ -22,3 +22,7 @@ backend/secrets.properties
 *.mv.db
 *.trace.db
 *.lock.db
+
+# Native module build outputs
+.gradle/
+build/

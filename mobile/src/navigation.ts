@@ -25,11 +25,6 @@ export type Route = {
   productId?: string;
   orderId?: string;
 };
-export type ScreenProps = {
-  route: Route;
-  navigate: (route: Route) => void;
-  back: () => void;
-};
 const brand = (value: unknown): string | undefined =>
   typeof value === "string" && /^[a-z0-9-]{1,100}$/.test(value)
     ? value
@@ -46,12 +41,14 @@ export function cleanRoute(input: Route): Route {
   const name = routeNames.includes(input.name) ? input.name : "home";
   const productId = id(input.productId),
     orderId = id(input.orderId);
-  const owner = productId ? brand(productId.split(":")[0]) : undefined;
+  // A bare Shopify GID has no store prefix even though it contains a colon.
+  const owner = productId?.includes(":") && !productId.startsWith("gid://")
+    ? brand(productId.split(":")[0])
+    : undefined;
+  const brandId = owner ?? brand(input.brandId);
   return {
     name,
-    ...(brand(input.brandId) || owner
-      ? { brandId: owner || brand(input.brandId) }
-      : {}),
+    ...(brandId ? { brandId } : {}),
     ...(productId ? { productId } : {}),
     ...(orderId ? { orderId } : {}),
   };
@@ -90,29 +87,11 @@ export function parseLink(value: string): Route | null {
   } catch {
     return null;
   }
-  const aliases: Record<string, RouteName> = {
-    "": "home",
-    home: "home",
-    merchant: "stores",
-    stores: "stores",
-    brands: "brands",
-    brand: "brand",
-    product: "product",
-    cart: "cart",
-    checkout: "checkout",
-    orders: valueId ? "order" : "orders",
-    order: "order",
-    profile: "profile",
-    settings: "settings",
-    owner: "owner",
-    login: "login",
-    "login-demo": "login-demo",
-    try: "prepare",
-    prepare: "prepare",
-    photos: "photos",
-    "try-on": "try-on",
-  };
-  const name = aliases[segments[0] || ""];
+  let segment = segments[0] ?? "home";
+  if (segment === "merchant") segment = "stores";
+  if (segment === "try") segment = "prepare";
+  if (segment === "orders" && valueId) segment = "order";
+  const name = routeNames.find((route) => route === segment);
   if (!name) return null;
   if (
     ["brand", "product", "checkout", "order", "photos", "try-on"].includes(
@@ -132,14 +111,4 @@ export function parseLink(value: string): Route | null {
       : {}),
     ...(name === "order" ? { orderId: valueId } : {}),
   });
-}
-
-export function routeLink(route: Route): string {
-  const r = cleanRoute(route);
-  const value = ["brand", "checkout"].includes(r.name)
-    ? r.brandId
-    : r.name === "order"
-      ? r.orderId
-      : r.productId;
-  return `fashioncentre://${r.name}${value ? "/" + encodeURIComponent(value) : ""}${r.brandId && !["brand", "checkout"].includes(r.name) ? "?brand=" + encodeURIComponent(r.brandId) : ""}`;
 }

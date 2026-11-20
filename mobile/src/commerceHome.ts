@@ -20,10 +20,6 @@ export function homePrice(product: Product) {
   const minima = priceMinima([product]);
   return minima.length ? minima.map(p => `From ${money(p.amount, p.currency)}`).join(' · ') : 'See product availability';
 }
-/** Generic catalogue recommendations never depend on retained wishlist data. */
-export function homeRecommendations(products: Product[]) {
-  return products.slice(0, 10);
-}
 export function homeSuggestions(products: Product[], query: string) {
   const q = query.trim().toLocaleLowerCase();
   return q ? products.filter(p => `${p.name} ${p.category} ${p.brandName}`.toLocaleLowerCase().includes(q)).slice(0, 5) : [];

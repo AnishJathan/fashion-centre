@@ -120,15 +120,6 @@ export function money(amount: number, currency: string) {
     }).format(amount)
   );
 }
-export const productPath = (id: string) =>
-  "#/product/" + encodeURIComponent(id);
-export function decodeRoute(value: string) {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return null;
-  }
-}
 const record = (v: unknown): v is Record<string, unknown> =>
   !!v && typeof v === "object" && !Array.isArray(v);
 const text = (v: unknown): v is string =>

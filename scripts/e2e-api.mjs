@@ -1,10 +1,41 @@
-import {createServer} from 'node:http';
-// Test-only API: no datastore, credentials, upstream transport or write endpoints.
-const readiness={ready:false,connected:false,connections:[],blockers:['Authenticated brand-owner sign-in and brand membership are not configured.','Shopify app installation is not configured in browser tests.']};
-createServer((req,res)=>{
- res.setHeader('Content-Type','application/json');res.setHeader('Cache-Control','no-store');
- if(req.method!=='GET'){res.writeHead(405);return res.end(JSON.stringify({error:'Test fixture rejects writes'}));}
- if(req.url==='/api/merchant/shopify/readiness')return res.end(JSON.stringify(readiness));
- if(req.url==='/api/integrations/shopify/status')return res.end(JSON.stringify({connected:false,shops:[{key:'mock',name:'Mock Shop'},{key:'apparel',name:'Elysian Thread'}]}));
- res.writeHead(404);res.end(JSON.stringify({error:'No fixture: mock this request explicitly in the test'}));
-}).listen(8082,'127.0.0.1');
+import { createServer } from 'node:http';
+
+// Browser-test fixture. Individual specs mock catalogue and account responses.
+const port = Number(process.argv[2] ?? 18082);
+const readiness = {
+    ready: false,
+    connected: false,
+    connections: [],
+    blockers: [
+        'Authenticated brand-owner sign-in and brand membership are not configured.',
+        'Shopify app installation is not configured in browser tests.',
+    ],
+};
+const directory = {
+    connected: false,
+    shops: [
+        { key: 'mock', name: 'Mock Shop' },
+        { key: 'apparel', name: 'Elysian Thread' },
+    ],
+};
+const responses = new Map([
+    ['/api/merchant/shopify/readiness', readiness],
+    ['/api/integrations/shopify/status', directory],
+]);
+
+createServer((request, response) => {
+    response.setHeader('Content-Type', 'application/json');
+    response.setHeader('Cache-Control', 'no-store');
+    if (request.method !== 'GET') {
+        response.writeHead(405, { Allow: 'GET' });
+        response.end(JSON.stringify({ error: 'Test fixture rejects writes' }));
+        return;
+    }
+    const payload = responses.get(request.url);
+    if (!payload) {
+        response.writeHead(404);
+        response.end(JSON.stringify({ error: 'No fixture: mock this request explicitly in the test' }));
+        return;
+    }
+    response.end(JSON.stringify(payload));
+}).listen(port, '127.0.0.1');

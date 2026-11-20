@@ -53,7 +53,14 @@ export function readIds(key: string): string[] { return readStored(key, raw => {
 catch {
     return [];
 } }, []); }
-export function selectProducts(items: Product[], brandId = '', query = '', category = 'All') { return items.filter(p => (!brandId || p.brandId === brandId) && (category === 'All' || p.category === category) && (p.name + ' ' + p.brandName + ' ' + p.category).toLowerCase().includes(query.trim().toLowerCase())); }
+export function selectProducts(items: Product[], brandId = '', query = '', category = 'All') {
+    const search = query.trim().toLowerCase();
+    return items.filter(product =>
+        (!brandId || product.brandId === brandId) &&
+        (category === 'All' || product.category === category) &&
+        (product.name + ' ' + product.brandName + ' ' + product.category).toLowerCase().includes(search),
+    );
+}
 const currencies = new Set(Intl.supportedValuesOf('currency'));
 const precision = new Map<string, number>();
 export function currencyDigits(currency: string) { if (!/^[A-Z]{3}$/.test(currency) || !currencies.has(currency))

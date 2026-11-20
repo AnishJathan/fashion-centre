@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-test('WhatsApp OTP is an explicit local simulation with recovery states',async({page})=>{
+test('WhatsApp OTP is an explicit local simulation with recovery states',async({page}, testInfo)=>{
  await page.setViewportSize({width:390,height:844});
  const authRequests:string[]=[];page.on('request',r=>{if(r.url().includes('/api/auth'))authRequests.push(r.url())});
  await page.goto('/#/profile');await page.getByRole('link',{name:'Preview WhatsApp OTP login'}).click();
@@ -11,11 +11,11 @@ test('WhatsApp OTP is an explicit local simulation with recovery states',async({
  await page.getByLabel('Enter 6-digit code').fill('000000');await page.getByRole('button',{name:'Verify demo code'}).click();await expect(page.getByRole('alert')).toContainText('does not match');
  await page.getByRole('button',{name:'Simulate expiry'}).click();await page.getByRole('button',{name:'Verify demo code'}).click();await expect(page.getByRole('alert')).toContainText('expired');
  await page.getByRole('button',{name:'Resend demo code',exact:true}).click();await expect(page.getByRole('button',{name:/Resend in/})).toBeDisabled();
- await page.screenshot({path:'screenshots/otp-code-390.png',fullPage:true});
+ await page.screenshot({path:testInfo.outputPath('otp-code-390.png'),fullPage:true});
  await page.getByRole('button',{name:'Change number'}).click();await expect(page.getByLabel('WhatsApp number')).toBeVisible();
  await page.getByRole('button',{name:'Continue with demo OTP'}).click();await page.getByLabel('Enter 6-digit code').fill('123456');await page.getByRole('button',{name:'Verify demo code'}).click();
  await expect(page.getByText('Demo verification complete.')).toBeVisible();await expect(page.getByText(/No account was created/)).toBeVisible();
- await page.screenshot({path:'screenshots/otp-success-390.png',fullPage:true});
+ await page.screenshot({path:testInfo.outputPath('otp-success-390.png'),fullPage:true});
  await page.getByRole('button',{name:'Continue browsing'}).click();await expect(page.getByRole('heading',{name:/Your local space/})).toBeVisible();
  await page.goto('/#/login-demo');await page.getByRole('button',{name:'Cancel and browse'}).click();await expect(page.getByRole('heading',{name:/Your local space/})).toBeVisible();
  expect(authRequests).toEqual([]);

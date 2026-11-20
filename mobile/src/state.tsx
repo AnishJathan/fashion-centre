@@ -39,7 +39,6 @@ import {
 
 interface Snapshot {
   commerce: CommerceState;
-  saved: string[];
   followed: string[];
   registrations: StoreRegistration[];
   themePreference: ThemePreference;
@@ -52,13 +51,13 @@ export interface AppState extends Snapshot {
   sources: Source[];
   brands: Brand[];
   products: Product[];
+  directoryLoading: boolean;
   catalogueLoading: boolean;
   catalogueError: string;
   theme: "light" | "dark";
   reload(): Promise<void>;
   onboard(id: string): Promise<void>;
   toggleStore(id: string): Promise<void>;
-  toggleSaved(id: string): Promise<void>;
   toggleFollowed(id: string): Promise<void>;
   dispatch(action: CommerceAction): Promise<boolean>;
   setTheme(value: ThemePreference): Promise<void>;
@@ -68,7 +67,6 @@ const Context = createContext<AppState | null>(null);
 const repository = new NativeStorage(AsyncStorage);
 const empty = (): Snapshot => ({
   commerce: initialCommerce(),
-  saved: [],
   followed: [],
   registrations: [],
   themePreference: "system",
@@ -87,6 +85,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [notice, setNotice] = useState("");
   const [sources, setSources] = useState<Source[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
+  const [directoryLoading, setDirectoryLoading] = useState(true);
   const [catalogueLoading, setCatalogueLoading] = useState(false);
   const [catalogueError, setCatalogueError] = useState("");
   const [retry, setRetry] = useState(0);
@@ -102,7 +101,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     generation.current++;
     catalogueAbort.current?.abort();
     liveProducts.current = [];
-    if (mounted.current) setBrands([]);
+    if (mounted.current) {
+      setDirectoryLoading(true);
+      setBrands([]);
+    }
   }
   async function reload() {
     await repository.run(async () => {
@@ -120,7 +122,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
             initialCommerce(),
           ),
           registrations: await repository.read(STORES_KEY, parseStores, []),
-          saved: await repository.read("fc.saved", parseIds, []),
           followed: await repository.read("fc.followed", parseIds, []),
           themePreference: await repository.read(
             THEME_KEY,
@@ -161,6 +162,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       mounted.current &&
       !abort.signal.aborted &&
       version === generation.current;
+    setDirectoryLoading(true);
     setCatalogueLoading(true);
     setCatalogueError("");
     setBrands([]);
@@ -178,6 +180,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       (result) => {
         if (!valid()) return;
         setSources(result.status === "fulfilled" ? result.value : []);
+        setDirectoryLoading(false);
         directoryError =
           result.status === "rejected" ? message(result.reason) : "";
         publishErrors();
@@ -243,12 +246,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       old.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s)),
     );
   }
-  async function toggle(key: "saved" | "followed", id: string) {
+  async function toggleFollowed(id: string) {
     await mutate(async () => {
-      if (!id) throw new Error("A saved reference is required.");
-      const next = toggleId(current.current[key], id);
-      await repository.write("fc." + key, next);
-      publish({ ...current.current, [key]: next });
+      if (!id) throw new Error("A store reference is required.");
+      const followed = toggleId(current.current.followed, id);
+      await repository.write("fc.followed", followed);
+      publish({ ...current.current, followed });
     });
   }
   async function dispatch(action: CommerceAction): Promise<boolean> {
@@ -335,14 +338,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     sources,
     brands,
     products: brands.flatMap((b) => b.products),
+    directoryLoading,
     catalogueLoading,
     catalogueError,
     theme: resolveTheme(snapshot.themePreference, scheme === "dark"),
     reload,
     onboard,
     toggleStore,
-    toggleSaved: (id) => toggle("saved", id),
-    toggleFollowed: (id) => toggle("followed", id),
+    toggleFollowed,
     dispatch,
     setTheme,
     exportBackup,

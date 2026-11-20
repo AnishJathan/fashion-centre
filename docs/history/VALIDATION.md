@@ -22,7 +22,7 @@ Java tests cover source contracts and metadata, identical versus conflicting sha
 
 The second pass adds failed-read/failed-write recovery, malformed historical currencies, updated variant labels, disabled-store historical orders, cross-tab store-disable/checkout ordering, late photo-decoder replacement/cancellation, APNG rejection, modal keyboard wrapping, resize preservation and three-image viewer bounds. OAuth regressions cover ownership revocation during token exchange, tampered scope metadata, spoofed identity/blank CSRF, repository failure and immutable token-record data.
 
-Initial full browser execution found two owner-dashboard failures while the API was intentionally stopped for packaging. This exposed an implicit test dependency. Playwright now starts/waits for both the frontend and packaged API when absent. The CI workflow is syntax-checked and uses immutable action pins; GitHub execution remains unverified and unpushed. See [CI.md](CI.md).
+Initial full browser execution found two owner-dashboard failures while the API was intentionally stopped for packaging. This exposed an implicit test dependency. Playwright now starts/waits for both the frontend and packaged API when absent. The CI workflow is syntax-checked and uses immutable action pins; GitHub execution remains unverified and unpushed. See [CI.md](../verification.md).
 
 After the final 30-test browser pass, the API was stopped deliberately and `npx playwright test e2e/merchant.spec.ts` passed all 3 checks. Playwright started the absent API, waited for readiness and cleaned up its temporary process. The normal local API was then restarted for the preview. This verifies cold API startup on this Windows laptop; it does not establish hosted Linux CI execution.
 
@@ -122,7 +122,7 @@ The two-store Chrome smoke passed at 390px and 1440px: 59 combined products, 29 
 - Owner dashboard: http://127.0.0.1:5173/#/owner
 - API: http://127.0.0.1:8081
 
-First visit: explicitly onboard one or both public demo stores. Follow [README.md](README.md) to rebuild/start. Process IDs are recorded only in ignored `local-processes.json`.
+First visit: explicitly onboard one or both public demo stores. Follow [README.md](../../README.md) to rebuild/start. Process IDs are recorded only in ignored `local-processes.json`.
 
 ## Limits
 
