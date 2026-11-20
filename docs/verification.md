@@ -31,3 +31,9 @@ npm run test:native-quality
 Use a physical-device build for camera, file access, and app lifecycle changes. Test Flyway on a disposable MySQL instance before deploying a migration. Real WhatsApp delivery, R2, paid Pruna jobs, and merchant installation require their own test environment and authorized test data.
 
 Earlier reports are in the [history folder](history/README.md). Check CI on the commit you intend to merge.
+
+### Contributor build notifications
+
+Every completed verification run posts its available iOS Simulator, web and Android downloads in the [build thread](https://github.com/AnishJathan/fashion-centre/issues/6). The workflow mentions GitHub accounts listed as human contributors and the author of an associated pull request. GitHub handles private email addresses. Contributors choose email delivery for participating and mentions in their [notification settings](https://github.com/settings/notifications). People whose commits are unlinked can subscribe to the thread or associate their commit email with their GitHub account.
+
+To retry a missed announcement, run **Notify contributors of builds** on the default branch and enter its verification run ID. An already announced attempt is skipped.
