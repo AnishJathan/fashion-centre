@@ -11,7 +11,7 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
   actions: read
   issues: write
 
@@ -19,7 +19,10 @@ jobs:
   notify:
     if: github.repository == 'AnishJathan/fashion-centre' && (github.event_name == 'workflow_run' || github.ref_name == github.event.repository.default_branch)
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 12
+    concurrency:
+      group: publish-downloads-${{ github.event.workflow_run.id || inputs.run_id }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

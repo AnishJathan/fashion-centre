@@ -4,6 +4,8 @@ import json
 import os
 from urllib.request import Request, urlopen
 
+from build_downloads import publish
+
 ISSUE = 7
 # Account IDs remain stable when GitHub usernames change.
 EXCLUDED_ACCOUNT_IDS = {int(value) for value in os.environ["BUILD_EXCLUDED_ACCOUNT_IDS"].split(",")}
@@ -52,11 +54,10 @@ def main():
         print("This build attempt was already announced.")
         return
 
-    artifacts = {a["name"]: a["id"] for a in pages(f"actions/runs/{run_id}/artifacts", "artifacts")
-                 if not a["expired"]}
+    links = publish(run, pages(f"actions/runs/{run_id}/artifacts", "artifacts"), api, pages)
     lines = [f"**[Build #{run['run_number']}, attempt {run['run_attempt']}]({base}) · {run['conclusion']}**", ""]
     for name, label in PLATFORMS.items():
-        lines.append(f"- [{label}]({base}/artifacts/{artifacts[name]})" if name in artifacts
+        lines.append(f"- [{label}]({links[name]})" if name in links
                      else f"- {label} — download unavailable")
     people = {p["login"] for p in pages("contributors") if receives_builds(p)}
     for pr in run.get("pull_requests", []):
