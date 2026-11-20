@@ -4,12 +4,18 @@ import json
 import os
 from urllib.request import Request, urlopen
 
-ISSUE = 6
+ISSUE = 7
+# Account IDs remain stable when GitHub usernames change.
+EXCLUDED_ACCOUNT_IDS = {int(value) for value in os.environ["BUILD_EXCLUDED_ACCOUNT_IDS"].split(",")}
 PLATFORMS = {
     "fashion-centre-ios-simulator": "iOS Simulator",
     "fashion-centre-web": "Web app",
     "fashion-centre-android": "Android APK",
 }
+
+
+def receives_builds(account):
+    return account["type"] == "User" and account["id"] not in EXCLUDED_ACCOUNT_IDS
 
 
 def main():
@@ -52,10 +58,10 @@ def main():
     for name, label in PLATFORMS.items():
         lines.append(f"- [{label}]({base}/artifacts/{artifacts[name]})" if name in artifacts
                      else f"- {label} — download unavailable")
-    people = {p["login"] for p in pages("contributors") if p["type"] == "User"}
+    people = {p["login"] for p in pages("contributors") if receives_builds(p)}
     for pr in run.get("pull_requests", []):
         author = api(f"pulls/{int(pr['number'])}")["user"]
-        if author["type"] == "User":
+        if receives_builds(author):
             people.add(author["login"])
     lines.extend(["", " ".join("@" + login for login in sorted(people, key=str.lower)), "", marker])
     print(api(comments, {"body": "\n".join(lines)})["html_url"])

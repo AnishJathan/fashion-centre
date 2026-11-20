@@ -27,6 +27,7 @@ jobs:
           persist-credentials: false
       - name: Share downloads with repository contributors
         env:
+          BUILD_EXCLUDED_ACCOUNT_IDS: ${{ vars.BUILD_EXCLUDED_ACCOUNT_IDS }}
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
         run: python3 scripts/notify-build.py
