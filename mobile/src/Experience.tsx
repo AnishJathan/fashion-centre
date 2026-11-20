@@ -9,7 +9,7 @@ import { Body, Button, Heading, Icon, IconButton, usePalette } from './ui';
 import { ProductGrid } from './ShoppingComponents';
 
 const serif = Platform.OS === 'android' ? 'serif' : 'Georgia';
-const imagery = [require('../assets/editorial/campaign.png'), require('../assets/editorial/evening.jpg'), require('../assets/editorial/street.jpg')] as ImageSourcePropType[];
+const imagery = [require('../assets/editorial/field.jpg'), require('../assets/editorial/accessories.jpg'), require('../assets/editorial/off-duty.jpg')] as ImageSourcePropType[];
 const storyPalette = palettes.dark;
 const white = '#FFFFFF';
 export function ExperienceIntro({ navigate, mood, onMood, onBrowse, compact = false }: { compact?: boolean; navigate: (route: Route) => void; mood: MoodId; onMood: (value: MoodId) => void; onBrowse: () => void }) {
@@ -77,7 +77,7 @@ export function ExperienceIntro({ navigate, mood, onMood, onBrowse, compact = fa
     <View style={{ gap: 14, paddingTop: 10 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}><Heading>Find your feeling</Heading><Icon name="sliders" color={p.muted} size={18} /></View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingVertical: 2 }}>
-        {moods.map(item => <Pressable key={item.id} accessibilityRole="button" accessibilityState={{ selected: item.id === mood }} onPress={() => onMood(item.id)} style={({ pressed }) => ({ minHeight: 48, paddingHorizontal: 18, justifyContent: 'center', borderRadius: 30, borderWidth: 1, borderColor: item.id === mood ? p.accent : p.line, backgroundColor: item.id === mood ? p.accent : pressed ? p.tint : p.surface })}><Text style={{ color: item.id === mood ? p.onAccent : p.text, fontSize: 13, fontWeight: '500' }}>{item.label}</Text></Pressable>)}
+        {moods.map(item => <Pressable key={item.id} accessibilityRole="button" accessibilityState={{ selected: item.id === mood }} onPress={() => onMood(item.id)} style={({ pressed }) => ({ minHeight: 48, paddingHorizontal: 18, justifyContent: 'center', borderRadius: metrics.cardRadius, borderWidth: 1, borderColor: item.id === mood ? p.accent : p.line, backgroundColor: item.id === mood ? p.accent : pressed ? p.tint : p.surface })}><Text style={{ color: item.id === mood ? p.onAccent : p.text, fontSize: 13, fontWeight: '500' }}>{item.label}</Text></Pressable>)}
       </ScrollView>
       <Text style={{ color: p.muted, fontSize: 14, lineHeight: 21 }} accessibilityLiveRegion="polite">{moods.find(item => item.id === mood)?.note}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel={`Explore ${moodProducts(a.products, mood).length} pieces in this mood`} onPress={onBrowse} style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderColor: p.line, paddingBottom: 12 }}><Text style={{ color: p.accent, fontSize: 13, fontWeight: '600' }}>Explore {moodProducts(a.products, mood).length} pieces</Text><Icon name="arrow-right" color={p.accent} size={18} /></Pressable>

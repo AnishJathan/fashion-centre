@@ -21,7 +21,6 @@ const source = ts.transpileModule(
 function harness(
   options: {
     os?: "ios" | "android" | "web";
-    bottomOverlay?: number;
     reducedTransparency?: boolean;
     width?: number;
     fontScale?: number;
@@ -47,7 +46,7 @@ function harness(
     announcements: string[] = [];
   const react = {
     createContext: (value: any) => ({ value, Provider: "PaletteProvider" }),
-    useContext: (context: any) => typeof context.value === "number" ? options.bottomOverlay ?? context.value : context.value,
+    useContext: (context: any) => context.value,
     createElement: (type: any, props: any, ...children: any[]): Element => {
       if (type === "ScrollView" && props?.ref)
         props.ref.current = { scrollTo: (value: any) => scrolls.push(value) };
@@ -439,17 +438,6 @@ test("compact search fields retain accessible labels and editing without a dupli
 });
 
 
-test('floating dock clearance is applied to scroll content, never the screen viewport', () => {
-  for (const bottomOverlay of [0, 60, 84, 142]) {
-    const h = harness({ bottomOverlay });
-    const tree = h.render('Screen', { contentContainerStyle: { maxWidth: 680, paddingBottom: 2 }, children: 'Last actionable item' });
-    const keyboard = one(tree, 'KeyboardAvoidingView'), scroll = one(tree, 'ScrollView');
-    assert.equal(flattenStyle(keyboard.props.style).paddingBottom, undefined);
-    assert.equal(flattenStyle(scroll.props.style).paddingBottom, undefined);
-    assert.equal(flattenStyle(scroll.props.contentContainerStyle).paddingBottom, bottomOverlay ? Math.max(54, bottomOverlay + 12) : 2);
-    assert.equal(flattenStyle(scroll.props.contentContainerStyle).maxWidth, 680);
-  }
-});
 
 test('native reduced transparency is checked, updated live and unsubscribed', async () => {
   const h = harness({ os: 'ios', reducedTransparency: true });

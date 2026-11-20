@@ -27,16 +27,16 @@ export function BrandStorefront({ brand, navigate, scrollTo }: Props) {
   function tryOn(piece: Product) { navigate({ name: 'try-on', productId: piece.id, brandId: brand.id }); }
   // Small visible pills sit inside full-height touch targets; large text grows naturally.
   const target = { minHeight: 48, minWidth: 48, justifyContent: 'center' as const };
-  const pill = (selected: boolean) => ({ paddingHorizontal: 10, paddingVertical: 6, borderRadius: Math.min(identity.radius, 12), backgroundColor: selected ? p.accent : p.surface, borderWidth: 1, borderColor: selected ? p.accent : p.line, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 5 });
+  const pill = (selected: boolean) => ({ paddingHorizontal: 10, paddingVertical: 6, borderRadius: identity.radius, backgroundColor: selected ? p.accent : p.surface, borderWidth: 1, borderColor: selected ? p.accent : p.line, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 5 });
   return <View testID="compact-storefront" style={{ gap: 4 }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-      <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', minHeight: 44, paddingLeft: 9, zIndex: 0 }}><View pointerEvents="none" style={{ position: 'absolute', zIndex: -1, top: 4, bottom: 4, left: 0, right: 0, backgroundColor: p.surface, borderWidth: 1, borderColor: p.controlLine, borderRadius: Math.min(identity.radius, 8) }} />
+      <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', minHeight: 44, paddingLeft: 9, zIndex: 0 }}><View pointerEvents="none" style={{ position: 'absolute', zIndex: -1, top: 4, bottom: 4, left: 0, right: 0, backgroundColor: p.surface, borderWidth: 1, borderColor: p.controlLine, borderRadius: identity.radius }} />
         <Icon name="search" size={16} color={p.muted} />
         <TextInput accessibilityLabel={`Search ${brand.name}`} value={query} onChangeText={setQuery} placeholder="Search this store" placeholderTextColor={p.muted} autoCapitalize="none" autoCorrect={false} returnKeyType="search" onSubmitEditing={() => setQuery(query.trim())} style={{ color: p.text, flex: 1, minWidth: 0, minHeight: 44, fontSize: 12, lineHeight: 17, paddingHorizontal: 6, paddingVertical: 0 }} />
         {!!query && <Pressable accessibilityRole="button" accessibilityLabel="Clear store search" onPress={() => setQuery('')} style={{ ...target, alignItems: 'center' }}><Icon name="x" color={p.muted} size={16} /></Pressable>}
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel={`${following ? 'Unfollow' : 'Follow'} ${brand.name}`} accessibilityState={{ selected: following }} onPress={() => { void app.toggleFollowed(brand.id); }} style={({ pressed }) => ({ ...target, alignItems: 'center', opacity: pressed ? .7 : 1 })}>
-        <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: Math.min(identity.radius, 12), backgroundColor: following ? p.accent : p.tint }}><Icon name={following ? 'check' : 'plus'} size={17} color={following ? p.onAccent : p.accent} /></View>
+        <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: identity.radius, backgroundColor: following ? p.accent : p.tint }}><Icon name={following ? 'check' : 'plus'} size={17} color={following ? p.onAccent : p.accent} /></View>
       </Pressable>
     </View>
 

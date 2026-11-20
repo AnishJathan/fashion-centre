@@ -119,21 +119,18 @@ export function CatalogueBrowser({
   return (
     <>
       <section className="intro">
-        <p className="eyebrow">{isSaved ? 'YOUR SAVED SELECTION' : 'CURATED BY YOUR CHOICES'}</p>
-        <h1>{isSaved ? 'Saved pieces.' : brand?.name || 'Discover your next favourite.'}</h1>
+        {isHome ? <h2>Browse the catalogue</h2> : <h1>{isSaved ? 'Saved pieces.' : brand?.name || 'Catalogue'}</h1>}
         {brand && (
           <button className="secondary" aria-pressed={brandFollowed} onClick={() => toggleFollowed(brand.id)}>
             {brandFollowed ? 'Following' : 'Follow store'}
           </button>
         )}
-        <label className="search">
-          <input
+        <input className="search"
             aria-label="Search catalogue"
             placeholder={brandId ? 'Search this brand' : 'Search products and stores'}
             value={query}
             onChange={event => setQuery(event.target.value)}
-          />
-        </label>
+        />
         {!isHome && (
           <div className="catalogue-controls">
             {!brandId && (
@@ -172,9 +169,9 @@ export function CatalogueBrowser({
           </BrandLink>
         </section>
       )}
-      {!isSaved && categories.length > 0 && (
+      {!isSaved && products.length > 0 && (
         <section className="categories" aria-label="Shop categories">
-          <button aria-pressed={category === 'All'} onClick={() => setCategory('All')}>All products</button>
+          <button aria-pressed={category === 'All'} onClick={() => setCategory('All')}>Shop all</button>
           {categories.map(name => {
             const image = products.find(product => product.category === name && product.image)?.image;
             return (
@@ -191,7 +188,7 @@ export function CatalogueBrowser({
           })}
         </section>
       )}
-      <section>
+      <section id="collection" tabIndex={-1}>
         <div className="section-title">
           <h2>{isSaved ? 'Saved catalogue items' : sort === 'newest' ? 'New arrivals' : category === 'All' ? 'The collection' : category}</h2>
           <span>{list.length} loaded products</span>

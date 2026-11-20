@@ -11,17 +11,27 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "bundleIdentifier": "com.fashioncentre.preview"
+      "bundleIdentifier": "com.fashioncentre.preview",
+      "icon": {
+        "light": "./assets/identity/app-icon.png",
+        "dark": "./assets/identity/app-icon-dark.png",
+        "tinted": "./assets/identity/app-icon-tinted.png"
+      }
     },
     "android": {
       "predictiveBackGestureEnabled": true,
-      "package": "com.fashioncentre.preview"
+      "package": "com.fashioncentre.preview",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/identity/adaptive-foreground.png",
+        "monochromeImage": "./assets/identity/adaptive-foreground.png",
+        "backgroundColor": "#934124"
+      }
     },
     "plugins": [
       [
         "expo-image-picker",
         {
-          "photosPermission": "Choose a photo for your private Fashion Centre preview or account photo.",
+          "photosPermission": false,
           "cameraPermission": "Take a full-body photo for Fashion Centre. You choose whether to upload it.",
           "microphonePermission": false
         }
@@ -34,6 +44,10 @@
         }
       ]
     ],
-    "platforms": ["ios", "android"]
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "icon": "./assets/identity/app-icon.png"
   }
 }

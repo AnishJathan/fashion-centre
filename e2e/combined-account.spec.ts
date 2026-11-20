@@ -4,7 +4,7 @@ const id='mock:gid://shopify/Product/1';
 async function setup(page: Page){
  await page.route('**/api/**', r=>r.fulfill({status:503,json:{error:'Unconfigured test service'}}));
  await page.route('**/api/integrations/shopify/status',r=>r.fulfill({json:{shops:[{key:'mock',name:'Mock Shop'}]}}));
- await page.route('**/api/integrations/shopify/catalogue/mock*',r=>r.fulfill({json:{shopKey:'mock',shopName:'Mock Shop',hasNextPage:false,products:[{key:id,title:'Integration shirt',category:'Shirts',image:'/images/campaign.png',moreVariants:false,variants:[{id:'gid://shopify/ProductVariant/1',key:'mock:gid://shopify/ProductVariant/1',title:'M',available:true,amount:'25',currency:'CAD',options:{Size:'M'}}]}]}}));
+ await page.route('**/api/integrations/shopify/catalogue/mock*',r=>r.fulfill({json:{shopKey:'mock',shopName:'Mock Shop',hasNextPage:false,products:[{key:id,title:'Integration shirt',category:'Shirts',image:'/images/demo-bag.png',moreVariants:false,variants:[{id:'gid://shopify/ProductVariant/1',key:'mock:gid://shopify/ProductVariant/1',title:'M',available:true,amount:'25',currency:'CAD',options:{Size:'M'}}]}]}}));
  await page.addInitScript(()=>localStorage.setItem('fc.stores.v1',JSON.stringify([{id:'mock',enabled:true,onboardedAt:'2026-01-01'}])));
 }
 for(const width of [390,1440])test(`merchant shopping preserves real account and saved-photo try-on ${width}`,async({page})=>{
@@ -44,7 +44,7 @@ test('closing try-on during garment download cancels before submitting', async (
   });
 
   const releaseGarment = Promise.withResolvers<void>();
-  await page.route('**/images/campaign.png', async route => {
+  await page.route('**/images/demo-bag.png', async route => {
     if (route.request().resourceType() !== 'fetch') return route.continue();
     await releaseGarment.promise;
     // The panel should already have cancelled the intercepted fetch.
@@ -57,7 +57,7 @@ test('closing try-on during garment download cancels before submitting', async (
   await expect(page.getByRole('button', { name: 'Close try-on' })).toBeFocused();
 
   const isGarmentFetch = (request: import('@playwright/test').Request) =>
-    new URL(request.url()).pathname === '/images/campaign.png' && request.resourceType() === 'fetch';
+    new URL(request.url()).pathname === '/images/demo-bag.png' && request.resourceType() === 'fetch';
   const garmentRequest = page.waitForRequest(isGarmentFetch);
   await page.getByRole('button', { name: 'Try on', exact: true }).click();
   await garmentRequest;

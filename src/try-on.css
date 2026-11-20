@@ -2,7 +2,7 @@
   background: var(--surface);
   color: var(--text);
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--cardRadius);
   width: min(420px, calc(100% - 32px));
   max-height: 92dvh;
   overflow: auto;
@@ -24,13 +24,13 @@
   color: var(--text);
 }
 .try-on-hint { color: var(--muted); font-size: 14px; margin: 4px 0 12px; }
-.try-on-image img { width: 100%; display: block; border-radius: 12px; }
+.try-on-image img { width: 100%; display: block; border-radius: var(--cardRadius); }
 .try-on-empty {
   aspect-ratio: 3 / 4;
   display: grid;
   place-items: center;
   background: var(--tint);
-  border-radius: 12px;
+  border-radius: var(--cardRadius);
   color: var(--muted);
 }
 .try-on-actions { display: flex; margin-top: 12px; }

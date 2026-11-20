@@ -9,12 +9,12 @@ const luminance = (hex: string) => {
 };
 const contrast = (a: string, b: string) => (Math.max(luminance(a), luminance(b)) + .05) / (Math.min(luminance(a), luminance(b)) + .05);
 
-test('store identities are deterministic, distinctly styled and independent of theme', () => {
+test('store identities are deterministic, recognisable within the shared app theme', () => {
   assert.equal(brandIdentity('demo-atelier'), 'atelier');
   assert.equal(brandIdentity('everyday-demo'), 'everyday');
   assert.equal(brandIdentity('some-store'), brandIdentity('some-store'));
-  assert.notEqual(brandExperience('atelier', 'light').palette.accent, brandExperience('everyday', 'light').palette.accent);
-  assert.notEqual(brandExperience('atelier', 'light').radius, brandExperience('everyday', 'light').radius);
+  assert.equal(brandExperience('atelier', 'light').palette.accent, brandExperience('everyday', 'light').palette.accent);
+  assert.equal(brandExperience('atelier', 'light').radius, brandExperience('everyday', 'light').radius);
   assert.equal(brandExperience('atelier', 'dark').serif, true);
   assert.equal(brandExperience('everyday', 'dark').serif, false);
 });

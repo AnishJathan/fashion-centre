@@ -1,28 +1,55 @@
+# Dependencies and build output
 node_modules/
 dist/
-test-results/
-*.log
 .npm-cache/
 .m2/
-backend/.m2/
 backend/target/
-local-processes.json
+.gradle/
+.cxx/
+build/
+DerivedData/
+*.tsbuildinfo
+
+# Native build products exported outside the Expo prebuild directories
+*.apk
+*.apks
+*.aab
+*.ipa
+*.app/
+*.xcarchive/
+*.xcresult/
+*.dSYM/
+*.dSYM.zip
+/mobile/build-*.tar.gz
+
+# Local environment and signing credentials
 .env
 .env.*
 !.env.example
+backend/secrets.properties
+/mobile/credentials.json
+/mobile/credentials/
 *.pem
 *.key
 *.p12
 *.pfx
+*.p8
+*.jks
+*.keystore
+*.mobileprovision
+
+# Test reports and local runtime data
+test-results/
 playwright-report/
 blob-report/
-.DS_Store
-Thumbs.db
-backend/secrets.properties
+*.log
+local-processes.json
 *.mv.db
 *.trace.db
 *.lock.db
 
-# Native module build outputs
-.gradle/
-build/
+# OS and developer-specific settings
+.DS_Store
+Thumbs.db
+xcuserdata/
+.xcode.env.local

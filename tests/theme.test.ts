@@ -18,7 +18,7 @@ test('pre-paint bootstrap matches runtime fallback without writing or repairing 
   for (const raw of [null, '"light"', '"dark"', '"system"', '{}', 'broken', 'blocked']) {
     for (const systemDark of [false, true]) {
       const root = { dataset: {} as Record<string, string> };
-      runInNewContext(script, { document: { documentElement: root }, localStorage: { getItem: () => { if (raw === 'blocked') throw new Error('blocked'); return raw; }, setItem: () => { throw new Error('unexpected write'); } }, matchMedia: () => ({ matches: systemDark }) });
+      runInNewContext(script, { document: { documentElement: root, querySelector: () => null }, localStorage: { getItem: () => { if (raw === 'blocked') throw new Error('blocked'); return raw; }, setItem: () => { throw new Error('unexpected write'); } }, matchMedia: () => ({ matches: systemDark }) });
       let preference: ReturnType<typeof parseTheme> = 'system';
       try { preference = parseTheme(raw); } catch { /* Runtime fallback */ }
       assert.equal(root.dataset.theme, resolveTheme(preference, systemDark));

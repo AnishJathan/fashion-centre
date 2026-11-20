@@ -22,6 +22,9 @@ import {
   SafeAreaProvider,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import { useFonts } from "expo-font";
+import { MotionProvider, useReducedMotion } from "./src/Motion";
+import { displayFont, metrics, palettes } from "./src/design";
 import { StatusBar } from "expo-status-bar";
 import * as Linking from "expo-linking";
 import { AppProvider, useApp } from "./src/state";
@@ -30,7 +33,6 @@ import { SettingsScreen } from "./src/SettingsScreens";
 import { AccountScreen } from "./src/AccountScreens";
 import {
   Body,
-  BottomOverlayProvider,
   Button,
   Icon,
   IconButton,
@@ -40,8 +42,8 @@ import {
   usePalette,
 } from "./src/ui";
 import { brandExperience } from "./src/brandExperience";
-import { BrandMark } from "./src/BrandMark";
-import { bottomNavFrame, isRootTab, tabDestination, tryOnDestination, type BottomTabName } from "./src/shellPresentation";
+import { AppMark, BrandMark } from "./src/BrandMark";
+import { isRootTab, tabDestination, tryOnDestination, type BottomTabName } from "./src/shellPresentation";
 import { NavBar } from "./src/NavBar";
 import { StyleAssistant } from "./src/StyleAssistant.tsx";
 import {
@@ -91,7 +93,7 @@ function ShellContent({
   const app = useApp(),
     palette = usePalette(),
     insets = useSafeAreaInsets();
-  const { width: viewportWidth, height: viewportHeight, fontScale } = useWindowDimensions();
+  const { height: viewportHeight } = useWindowDimensions();
   const route = cleanRoute({
     ...nativeRoute.params,
     name: nativeRoute.name as RouteName,
@@ -149,15 +151,22 @@ function ShellContent({
   }
   const openTryOn = () => {
     Keyboard.dismiss();
+    if (route.name === "prepare") return;
     const { name, ...params } = tryOnDestination(route, app.products, app.brands);
     // This is an action, not a root-tab switch: Back returns to this screen.
     // Use the validated destination directly instead of inheriting stale scope.
     navigation.navigate(name, params);
   };
   const exitStore = () => navigation.reset({ index: 0, routes: [{ name: "home" }] });
+  const showTabs = ![
+    "login",
+    "login-demo",
+    "try-on",
+    "photos",
+    "checkout",
+  ].includes(route.name) && !(route.name === "prepare" && route.productId);
   const brandRoot = route.name === "brand" || route.name === "home";
   useEffect(() => {
-    const identity = brand ? brandExperience(brand.id, app.theme) : undefined;
     navigation.setOptions({
       title: brand ? brand.name : labels[route.name],
       headerStyle: { backgroundColor: palette.surface },
@@ -166,18 +175,20 @@ function ShellContent({
       contentStyle: { backgroundColor: palette.background },
       // One compact header owns back, store identity, switch and exit. No second store bar.
       header: () => (
-        <PaletteProvider palette={palette}><View style={{ paddingTop: insets.top, paddingLeft: Math.max(8, insets.left), paddingRight: Math.max(8, insets.right), backgroundColor: route.name === "home" && !route.brandId ? palette.tint : palette.surface, borderBottomWidth: route.name === "home" && !route.brandId ? 0 : 1, borderColor: palette.line }}>
+        <PaletteProvider palette={palette}><View style={{ paddingTop: insets.top, paddingLeft: Math.max(metrics.gap, insets.left), paddingRight: Math.max(metrics.gap, insets.right), backgroundColor: palette.background, borderBottomWidth: 1, borderColor: palette.line }}>
           <View testID="compact-shell-header" style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: 4 }}>
             {!!route.brandId && brandRoot ? (
               <IconButton name="arrow-left" label="Exit store view and return to Fashion Centre" onPress={exitStore} />
             ) : !isRootTab(route.name) || !!route.brandId ? (
               <IconButton name="arrow-left" label="Go back" onPress={back} />
             ) : null}
+            {!brand && (route.name === "home" || route.name === "login") && <AppMark background={palette.accent} ink={palette.onAccent} />}
             {!!brand && <BrandMark id={brand.id} name={brand.name} size={24} />}
             <View style={{ flex: 1, minWidth: 0, paddingHorizontal: 4, paddingVertical: 5 }}>
-              <Text accessibilityRole="header" style={{ color: palette.text, fontSize: 16, lineHeight: 20, fontWeight: "700", fontFamily: brandRoot && identity?.serif ? Platform.OS === "ios" ? "Georgia" : "serif" : undefined }}>{brand?.name || labels[route.name]}</Text>
+              <Text accessibilityRole="header" style={{ color: palette.text, fontSize: 21, lineHeight: 27, fontFamily: displayFont }}>{brand?.name || (route.name === "login" ? "Fashion Centre" : labels[route.name])}</Text>
               {!!route.brandId && !brandRoot && <Text style={{ color: palette.muted, fontSize: 12, lineHeight: 16 }}>{labels[route.name]}</Text>}
             </View>
+            {showTabs && <StyleAssistant products={app.products} onNavigate={go} brandId={route.brandId} currentProductId={route.productId} catalogueLoading={app.catalogueLoading} catalogueError={app.catalogueError} launcherMode="inline" />}
             {route.name === "profile" && <IconButton name="settings" label="Open settings" onPress={() => go({ name: "settings" })} />}
             {!!route.brandId && <IconButton name="grid" label={`Switch store, current store ${brand?.name || route.brandId}`} onPress={() => go({ name: "brands" })} />}
             {!!route.brandId && !brandRoot && <IconButton name="home" label="Exit store view and return to Fashion Centre" onPress={exitStore} />}
@@ -185,17 +196,8 @@ function ShellContent({
         </View></PaletteProvider>
       ),
     });
-  }, [navigation, route.name, route.brandId, route.productId, brand?.name, app.theme, palette.surface, palette.text, palette.background, palette.line, palette.tint, palette.accent, palette.muted, insets.top, insets.left, insets.right]);
-  const showTabs = ![
-    "login",
-    "login-demo",
-    "try-on",
-    "prepare",
-    "photos",
-    "checkout",
-  ].includes(route.name);
+  }, [navigation, route.name, route.brandId, route.productId, brand?.name, app.theme, app.products, app.catalogueLoading, app.catalogueError, showTabs, palette.surface, palette.text, palette.background, palette.line, palette.tint, palette.accent, palette.muted, insets.top, insets.left, insets.right]);
   const dockVisible = showTabs && !keyboardVisible;
-  const dockHeight = dockVisible ? bottomNavFrame(viewportWidth, fontScale, insets).footprint : 0;
   const isAccount = ["login", "login-demo", "prepare", "try-on"].includes(
     route.name,
   );
@@ -300,7 +302,7 @@ function ShellContent({
           )}
         </ScrollView>
       )}
-      <BottomOverlayProvider height={dockHeight}>
+      <View testID="screen-viewport" style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
       {!app.ready ? (
         <Screen>
           <Title>Opening your centre.</Title>
@@ -314,9 +316,9 @@ function ShellContent({
       ) : (
         <ShoppingScreen route={route} navigate={go} back={back} />
       )}
-      </BottomOverlayProvider>
+      </View>
       {dockVisible && (
-        <View testID="shell-bottom-overlay" pointerEvents="box-none" style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 20 }}>
+        <View testID="shell-bottom-navigation" style={{ flexShrink: 0, paddingTop: metrics.compactGap, backgroundColor: palette.background, borderTopWidth: 1, borderTopColor: palette.line }}>
         <NavBar
           route={route}
           bagQuantity={app.commerce.cart
@@ -324,7 +326,6 @@ function ShellContent({
             .reduce((count, line) => count + line.quantity, 0)}
           onSelectTab={switchTab}
           onTryOn={openTryOn}
-          accessory={<StyleAssistant products={app.products} onNavigate={go} brandId={route.brandId} currentProductId={route.productId} catalogueLoading={app.catalogueLoading} catalogueError={app.catalogueError} launcherMode="inline" />}
         />
         </View>
       )}
@@ -335,6 +336,7 @@ function ShellContent({
 function Navigator() {
   const app = useApp(),
     p = usePalette();
+  const reducedMotion = useReducedMotion();
   const pendingLink = useRef<Route | null>(null);
   function openLink(route: Route) {
     if (!navigationRef.isReady()) {
@@ -389,7 +391,7 @@ function Navigator() {
         }}
       >
         <Stack.Navigator
-          initialRouteName="home"
+          initialRouteName="login"
           screenOptions={{
             headerStyle: { backgroundColor: p.surface },
             headerTintColor: p.text,
@@ -398,7 +400,7 @@ function Navigator() {
             headerShadowVisible: false,
             headerBackButtonDisplayMode: "minimal",
             contentStyle: { backgroundColor: p.background },
-            animation: "slide_from_right",
+            animation: reducedMotion ? "none" : "fade_from_bottom",
           }}
         >
           {routeNames.map((name) => (
@@ -448,13 +450,13 @@ class ErrorBoundary extends React.Component<
             flex: 1,
             justifyContent: "center",
             padding: 28,
-            backgroundColor: "#FAF7F2",
+            backgroundColor: palettes.light.background,
           }}
         >
-          <Text style={{ fontSize: 24, color: "#291D35", marginBottom: 16 }}>
+          <Text style={{ fontSize: 24, color: palettes.light.text, marginBottom: 16 }}>
             Fashion Centre could not open.
           </Text>
-          <Text style={{ color: "#776A80" }}>
+          <Text style={{ color: palettes.light.muted }}>
             Close and reopen the app to reload your device data. Your saved
             records have not been cleared.
           </Text>
@@ -465,12 +467,12 @@ class ErrorBoundary extends React.Component<
 }
 
 export default function App() {
+  const [fontsReady, fontError] = useFonts({ [displayFont]: require("./assets/fonts/DMSerifText-Regular.ttf") });
+  if (!fontsReady && !fontError) return null;
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
-        <AppProvider>
-          <Navigator />
-        </AppProvider>
+        <MotionProvider><AppProvider><Navigator /></AppProvider></MotionProvider>
       </SafeAreaProvider>
     </ErrorBoundary>
   );

@@ -21,18 +21,11 @@ import { useHeaderHeight } from "@react-navigation/elements";
 import { IconGlyph, type IconName } from "./IconGlyph";
 import { useApp } from "./state";
 import { apiUrl } from "./core/api";
-import { metrics, pageLayout, palettes } from "./design";
+import { displayFont, metrics, pageLayout, palettes } from "./design";
 
 export type { IconName } from "./IconGlyph";
 type Palette = { [K in keyof typeof palettes.light]: string };
 const PaletteContext = createContext<Palette | undefined>(undefined);
-const BottomOverlayContext = createContext(0);
-/** Clearance belongs to scroll content, not the viewport, so content can pass
- * behind a floating dock while the final control remains fully reachable. */
-export function BottomOverlayProvider({ height, children }: React.PropsWithChildren<{ height: number }>) {
-  return <BottomOverlayContext.Provider value={height}>{children}</BottomOverlayContext.Provider>;
-}
-export function useBottomOverlay() { return useContext(BottomOverlayContext); }
 export function PaletteProvider({ palette, children }: React.PropsWithChildren<{ palette?: Palette }>) {
   return <PaletteContext.Provider value={palette}>{children}</PaletteContext.Provider>;
 }
@@ -89,7 +82,6 @@ export function Screen({
   const p = usePalette(),
     insets = useSafeAreaInsets(),
     headerHeight = useHeaderHeight();
-  const bottomOverlay = useContext(BottomOverlayContext);
   const { width, fontScale } = useWindowDimensions();
   const [availableWidth, setAvailableWidth] = useState<number | null>(null);
   // A screen can occupy only part of a large window. Measure that viewport,
@@ -111,14 +103,13 @@ export function Screen({
             width: "100%",
             maxWidth: metrics.maxContentWidth,
             alignSelf: "center",
-            paddingTop: 8,
+            paddingTop: metrics.gap,
             paddingLeft: layout.paddingLeft,
             paddingRight: layout.paddingRight,
             paddingBottom: Math.max(32, insets.bottom + 20),
-            gap: 12,
+            gap: metrics.gap,
           },
           contentContainerStyle,
-          bottomOverlay > 0 ? { paddingBottom: Math.max(32, insets.bottom + 20, bottomOverlay + 12) } : undefined,
         ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
@@ -136,9 +127,9 @@ export function Title({ children }: React.PropsWithChildren) {
     <Text
       accessibilityRole="header"
       style={{
-        fontSize: 18,
-        lineHeight: 24,
-        fontWeight: "700",
+        fontSize: 32,
+        lineHeight: 37,
+        fontFamily: displayFont,
         color: p.text,
         letterSpacing: -0.3,
       }}
@@ -163,9 +154,9 @@ export function Heading({ children }: React.PropsWithChildren) {
     <Text
       accessibilityRole="header"
       style={{
-        fontSize: 16,
-        lineHeight: 22,
-        fontWeight: "700",
+        fontSize: 22,
+        lineHeight: 27,
+        fontFamily: displayFont,
         color: p.text,
         flexShrink: 1,
       }}
@@ -269,7 +260,7 @@ export function IconButton({
       style={({ pressed }) => ({
         minWidth: metrics.touch,
         minHeight: metrics.touch,
-        borderRadius: 14,
+        borderRadius: metrics.cardRadius,
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: selected ? p.tint : "transparent",
@@ -289,8 +280,8 @@ export function Card({ children }: React.PropsWithChildren) {
         borderColor: p.line,
         borderWidth: 1,
         borderRadius: metrics.cardRadius,
-        padding: 12,
-        gap: 8,
+        padding: metrics.gap,
+        gap: metrics.compactGap,
       }}
     >
       {children}
@@ -375,7 +366,7 @@ export function Field({
             minHeight: compact ? 44 : 48,
             borderWidth: compact ? 1 : 1.5,
             borderColor: error ? p.error : focused ? p.accent : p.controlLine,
-            borderRadius: compact ? 8 : metrics.controlRadius,
+            borderRadius: metrics.controlRadius,
             paddingHorizontal: compact ? 10 : 12,
             paddingVertical: compact ? 4 : 8,
             color: p.text,
@@ -449,7 +440,7 @@ export function Choices({
         flexShrink: 1,
         paddingHorizontal: 10,
         paddingVertical: 8,
-        borderRadius: 14,
+        borderRadius: metrics.cardRadius,
         borderWidth: 1,
         borderColor: value === o.value ? p.accent : p.controlLine,
         backgroundColor: value === o.value ? p.tint : p.surface,
@@ -544,7 +535,7 @@ export function Photo({
         style={{
           height,
           width: "100%",
-          borderRadius: 16,
+          borderRadius: metrics.cardRadius,
           overflow: "hidden",
           backgroundColor: p.tint,
         }}
@@ -586,7 +577,7 @@ export function Photo({
         padding: 20,
         gap: 12,
         backgroundColor: p.tint,
-        borderRadius: 16,
+        borderRadius: metrics.cardRadius,
         alignItems: "center",
         justifyContent: "center",
       }}
@@ -635,7 +626,7 @@ export function Status({
         flexDirection: "row",
         gap: 10,
         padding: 13,
-        borderRadius: 14,
+        borderRadius: metrics.cardRadius,
         backgroundColor: error ? p.errorSurface : p.tint,
         alignItems: "flex-start",
       }}

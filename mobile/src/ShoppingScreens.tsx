@@ -100,7 +100,7 @@ function CatalogueChoices({ label, value, options, onChange, showLabel = false }
           onPress={() => onChange(option.value)}
           style={({ pressed }) => ({ minHeight: 48, minWidth: 48, maxWidth: Math.max(48, availableWidth || width - 32), paddingVertical: 4, justifyContent: "center", opacity: pressed ? 0.7 : 1 })}
         >
-          <View style={{ minHeight: 30, paddingHorizontal: 11, paddingVertical: 4, borderRadius: 18, borderWidth: 1, borderColor: selected ? palette.accent : palette.line, backgroundColor: selected ? palette.tint : palette.surface, justifyContent: "center" }}>
+          <View style={{ minHeight: 30, paddingHorizontal: 11, paddingVertical: 4, borderRadius: 24, borderWidth: 1, borderColor: selected ? palette.accent : palette.line, backgroundColor: selected ? palette.tint : palette.surface, justifyContent: "center" }}>
             <Text style={{ color: selected ? palette.accent : palette.text, fontSize: 13, lineHeight: 18, fontWeight: selected ? "600" : "400", flexShrink: 1 }}>{option.label}</Text>
           </View>
         </Pressable>;
@@ -195,7 +195,7 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
               onPress={() => { if (!selected) navigate({ name: section.name, brandId: route.brandId }); }}
               style={({ pressed }) => ({ flex: 1, minWidth: 48, minHeight: 48, paddingVertical: 4, justifyContent: "center", opacity: pressed ? 0.7 : 1 })}
             >
-              <View style={{ minHeight: 30, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, backgroundColor: selected ? palette.tint : "transparent", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 }}>
+              <View style={{ minHeight: 30, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 24, backgroundColor: selected ? palette.tint : "transparent", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 }}>
                 <Icon name={section.icon} size={16} color={selected ? palette.accent : palette.muted} />
                 <Text style={{ color: selected ? palette.accent : palette.muted, fontSize: 13, lineHeight: 18, fontWeight: selected ? "600" : "500", flexShrink: 1 }}>{section.label}</Text>
               </View>
@@ -936,7 +936,7 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
             onPress={() => setShowFilters(value => !value)}
             style={({ pressed }) => ({ minHeight: 48, minWidth: 48, paddingVertical: 4, alignItems: "center", justifyContent: "center", opacity: pressed ? .65 : 1 })}
           >
-            <View style={{ minHeight: 30, minWidth: 38, borderRadius: 16, borderWidth: 1, borderColor: showFilters || activeOptions ? palette.accent : palette.line, backgroundColor: showFilters || activeOptions ? palette.tint : palette.surface, alignItems: "center", justifyContent: "center" }}>
+            <View style={{ minHeight: 30, minWidth: 38, borderRadius: 24, borderWidth: 1, borderColor: showFilters || activeOptions ? palette.accent : palette.line, backgroundColor: showFilters || activeOptions ? palette.tint : palette.surface, alignItems: "center", justifyContent: "center" }}>
               <Icon name="sliders" size={17} color={palette.accent} />
               {!!activeOptions && <View accessible={false} style={{ position: "absolute", top: 4, right: 4, width: 5, height: 5, borderRadius: 3, backgroundColor: palette.accent }} />}
             </View>

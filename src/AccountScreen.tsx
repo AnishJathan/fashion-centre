@@ -133,7 +133,7 @@ export default function AccountScreen({close}:{close:()=>void}){
 
         {step==='phone'&&(
           <>
-            <h1>Your style.<br/><em>All together.</em></h1>
+            <h1>Sign in to <em>Fashion Centre</em></h1>
             <p>We’ll send a one-time code to your WhatsApp number.</p>
             <form onSubmit={e=>{e.preventDefault();requestCode()}}>
               <label htmlFor="country">Country code</label>
