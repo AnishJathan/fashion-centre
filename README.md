@@ -1,6 +1,8 @@
 # Fashion Centre
 
-Fashion Centre is a fashion shopping prototype with a React web client, an Expo mobile client, and a Spring Boot API. The demo uses fictional Shopify sample stores. Shopping preferences, carts, and demo orders stay on the device or in the browser.
+Fashion Centre is a multi-store Shopify marketplace. The React web app and Expo apps share a Cloudflare Worker API. Each participating store publishes its own catalogue and handles its own checkout, delivery and payment methods. Shopping preferences and baskets stay on the device. The Spring Boot API remains available for local demos.
+
+[Open the marketplace](https://fashion-centre.fashion-centre-cloudflare.workers.dev) · [Cloudflare setup and merchant onboarding](cloudflare/README.md)
 
 ## Run the demo
 

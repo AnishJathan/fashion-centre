@@ -8,6 +8,7 @@ export function activeTab(route: RouteName): RouteName {
 }
 /** A tab switch creates one root destination rather than a stack of prior tabs. */
 export function tabDestination(name: RouteName, current: Route): Route {
+  if (current.brandId?.startsWith("shop-") && ["home", "cart", "profile"].includes(name)) return { name };
   return scopeRoute({ name }, current);
 }
 export function isRootTab(name: RouteName) {
@@ -16,20 +17,10 @@ export function isRootTab(name: RouteName) {
 
 export type BottomTabName = "home" | "cart" | "profile";
 
-/** Only a current, available catalogue product is preselected. Never guess a
- * garment from the bag or silently choose the first catalogue entry. */
-export function tryOnDestination(
-  current: Route,
-  products: readonly { id: string; brandId: string }[],
-  brands: readonly { id: string }[],
-): Route {
-  const route = cleanRoute(current);
-  const brandId = brands.some(brand => brand.id === route.brandId) ? route.brandId : undefined;
-  const product = ["product", "photos", "prepare", "try-on"].includes(route.name)
-    ? products.find(item => item.id === route.productId &&
-        (!brandId || item.brandId === brandId) && brands.some(brand => brand.id === item.brandId))
-    : undefined;
-  return cleanRoute({ name: "prepare", brandId: product?.brandId || brandId, ...(product ? { productId: product.id } : {}) });
+/** The tab opens the studio. A product card opens that garment's try-on. */
+export function tryOnDestination(current: Route, brands: readonly { id: string }[]): Route {
+  const { brandId } = cleanRoute(current);
+  return cleanRoute({ name: "prepare", brandId: brands.some(brand => brand.id === brandId) ? brandId : undefined });
 }
 
 /** A separate footer owns the system inset and grows for larger accessibility labels. */

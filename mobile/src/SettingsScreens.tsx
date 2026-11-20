@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { Text } from "./Typography";
+import { ActivityIndicator, View } from "react-native";
 import { useApp } from "./state";
 import type { Route } from "./navigation";
+import { browserSignIn } from "./core/browserSignIn";
+import { merchantSession } from "./core/providerSignIn";
 import { apiFetch } from "./core/api";
 import { PersonalProfile } from "./PersonalProfile";
 import {
@@ -136,7 +139,7 @@ function Preferences({ navigate, route }: Pick<Props, "navigate" | "route">) {
         <SettingsRow
           icon="grid"
           label="Brand-owner dashboard"
-          detail="Shopify setup · not connected"
+          detail="Shopify sign-in and store setup"
           onPress={() => navigate({ name: "owner" })}
         />
       </SettingsGroup>
@@ -283,6 +286,8 @@ function Merchant({ navigate }: Pick<Props, "navigate">) {
   const [checked, setChecked] = useState(false);
   const [blockers, setBlockers] = useState<string[] | null>(null);
   const [error, setError] = useState("");
+  const [publication,setPublication]=useState<boolean|null>(null);
+  const app=useApp();
   const [retry, setRetry] = useState(0);
   useEffect(() => {
     const abort = new AbortController();
@@ -294,7 +299,9 @@ function Merchant({ navigate }: Pick<Props, "navigate">) {
       )
       .then(async (response) => {
         if (!response.ok) throw Error();
-        const next = merchantReadinessBlockers(await response.json());
+        const data=await response.json();
+        if(!abort.signal.aborted)setPublication(data.marketplace===true ? !!data.published : null);
+        const next = data.marketplace===true ? [] : merchantReadinessBlockers(data);
         if (!abort.signal.aborted) setBlockers(next);
       })
       .catch(() => {
@@ -305,94 +312,103 @@ function Merchant({ navigate }: Pick<Props, "navigate">) {
       });
     return () => abort.abort();
   }, [retry]);
+  const [activeShop, setActiveShop] = useState("");
+  const [busy, setBusy] = useState(false), [authError, setAuthError] = useState("");
+  const pending = useRef(false), mounted = useRef(true), initial = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    mounted.current = true;
+    initial.current = controller;
+    void merchantSession(apiFetch, controller.signal)
+      .then(value => { if (!controller.signal.aborted) setActiveShop(value); })
+      .catch(() => { if (!controller.signal.aborted) setAuthError("Couldn’t check your merchant session. Please try again."); });
+    return () => { mounted.current = false; controller.abort(); };
+  }, []);
+  async function merchantAuth() {
+    if (pending.current) return;
+    setAuthError("");
+    if (!activeShop) { setChecked(true); if (!valid) return; }
+    pending.current = true;
+    setBusy(true);
+    initial.current?.abort();
+    try {
+      if (activeShop) {
+        const response = await apiFetch("/api/auth/sign-in/shopify/logout", {method:"POST"});
+        if (!response.ok) throw Error("Couldn’t sign out. Please try again.");
+        if (mounted.current) { setActiveShop(""); setChecked(false); }
+      } else {
+        await browserSignIn("shopify", host);
+        const authenticated = await merchantSession(apiFetch);
+        if (authenticated !== host) throw Error("Couldn’t confirm your merchant session. Please sign in again.");
+        if (mounted.current) setActiveShop(authenticated);
+      }
+    } catch (cause) {
+      if (mounted.current) setAuthError(cause instanceof Error ? cause.message : "Couldn’t complete merchant sign-in.");
+    } finally {
+      pending.current = false;
+      if (mounted.current) setBusy(false);
+    }
+  }
   const { host, valid } = shopifyDomain(shop);
   const loading = blockers === null && !error;
   return (
     <Screen contentContainerStyle={{ maxWidth: 680 }}>
       <View style={{ gap: 8 }}>
         <Badge>For brands</Badge>
-        <Title>Connect your store</Title>
-        <Body>
-          Bring your brand to Fashion Centre. Secure onboarding is being
-          prepared.
-        </Body>
+        <Title>Your merchant account</Title>
+        <Body>Sign in with your Shopify store to access Fashion Centre for brands.</Body>
       </View>
-      <SettingsGroup
-        title="Shopify connection"
-        footer="No authorization request is sent and no credentials are collected. Demo sign-in does not grant merchant access."
-      >
+      <SettingsGroup title="Merchant sign-in">
         <SettingsContent>
-          <View
-            style={{
-              flexDirection: "row",
-              flexWrap: "wrap",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 8,
-            }}
-          >
-            <Text style={{ fontSize: 17, fontWeight: "600", color: p.text }}>
-              Shopify
-            </Text>
-            <Text
-              style={{
-                color: p.accent,
-                backgroundColor: p.tint,
-                paddingVertical: 6,
-                paddingHorizontal: 10,
-                borderRadius: 24,
-                fontSize: 13,
-                fontWeight: "600",
+          {activeShop ? <Body>Signed in to {activeShop}</Body> : <>
+            <Field
+              label="Store domain"
+              value={shop}
+              onChangeText={(value) => {
+                setShop(value);
+                setChecked(false);
               }}
-            >
-              Not connected
-            </Text>
-          </View>
-        </SettingsContent>
-        <SettingsDivider />
-        <SettingsContent>
-          <Field
-            label="Store domain"
-            value={shop}
-            onChangeText={(value) => {
-              setShop(value);
-              setChecked(false);
-            }}
-            placeholder="your-brand.myshopify.com"
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="url"
-            textContentType="URL"
-            returnKeyType="done"
-            onSubmitEditing={() => setChecked(true)}
-          />
-          <Body>
-            Use your original .myshopify.com domain, not a custom website
-            address.
-          </Body>
-          <Button
-            secondary
-            label="Check domain format"
-            onPress={() => setChecked(true)}
-          />
-          {checked && (
-            <Status
-              message={
-                valid
-                  ? `Domain format valid: ${host}. Ownership has not been verified.`
-                  : "Enter a store.myshopify.com domain without https://, a path or a port."
-              }
-              error={!valid}
+              placeholder="your-brand.myshopify.com"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              textContentType="URL"
+              returnKeyType="done"
+              editable={!busy}
+              onSubmitEditing={merchantAuth}
             />
-          )}
-          <Button
-            label="Connect Shopify · Setup required"
-            disabled
-            onPress={() => {}}
-          />
+            <Body>
+              Use your original .myshopify.com domain.
+            </Body>
+            <Button
+              secondary
+              label="Check domain format"
+              onPress={() => setChecked(true)}
+            />
+            {checked && (
+              <Status
+                message={
+                  valid
+                    ? `Domain format valid: ${host}. Ownership has not been verified.`
+                    : "Enter a store.myshopify.com domain without https://, a path or a port."
+                }
+                error={!valid}
+              />
+            )}
+          </>}
+          <Button label={activeShop ? "Sign out of merchant account" : "Sign in with Shopify"} busy={busy} onPress={merchantAuth}/>
+          {!!authError && <Status message={authError} error/>}
         </SettingsContent>
       </SettingsGroup>
-      <SettingsGroup
+      {publication!==null ? <SettingsGroup title="Your storefront"><SettingsContent>
+        <Body>{publication ? "Your collection is visible to shoppers." : "Publish your Shopify collection to open your store."}</Body>
+        {!!activeShop && <Button label={publication ? "Unpublish store" : "Publish store"} disabled={busy} onPress={async()=>{
+          setBusy(true);setAuthError("");
+          try {const r=await apiFetch("/api/merchant/shopify/publish",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({published:!publication})});
+            if(!r.ok)throw Error();setRetry(n=>n+1);void app.reload();
+          }catch{setAuthError("Couldn’t update your storefront. Check its Shopify permissions and retry.");}finally{setBusy(false);}
+        }}/>}
+      </SettingsContent></SettingsGroup> : <SettingsGroup
         title="Connection readiness"
         footer="No connected stores, imported products or merchant analytics are available yet."
       >
@@ -449,6 +465,7 @@ function Merchant({ navigate }: Pick<Props, "navigate">) {
               ))}
             </>
           )}
+          <Button label="Connect Shopify · Setup required" disabled onPress={() => {}}/>
         </SettingsContent>
         <SettingsDivider />
         <SettingsRow
@@ -462,7 +479,7 @@ function Merchant({ navigate }: Pick<Props, "navigate">) {
           busy={loading}
           onPress={() => setRetry((value) => value + 1)}
         />
-      </SettingsGroup>
+      </SettingsGroup>}
       <SettingsGroup title="Explore Fashion Centre">
         <SettingsRow
           label="Explore demo stores"

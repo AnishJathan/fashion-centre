@@ -103,6 +103,17 @@ public class AuthService {
             return users.save(u);
         });
 
+        return createSession(user, now);
+    }
+
+    @Transactional
+    public String googleSession(String subject, String firstName) {
+        String hash = sha256(subject);
+        users.ensureGoogleUser(java.util.UUID.randomUUID().toString(), hash, firstName);
+        return createSession(users.findByGoogleSubjectHash(hash).orElseThrow(), Instant.now());
+    }
+
+    private String createSession(User user, Instant now) {
         String token = newToken();
         AuthSession session = new AuthSession();
         session.setUser(user);
@@ -111,6 +122,17 @@ public class AuthService {
         session.setExpiresAt(now.plus(SESSION_TTL));
         sessions.save(session);
         return token;
+    }
+
+    @Transactional
+    public String updateProfileName(String token, String expectedAccountId, String firstName) {
+        User user = currentUser(token).orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        if (!user.getId().equals(expectedAccountId)) throw new ResponseStatusException(HttpStatus.CONFLICT, "Your account changed.");
+        String name = firstName == null ? "" : firstName.strip();
+        if (name.isEmpty() || name.length() > 80 || name.chars().anyMatch(Character::isISOControl))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enter a valid name.");
+        users.updateProfileName(user.getId(), name, java.time.Instant.now());
+        return name;
     }
 
     @Transactional(readOnly = true)
@@ -147,7 +169,7 @@ public class AuthService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    private static String sha256(String input) {
+    static String sha256(String input) {
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256").digest(input.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(digest);

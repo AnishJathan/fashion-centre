@@ -1,6 +1,6 @@
 import { validJobId } from "./photo/jobs.ts";
 
-export type ProfileAccount = { id: string; firstName: string; phone: string };
+export type ProfileAccount = { id: string; firstName: string; phone: string; hasPhoto?: boolean };
 export type SessionLook = {
   jobId: string;
   productId: string;
@@ -17,6 +17,7 @@ export function parseProfileAccount(value: unknown): ProfileAccount | null {
   if (typeof account.id !== "string" || !/^[-a-zA-Z0-9_]{1,200}$/.test(account.id)) return null;
   return {
     id: account.id,
+    ...(typeof account.hasPhoto === "boolean" ? { hasPhoto: account.hasPhoto } : {}),
     firstName: typeof account.firstName === "string" ? account.firstName.trim().slice(0, 80) : "",
     // The auth endpoint returns a masked number. Never derive identity from a submitted OTP/phone.
     phone: typeof account.phone === "string" && account.phone.includes("•") ? account.phone.slice(0, 50) : "",

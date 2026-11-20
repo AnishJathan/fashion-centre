@@ -72,3 +72,57 @@ test('closing try-on during garment download cancels before submitting', async (
     releaseGarment.resolve();
   }
 });
+
+test('a shopper can upload from disk and try the selected product without opening the camera',async ({page})=>{
+  await setup(page);
+  let saved=false, jobs=0;
+  await page.route('**/api/users/me/photo',async route=>{
+    if(route.request().method()==='POST'){
+      expect(route.request().headers()['content-type']).toContain('multipart/form-data');
+      expect(route.request().postDataBuffer()?.length).toBeGreaterThan(500000);
+      saved=true;
+    }
+    if(!saved)return route.fulfill({status:404});
+    return route.request().method()==='POST'?route.fulfill({json:{ok:true}}):route.fulfill({contentType:'image/png',body:previewPng});
+  });
+  await page.route('**/api/try-on/me',route=>{jobs++;return route.fulfill({json:{id:'gallery-test'}})});
+  await page.route('**/api/try-on/gallery-test',route=>route.fulfill({json:{status:'succeeded'}}));
+  await page.route('**/api/try-on/gallery-test/result',route=>route.fulfill({contentType:'image/png',body:previewPng}));
+  await page.goto('/#/product/'+encodeURIComponent(id));
+  await page.getByRole('button',{name:'Try on with my saved photo'}).click();
+  const dialog=page.getByRole('dialog');
+  const {readFile}=await import('node:fs/promises');
+  await dialog.getByLabel('Choose from photos').setInputFiles({name:'sample.jpg',mimeType:'image/jpeg',buffer:await readFile('docs/history/prototype-images/campaign.png')});
+  await expect(dialog.getByRole('img',{name:'Your full-body photo'})).toBeVisible();
+  expect(saved).toBe(false);
+  await dialog.getByRole('button',{name:'Save to my account'}).click();
+  await expect(dialog.getByAltText('Your saved photo')).toBeVisible();
+  expect(jobs).toBe(0);
+  await dialog.getByRole('button',{name:'Try on',exact:true}).click();
+  await expect(dialog.getByAltText('You wearing Integration shirt')).toBeVisible();
+  expect(jobs).toBe(1);
+});
+
+test('studio remembers a visit after reload and returns from photo setup to the same collection', async ({page}) => {
+  await setup(page);
+  let saved = false;
+  await page.route('**/api/auth/me', r => r.fulfill({json:{id:'shopper', hasPhoto:saved}}));
+  await page.route('**/api/users/me/photo', r => {
+    if (r.request().method() === 'POST') { saved = true; return r.fulfill({json:{ok:true}}); }
+    return r.fulfill({contentType:'image/png',body:previewPng});
+  });
+  await page.goto('/#/product/' + encodeURIComponent(id));
+  await expect(page.getByRole('button',{name:'Try on with my saved photo'})).toBeVisible();
+  await page.locator('.bottom-nav').getByRole('link',{name:'Try on'}).click();
+  await page.reload();
+  await expect(page.getByRole('button',{name:'Try on Integration shirt'})).toBeVisible();
+  await expect(page.locator('.studio-stores a')).toHaveAttribute('href','#/brand/mock');
+  await page.getByRole('button',{name:'Add a photo',exact:true}).click();
+  await page.getByLabel('Choose from photos').setInputFiles({name:'sample.jpg',mimeType:'image/jpeg',buffer:await (await import('node:fs/promises')).readFile('docs/history/prototype-images/campaign.png')});
+  expect(saved).toBe(false);
+  await page.getByRole('button',{name:'Save to my account'}).click();
+  await page.getByRole('button',{name:'Return to Try On'}).click();
+  await expect(page.getByRole('status')).toContainText('Your saved photo is ready');
+  await page.getByRole('button',{name:'Try on Integration shirt'}).click();
+  await expect(page.getByRole('dialog').getByAltText('Your saved photo')).toBeVisible();
+});

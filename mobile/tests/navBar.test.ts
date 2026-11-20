@@ -24,8 +24,9 @@ function harness(route: Route = { name: 'home' }, theme: 'light' | 'dark' = 'lig
   };
   const imports: Record<string, any> = {
     react: { __esModule: true, default: react, ...react },
+    './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
     'react-native': { Pressable: 'Pressable', Text: 'Text', View: 'View',
-      Animated: { Value: class { setValue() {} }, View: 'AnimatedView', timing: () => ({ start() {}, stop() {} }) },
+      Animated: { Value: class { setValue() {} interpolate() { return 0; } }, View: 'AnimatedView', timing: () => ({ start() {}, stop() {} }) },
       useWindowDimensions: () => ({ width: 390, fontScale: 1 }) },
     'react-native-svg': { __esModule: true, default: 'Svg', Path: 'Path' },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }) },
@@ -77,8 +78,8 @@ test('one selected symbol stays legible over imagery in both themes, with reduce
       const { tree, controls } = harness({ name: route }, theme, reduced);
       const p = design.palettes[theme];
       const dock = tree.find(node => node.props.accessibilityRole === 'tablist').props.style;
-      assert.equal(dock.backgroundColor, p.dock);
-      assert.equal(dock.borderColor, reduced ? p.dockText : p.dockLine);
+      assert.equal(dock.backgroundColor, reduced ? p.dock : p.dock + 'E3');
+      assert.equal(dock.borderColor, reduced ? p.dockText : 'transparent');
       assert.ok(dock.borderRadius >= dock.height / 2);
       const selected = controls.filter(node => node.props.accessibilityState.selected);
       assert.equal(selected.length, 1);
@@ -92,13 +93,12 @@ test('one selected symbol stays legible over imagery in both themes, with reduce
 });
 
 test('preparation destinations validate availability, route context and store ownership', () => {
-  const products = [{ id: 'atelier:top', brandId: 'atelier' }, { id: 'everyday:tee', brandId: 'everyday' }];
   const brands = [{ id: 'atelier' }, { id: 'everyday' }];
-  assert.deepEqual(shell.tryOnDestination({ name: 'product', productId: 'atelier:top', brandId: 'everyday' }, products, brands), { name: 'prepare', brandId: 'atelier', productId: 'atelier:top' });
-  assert.deepEqual(shell.tryOnDestination({ name: 'product', productId: 'atelier:top' }, [], brands), { name: 'prepare', brandId: 'atelier' });
-  assert.deepEqual(shell.tryOnDestination({ name: 'brand', brandId: '../bad' }, products, brands), { name: 'prepare' });
-  assert.deepEqual(shell.tryOnDestination({ name: 'product', productId: 'atelier:top' }, products, []), { name: 'prepare' });
-  assert.deepEqual(shell.tryOnDestination({ name: 'cart', brandId: 'everyday' }, products, brands), { name: 'prepare', brandId: 'everyday' });
+  assert.deepEqual(shell.tryOnDestination({ name: 'product', productId: 'atelier:top', brandId: 'everyday' }, brands), { name: 'prepare', brandId: 'atelier' });
+  assert.deepEqual(shell.tryOnDestination({ name: 'product', productId: 'atelier:top' }, brands), { name: 'prepare', brandId: 'atelier' });
+  assert.deepEqual(shell.tryOnDestination({ name: 'brand', brandId: '../bad' }, brands), { name: 'prepare' });
+  assert.deepEqual(shell.tryOnDestination({ name: 'product', productId: 'atelier:top' }, []), { name: 'prepare' });
+  assert.deepEqual(shell.tryOnDestination({ name: 'cart', brandId: 'everyday' }, brands), { name: 'prepare', brandId: 'everyday' });
   assert.deepEqual(shell.tabDestination('orders', { name: 'brand', brandId: 'atelier' }), { name: 'orders', brandId: 'atelier' });
   assert.equal(shell.isRootTab('orders'), true);
   for (const route of ['cart', 'orders', 'order', 'checkout'] as const) assert.equal(shell.activeTab(route), 'cart');

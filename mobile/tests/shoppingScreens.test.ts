@@ -144,6 +144,7 @@ function harness(
   );
   const imports: Record<string, any> = {
     react: { __esModule: true, default: React, ...React },
+    './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
     "react-native": {
       ActivityIndicator: "ActivityIndicator",
       FlatList: "FlatList",
@@ -170,6 +171,8 @@ function harness(
     "./core/shopper": shopper,
     "./core/commerce": commerce,
     "./core/domain": domain,
+    "./core/storeCheckout": {isLiveStore: (id:string) => id?.startsWith("shop-"),storeCheckout: async () => {throw Error("No checkout configured");}},
+    "./core/api": {apiFetch: async () => {throw Error("No API configured");}},
     "./state": { useApp: () => a },
     "./ui": { ...ui, usePalette: () => ({}) },
     "./ShoppingComponents": Object.fromEntries(

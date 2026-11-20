@@ -54,6 +54,7 @@ function harness(initial: any = {}, os = 'ios', palette: typeof palettes[keyof t
   const native = Object.fromEntries(['KeyboardAvoidingView', 'Modal', 'Pressable', 'ScrollView', 'Text', 'TextInput', 'View'].map(name => [name, name]));
   const imports: Record<string, any> = {
     react: { __esModule: true, default: React, ...React },
+    './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
     'react-native': { ...native, useWindowDimensions: () => dimensions, Platform: { OS: os }, Keyboard: { dismiss() { keyboardDismissals++; } }, AccessibilityInfo: { announceForAccessibility: (value: string) => announcements.push(value), setAccessibilityFocus: (id: string) => focused.push(id) }, findNodeHandle: (element: any) => element?.id },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 24, bottom: 34, left: 0, right: 0 }) },
     'react-native-svg': { __esModule: true, default: 'Svg', ...Object.fromEntries(['Circle', 'Defs', 'Path', 'RadialGradient', 'Stop'].map(name => [name, name])) },

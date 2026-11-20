@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useIsFocused } from "@react-navigation/native";
-import { ActivityIndicator, AppState, Image, Text, View, useWindowDimensions } from "react-native";
+import { Text } from "./Typography";
+import { ActivityIndicator, AppState, Image, View, useWindowDimensions } from "react-native";
+import { ProfileOptions } from "./ProfileOptions";
 import type { Route } from "./navigation";
 import { apiFetch, apiUrl } from "./core/api";
 import { Body, Button, Icon, Screen, usePalette } from "./ui";
@@ -80,10 +82,12 @@ function ActivePersonalProfile({ navigate }: Props) {
             {account?.firstName || "Your profile"}
           </Text>
           <Text style={{ color: p.muted, fontSize: 12, lineHeight: 18 }}>
-            {account ? account.phone || "Signed in" : "Your looks, in one place."}
+            {account ? account.phone || "Signed in" : "Your shopping, preferences and try-ons."}
           </Text>
         </View>
       </View>
+      {phase === "signed-out" && <Button label="Sign in" onPress={() => navigate({name:"login"})}/>}
+      <ProfileOptions key={account?.id || 'guest'} account={account} navigate={navigate} refresh={() => setRetry(value => value + 1)} />
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         <Text accessibilityRole="header" style={{ flex: 1, color: p.text, fontSize: 16, lineHeight: 22, fontWeight: "700" }}>Your try-ons</Text>
         {ready && <Text accessibilityLabel={`${looks.length} completed try-ons in this app session`} style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: p.tint, color: p.accent, borderRadius: 24, fontSize: 12, fontWeight: "700" }}>{looks.length}</Text>}
@@ -100,7 +104,6 @@ function ActivePersonalProfile({ navigate }: Props) {
         </ProfileNotice>
       ) : phase === "signed-out" ? (
         <ProfileNotice title="A space for your looks" description="Sign in to see try-ons completed during this app session." icon="image">
-          <Button label="Sign in" onPress={() => navigate({ name: "login" })} />
           <Button label="Explore Try On" secondary icon="camera" onPress={() => navigate({ name: "prepare" })} />
         </ProfileNotice>
       ) : looks.length === 0 ? (

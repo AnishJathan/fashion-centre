@@ -1,10 +1,13 @@
+import {isLiveStore,storeCheckout} from "./core/storeCheckout";
+import {apiFetch} from "./core/api";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Text } from "./Typography";
 import {
+  Linking,
   ActivityIndicator,
   FlatList,
   Pressable,
   ScrollView,
-  Text,
   View,
   useWindowDimensions,
 } from "react-native";
@@ -409,8 +412,7 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
           key={product.image}
           uri={product.image}
           label={product.name}
-          contain
-          height={Math.min(280, Math.max(200, (window.width - 32) * .72))}
+          height={Math.min(460, Math.max(200, window.width - 32))}
         />
         <Button label="Try on this piece" icon="camera" disabled={!product.image} onPress={() => navigate({ name: "try-on", productId: product.id, brandId: product.brandId })} style={{ position: "absolute", bottom: 12, right: 12, minHeight: 48, paddingHorizontal: 14 }} />
         </View>
@@ -556,7 +558,7 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
         <ShoppingHeader compact
           eyebrow="Your local selection"
           title="Your bag"
-          description={`${count} ${count === 1 ? "piece" : "pieces"} · Each store has a separate demo checkout.`}
+          description={`${count} ${count === 1 ? "piece" : "pieces"} · Each store has its own basket and checkout.`}
         />
         {!lines.length && (
           <ShoppingEmpty compact
@@ -581,7 +583,7 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
                 <Badge>Known catalogue subtotal</Badge>
                 {prices(group)}
                 <Button
-                  label="Review demo checkout"
+                  label={isLiveStore(id) ? "Review basket" : "Review demo checkout"}
                   disabled={!checkoutReady(group, a.products)}
                   onPress={() => navigate({ name: "checkout", brandId: id })}
                 />
@@ -597,8 +599,7 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
           );
         })}
         <Body>
-          No combined cross-currency total, tax, shipping, reservations, or
-          payments are calculated.
+          Each merchant sets payment methods, delivery options and final charges at checkout.
         </Body>
       </>
     );
@@ -608,6 +609,13 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
     const ready = checkoutReady(lines, a.products);
     async function complete() {
       if (!ready || submitting.current || !route.brandId) return;
+      if(isLiveStore(route.brandId)){
+        submitting.current=true;setBusy(true);setMessage("");
+        try {await Linking.openURL(await storeCheckout(apiFetch,route.brandId,lines));}
+        catch {setMessageError(true);setMessage("Couldn’t open checkout. Your basket is saved.");}
+        finally {submitting.current=false;setBusy(false);}
+        return;
+      }
       const token = gate.current.capture();
       submitting.current = true;
       setBusy(true);
@@ -640,7 +648,7 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
     return (
       <>
         <ShoppingHeader compact
-          eyebrow="Local demo checkout"
+          eyebrow={isLiveStore(route.brandId) ? "Store checkout" : "Local demo checkout"}
           title="Review your selection"
           description={lines[0]?.brandName || "Your store selection"}
         />
@@ -653,12 +661,12 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
           />
         )}
         <ShoppingCard>
-          <Badge>Demo order total</Badge>
+          <Badge>{isLiveStore(route.brandId) ? "Basket subtotal" : "Demo order total"}</Badge>
           {prices(lines)}
-          <ShoppingNotice compact title="No payment will be taken">
+          {isLiveStore(route.brandId) ? <Body>Your merchant calculates delivery and collects payment securely on Shopify.</Body> : <ShoppingNotice compact title="No payment will be taken">
             Creates a record only on this device. No request is sent to Shopify
             or Mock Shop and no stock is reserved.
-          </ShoppingNotice>
+          </ShoppingNotice>}
           {!ready && (
             <Body>
               Checkout unavailable. All variants must be available from this
@@ -666,7 +674,7 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
             </Body>
           )}
           <Button
-            label={busy ? "Recording…" : "Place demo order"}
+            label={isLiveStore(route.brandId) ? "Continue to store checkout" : busy ? "Recording…" : "Place demo order"}
             busy={busy}
             disabled={!ready || busy}
             onPress={() => {

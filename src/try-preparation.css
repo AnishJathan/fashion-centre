@@ -1,6 +1,19 @@
 .garment-select { display: grid; gap: var(--compactGap); max-width: 42rem; }
 .garment-reference, .person-preview { width: 100%; height: clamp(200px, 34vw, 360px); border-radius: var(--cardRadius); object-fit: contain; background: var(--tint); margin-bottom: var(--gap); }
-.consent-panel label { display: flex; align-items: baseline; gap: 12px; margin-block: var(--gap); }
+.consent-panel label { display: flex; align-items: flex-start; gap: 12px; margin-block: var(--compactGap); }
 .local-photo-input { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); }
 .photo-picker { width: 100%; border-style: dashed; }
 .image-facts { color: var(--muted); }
+
+.studio section { margin-block: var(--sectionGap); }
+.studio h2 { margin-bottom: var(--compactGap); }
+.studio-photo { display: grid; justify-items: start; gap: var(--compactGap); }
+.studio-photo p { margin: 0; }
+.studio-pieces { display: grid; grid-template-columns: repeat(auto-fill,minmax(min(140px,45%),1fr)); gap: var(--gap); }
+.studio-piece { display: grid; align-content: start; gap: 4px; text-align: left; overflow: hidden; padding: 0 0 12px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: var(--insetRadius); }
+.studio-piece img { width: 100%; aspect-ratio: 4/5; object-fit: cover; }
+.studio-piece :is(span,strong,small) { padding-inline: 12px; }
+.studio-piece span,.studio-piece small { font-size: .8125rem; line-height: 1.46; color: var(--muted); }
+.studio-piece strong { font-size: 1rem; line-height: 1.375; }
+.studio-piece small { color: var(--accent); }
+.studio-stores { display: flex; flex-wrap: wrap; gap: var(--compactGap); margin-bottom: var(--gap); }

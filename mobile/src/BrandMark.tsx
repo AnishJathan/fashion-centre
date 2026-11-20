@@ -1,7 +1,8 @@
 import React from 'react';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { monogramPath } from './brandIcon';
-import { Text, View } from 'react-native';
+import { Text } from "./Typography";
+import { View } from "react-native";
 import { brandExperience } from './brandExperience';
 import { useApp } from './state';
 

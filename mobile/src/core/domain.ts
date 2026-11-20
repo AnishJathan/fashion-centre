@@ -34,6 +34,7 @@ export interface StoreRegistration {
   onboardedAt: string;
 }
 export interface Source {
+  preview?: true;
   key: string;
   name: string;
 }
@@ -154,7 +155,7 @@ export function parseSources(data: unknown): Source[] {
     )
       throw Error("Demo store directory response is invalid.");
     seen.add(s.key);
-    return { key: s.key, name: s.name };
+    return { key: s.key, name: s.name, ...(s.preview === true ? {preview:true as const} : {}) };
   });
 }
 export function parseCatalogue(id: string, data: unknown): Brand {

@@ -8,7 +8,7 @@ import { BrandLink } from './StoreNavigation';
 
 const photography = [field, offDuty, accessories];
 
-export function EditorialCover({ hasStores }: { hasStores: boolean }) {
+export function EditorialCover({ hasStores, marketplace = false }: { hasStores: boolean; marketplace?: boolean }) {
   const [index, setIndex] = useState(0);
   const edit = edits[index];
   return (
@@ -30,7 +30,7 @@ export function EditorialCover({ hasStores }: { hasStores: boolean }) {
           collection?.focus({ preventScroll: true });
           collection?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
         }}>Browse the collection <span aria-hidden="true">↗</span></button>
-          : <BrandLink className="primary cover-action" href="#/merchant">Choose a demo store <span aria-hidden="true">↗</span></BrandLink>}
+          : <BrandLink className="primary cover-action" href={marketplace ? "#/brands" : "#/merchant"}>{marketplace ? "Explore stores" : "Choose a demo store"} <span aria-hidden="true">↗</span></BrandLink>}
       </div>
       <div className="cover-photo">
         <picture key={edit.label}>

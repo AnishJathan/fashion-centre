@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Image, Modal, Platform, Pressable, ScrollView, Text, View, useWindowDimensions, type ImageSourcePropType } from 'react-native';
+import { Text, displayFont } from "./Typography";
+import { AccessibilityInfo, Animated, Image, Modal, Pressable, ScrollView, View, useWindowDimensions, type ImageSourcePropType } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { metrics, pageLayout, palettes } from './design';
 import { useApp } from './state';
@@ -8,7 +9,7 @@ import { moods, moodProducts, storyCopy, studioProducts, type MoodId } from './e
 import { Body, Button, Heading, Icon, IconButton, usePalette } from './ui';
 import { ProductGrid } from './ShoppingComponents';
 
-const serif = Platform.OS === 'android' ? 'serif' : 'Georgia';
+const serif = displayFont;
 const imagery = [require('../assets/editorial/field.jpg'), require('../assets/editorial/accessories.jpg'), require('../assets/editorial/off-duty.jpg')] as ImageSourcePropType[];
 const storyPalette = palettes.dark;
 const white = '#FFFFFF';

@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Product } from './domain';
 import './try-on.css';
 
+const PhotoCapture = lazy(() => import('./PhotoCapture').then(module => ({default:module.PhotoCapture})));
 const API = '/api/try-on';
 const PHOTO_API = '/api/users/me/photo';
 const POLL_INTERVAL_MS = 1_500;
@@ -25,7 +26,7 @@ function waitForNextPoll(signal: AbortSignal): Promise<void> {
   });
 }
 
-export function TryOnPanel({ product, onClose }: { product: Product; onClose: () => void }) {
+export function TryOnPanel({ product, onClose, initialPhoto, onSignIn }: { product: Product; onClose: () => void; onSignIn?: () => void; initialPhoto?: {file:File;url:string} }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const request = useRef<AbortController | null>(null);
   const [savedPhoto, setSavedPhoto] = useState<string | null>(null);
@@ -33,6 +34,29 @@ export function TryOnPanel({ product, onClose }: { product: Product; onClose: ()
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>('idle');
   const [message, setMessage] = useState('');
+
+  const [useSelection,setUseSelection]=useState(!!initialPhoto);
+  const [photoVersion,setPhotoVersion]=useState(0);
+  const [savingPhoto,setSavingPhoto]=useState(false);
+  const [uploadError,setUploadError]=useState('');
+  async function saveSelectedPhoto(file:Blob) {
+    if(request.current)return;
+    const controller=new AbortController();
+    request.current=controller;
+    setSavingPhoto(true);
+    setUploadError('');
+    try{
+      const form=new FormData();
+      form.append('file',file,'account-photo');
+      const response=await fetch(PHOTO_API,{method:'POST',body:form,credentials:'include',signal:controller.signal});
+      if(response.status===401){setPhotoState('signed-out');return;}
+      if(!response.ok)throw Error('Could not save this photo. Please try again.');
+      setUseSelection(false);
+      setPhotoState('loading');
+      setPhotoVersion(value=>value+1);
+    }catch(error){if(!controller.signal.aborted)setUploadError(error instanceof Error?error.message:'Photo upload failed.');}
+    finally{if(request.current===controller){request.current=null;setSavingPhoto(false);}}
+  }
 
   function cancelRequest() {
     const controller = request.current;
@@ -79,7 +103,7 @@ export function TryOnPanel({ product, onClose }: { product: Product; onClose: ()
       controller.abort();
       if (url) URL.revokeObjectURL(url);
     };
-  }, []);
+  }, [photoVersion]);
 
   function close() {
     cancelRequest();
@@ -112,6 +136,7 @@ export function TryOnPanel({ product, onClose }: { product: Product; onClose: ()
       const start = await fetch(API + '/me', { ...fetchOptions, method: 'POST', body: form });
       if (!start.ok) {
         if (start.status >= 400 && start.status < 500 && start.status !== 408) providerMayHaveStarted = false;
+        if (start.status === 503) {providerMayHaveStarted=false;throw new Error('Generation is currently unavailable. Your saved photo is ready for a later attempt.');}
         if (start.status === 401) throw new Error('Please sign in to try on outfits.');
         if (start.status === 409) throw new Error('Add your full-body photo first.');
         throw new Error('Could not start the try-on.');
@@ -163,7 +188,7 @@ export function TryOnPanel({ product, onClose }: { product: Product; onClose: ()
     >
       <button className="try-on-close" onClick={close} aria-label="Close try-on">×</button>
       <h2>{product.name}</h2>
-      <p className="try-on-hint">Uses the full-body photo saved in your account.</p>
+      <p className="try-on-hint">Generating a look sends your saved photo and this product image to our try-on provider.</p>
 
       <div className="try-on-image">
         {resultUrl ? <img src={resultUrl} alt={`You wearing ${product.name}`} />
@@ -171,7 +196,8 @@ export function TryOnPanel({ product, onClose }: { product: Product; onClose: ()
           : <div className="try-on-empty">{photoState === 'loading' ? 'Loading your photo…' : 'Photo unavailable'}</div>}
       </div>
 
-      {photoState === 'ready' && phase !== 'uncertain' && (
+      {useSelection && initialPhoto && (photoState==='ready'||photoState==='missing') && <div className="photo-actions"><img src={initialPhoto.url} alt="Photo selected for this try-on" style={{maxHeight:180}}/><button className="primary" disabled={savingPhoto} onClick={()=>void saveSelectedPhoto(initialPhoto.file)}>{savingPhoto?'Saving…':photoState==='ready'?'Replace my saved photo with this photo':'Save this photo to my account'}</button>{photoState==='ready' && <button className="secondary" disabled={savingPhoto} onClick={()=>setUseSelection(false)}>Use my existing saved photo</button>}{uploadError && <p role="alert">{uploadError}</p>}</div>}
+      {!useSelection && photoState === 'ready' && phase !== 'uncertain' && (
         <div className="try-on-actions">
           <button className="primary" onClick={() => void runTryOn()} disabled={phase === 'working'}>
             {resultUrl ? 'Try again' : 'Try on'}
@@ -181,8 +207,8 @@ export function TryOnPanel({ product, onClose }: { product: Product; onClose: ()
 
       {phase === 'working' && <p role="status">{message}</p>}
       {(phase === 'error' || phase === 'uncertain') && <p role="alert">{message}</p>}
-      {photoState === 'missing' && <p>Add your full-body photo in your account to try outfits on.</p>}
-      {photoState === 'signed-out' && <p>Sign in to try on outfits with your photo.</p>}
+      {!useSelection && photoState === 'missing' && <Suspense fallback={<p>Loading photo options…</p>}><PhotoCapture onAccepted={saveSelectedPhoto} busy={savingPhoto} uploadError={uploadError}/></Suspense>}
+      {photoState === 'signed-out' && <p><a href="#/login" onClick={event => { if (onSignIn) { event.preventDefault(); onSignIn(); } else close(); }}>Sign in</a> to try on outfits with your photo.</p>}
       {photoState === 'unavailable' && <p role="alert">Could not load your saved photo. Reopen try-on to retry.</p>}
     </dialog>
   );

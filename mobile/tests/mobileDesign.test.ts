@@ -59,7 +59,8 @@ test("both covers retain readable editorial text and controls inside rounded fra
     for (const ink of [p.coverInk, p.coverMuted, p.accent]) assert.ok(contrast(ink, p.cover) >= 4.5);
   }
   assert.equal(metrics.cardRadius, 24);
-  assert.ok(metrics.controlRadius >= metrics.touch / 2);
+  assert.ok(metrics.controlRadius < metrics.touch / 2);
+  assert.ok(metrics.pillRadius >= metrics.touch / 2);
 });
 test("native tabs identify nested destinations and retain only intended store scope", () => {
   assert.equal(activeTab("product"), "home");

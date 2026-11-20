@@ -53,3 +53,9 @@ local-processes.json
 Thumbs.db
 xcuserdata/
 .xcode.env.local
+
+# Cloudflare local state and provider configuration
+.wrangler/
+.dev.vars
+.dev.vars.*
+/cloudflare/shopify.app.toml

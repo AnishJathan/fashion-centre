@@ -1,9 +1,9 @@
 import React from "react";
+import { Text } from "./Typography";
 import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
-  Text,
   View,
   useWindowDimensions,
 } from "react-native";

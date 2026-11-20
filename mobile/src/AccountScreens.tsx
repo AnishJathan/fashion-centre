@@ -1,16 +1,21 @@
+import { TryOnStudio } from "./TryOnStudio";
+import { CountryPicker } from "./CountryPicker";
+import { GoogleSignInButton } from "./GoogleSignInButton";
+import { defaultCountry, type PhoneCountry } from "./phoneCountries";
+import { browserSignIn } from "./core/browserSignIn";
 import { metrics } from "./design";
 import { phoneCoverAspect } from "./editorial";
 import { PhotoEditor } from "./photo/PhotoEditor";
 import { otpFieldMetrics } from "./photo/layout";
 import { useIsFocused } from "@react-navigation/native";
 import React, { useEffect, useRef, useState } from "react";
+import { Text } from "./Typography";
 import {
   Alert,
   AppState,
   Image,
   Pressable,
   ScrollView,
-  Text,
   View,
   useWindowDimensions,
 } from "react-native";
@@ -27,7 +32,6 @@ import {
   Card,
   Field,
   Badge,
-  Choices,
   Icon,
   usePalette,
 } from "./ui";
@@ -38,7 +42,7 @@ import {
   PhotoPreview,
   SelectedGarment,
 } from "./AccountUI";
-import { appendPhoto, inspectFile } from "./photo/native";
+import { isPickingLibraryPhoto, appendPhoto, inspectFile } from "./photo/native";
 import {
   normalisePhone,
   safeGarmentUrl,
@@ -65,19 +69,20 @@ const configuredUrl = (path: string) => {
 };
 const errorText = (e: unknown) =>
   e instanceof Error ? e.message : "Something went wrong. Please try again.";
-function Login({ simulation, browse }: { simulation: boolean; browse: () => void }) {
+function Login({ simulation, browse, openMerchant, studio = false }: { studio?: boolean; simulation: boolean; browse: () => void; openMerchant: () => void }) {
   const p = usePalette();
   const { width, fontScale } = useWindowDimensions();
   const [codeFieldWidth, setCodeFieldWidth] = useState(0);
   const codeMetrics = otpFieldMetrics(codeFieldWidth || width - 72, fontScale);
   const [step, setStep] = useState<"phone" | "code" | "account">("phone"),
-    [country, setCountry] = useState("+61"),
+    [country, setCountry] = useState<PhoneCountry>(defaultCountry),
     [phone, setPhone] = useState(""),
     [sentTo, setSentTo] = useState(""),
     [code, setCode] = useState(""),
     [message, setMessage] = useState(""),
     [messageError, setMessageError] = useState(false),
     [busy, setBusy] = useState(false),
+    [openingGoogle, setOpeningGoogle] = useState(false),
     [expires, setExpires] = useState(0),
     [resend, setResend] = useState(0),
     [now, setNow] = useState(Date.now()),
@@ -85,6 +90,7 @@ function Login({ simulation, browse }: { simulation: boolean; browse: () => void
     [devCode, setDevCode] = useState("");
   const [photoVersion, setPhotoVersion] = useState(0),
     [photoError, setPhotoError] = useState(false);
+  const [hasPhoto, setHasPhoto] = useState<boolean | undefined>(undefined);
   const active = useRef(true),
     inflight = useRef(false),
     abort = useRef<AbortController | null>(null);
@@ -95,9 +101,15 @@ function Login({ simulation, browse }: { simulation: boolean; browse: () => void
       abort.current = new AbortController();
       void Promise.resolve()
         .then(() => apiFetch("/api/auth/me", { signal: abort.current?.signal }))
-        .then((r) => {
-          if (r.status === 401) tryOnSession.clear();
-          if (active.current && r.ok) setStep("account");
+        .then(async (r) => {
+          if (active.current && !inflight.current && r.status === 401) tryOnSession.clear();
+          if (r.ok) {
+            const account = await r.json();
+            if (active.current && !inflight.current) {
+              setHasPhoto(account?.hasPhoto);
+              setStep("account");
+            }
+          }
         })
         .catch(() => {});
     }
@@ -122,8 +134,8 @@ function Login({ simulation, browse }: { simulation: boolean; browse: () => void
       const number = verify
         ? sentTo
         : simulation
-          ? country + sampleDigits
-          : normalisePhone(country, phone);
+          ? country.dial + sampleDigits
+          : normalisePhone(country.dial, phone);
       if (verify && (Date.now() >= expires || (attempts >= 3 && simulation)))
         throw new Error(
           "Code expired or too many attempts. Request a new code.",
@@ -136,6 +148,7 @@ function Login({ simulation, browse }: { simulation: boolean; browse: () => void
         expiresInSeconds?: number;
         resendInSeconds?: number;
         devCode?: string;
+        hasPhoto?: boolean;
       } = {};
       if (simulation) {
         if (verify && code !== "123456") {
@@ -172,6 +185,7 @@ function Login({ simulation, browse }: { simulation: boolean; browse: () => void
       }
       if (!active.current) return;
       if (verify) {
+        setHasPhoto(data.hasPhoto);
         setCode("");
         setStep("account");
       } else {
@@ -193,6 +207,30 @@ function Login({ simulation, browse }: { simulation: boolean; browse: () => void
     } finally {
       inflight.current = false;
       if (active.current) setBusy(false);
+    }
+  }
+  async function google() {
+    if (inflight.current) return;
+    inflight.current = true;
+    abort.current?.abort();
+    setBusy(true);
+    setOpeningGoogle(true);
+    setMessage("");
+    try {
+      await browserSignIn("google");
+      if (!active.current) return;
+      tryOnSession.clear();
+      const verified = await verifyProfileAccount(() => apiFetch("/api/auth/me"), () => active.current);
+      if (!verified) throw Error("Couldn’t confirm your session. Please sign in again.");
+      setPhotoError(false);
+      setHasPhoto(verified.account.hasPhoto);
+      setPhotoVersion(value => value + 1);
+      setStep("account");
+    } catch (cause) {
+      if (active.current) { setMessage(errorText(cause)); setMessageError(true); }
+    } finally {
+      inflight.current = false;
+      if (active.current) { setBusy(false); setOpeningGoogle(false); }
     }
   }
   async function logout() {
@@ -252,7 +290,7 @@ function Login({ simulation, browse }: { simulation: boolean; browse: () => void
             ? "Explore the sign-in flow with a sample number."
             : step === "account"
               ? "Manage your saved photo for your next look."
-              : "We’ll send a one-time code to your WhatsApp number."}
+              : step === "code" ? "Enter the six-digit code we sent." : "Use Google or your WhatsApp number to continue."}
         </Body>
       </View>
       {simulation && (
@@ -264,51 +302,47 @@ function Login({ simulation, browse }: { simulation: boolean; browse: () => void
       {!!message && <AccountNotice message={message} error={messageError} />}
       {step === "phone" && (
         <Card>
-          <AccountSection step="Step 1 of 2" title="Your mobile number" />
-          <Choices
-            label="Country code"
-            value={country}
-            options={[
-              { label: "AU +61", value: "+61" },
-              { label: "IN +91", value: "+91" },
-              { label: "US / CA +1", value: "+1" },
-              { label: "UK +44", value: "+44" },
-            ]}
-            onChange={(value) => {
-              if (!busy) setCountry(value);
-            }}
-          />
-          <Field
-            label="WhatsApp number"
-            placeholder="Mobile number"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-            inputMode="tel"
-            autoComplete={simulation ? "off" : "tel-national"}
-            textContentType={simulation ? "none" : "telephoneNumber"}
-            importantForAutofill={simulation ? "no" : "yes"}
-            autoCorrect={false}
-            editable={!busy}
-            maxLength={18}
-            returnKeyType="done"
-            onSubmitEditing={() => {
-              if (!busy && phone.trim()) void action(false);
-            }}
-          />
+          {!simulation && <GoogleSignInButton onPress={google} disabled={busy} busy={openingGoogle}/>}
+          <AccountSection title={simulation ? "Your mobile number" : "Or use WhatsApp"}/>
+          <Text style={{color: p.text, fontSize: 14, fontWeight: "600"}}>WhatsApp number</Text>
+          <View style={{flexDirection: fontScale >= 1.4 || width < 340 ? "column" : "row", alignItems: "stretch", gap: 8}}>
+            <CountryPicker country={country} onChange={setCountry} disabled={busy}/>
+            <View style={{flexGrow: 1, flexShrink: 1, minWidth: 0}}>
+              <Field
+                compact
+                style={{minHeight: metrics.touch, fontSize: 16}}
+                label="WhatsApp number"
+                placeholder="Mobile number"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                inputMode="tel"
+                autoComplete={simulation ? "off" : "tel-national"}
+                textContentType={simulation ? "none" : "telephoneNumber"}
+                importantForAutofill={simulation ? "no" : "yes"}
+                autoCorrect={false}
+                editable={!busy}
+                maxLength={22}
+                returnKeyType="done"
+                onSubmitEditing={() => {
+                  if (!busy && phone.trim()) void action(false);
+                }}
+              />
+            </View>
+          </View>
           <Text style={{ color: p.muted, fontSize: 12, lineHeight: 18 }}>
             Use the number registered with WhatsApp, without the country code.
           </Text>
           <Button
             label={
-              busy
+              busy && !openingGoogle
                 ? "Sending code…"
                 : simulation
                   ? "Start demo"
                   : "Send WhatsApp code"
             }
             disabled={busy || !phone.trim()}
-            busy={busy}
+            busy={busy && !openingGoogle}
             onPress={() => void action(false)}
           />
           {simulation && (
@@ -322,6 +356,7 @@ function Login({ simulation, browse }: { simulation: boolean; browse: () => void
               }}
             />
           )}
+          {!simulation && <Pressable accessibilityRole="link" disabled={busy} onPress={openMerchant} style={{alignSelf:"center",minHeight:48,justifyContent:"center"}}><Text style={{color:p.muted,fontSize:13,textDecorationLine:"underline"}}>For stores</Text></Pressable>}
         </Card>
       )}
       {step === "code" && (
@@ -437,7 +472,9 @@ function Login({ simulation, browse }: { simulation: boolean; browse: () => void
                 title="Your saved photo"
                 description="This is the photo used for saved-photo try-on."
               />
-              {!photoError ? (
+              {hasPhoto === false ? (
+                <AccountNotice message="You haven’t saved a photo yet. Scan and confirm your photo below." />
+              ) : !photoError ? (
                 <PhotoPreview
                   compact
                   key={photoVersion}
@@ -466,6 +503,7 @@ function Login({ simulation, browse }: { simulation: boolean; browse: () => void
             <PhotoEditor
               upload
               onSaved={() => {
+                setHasPhoto(true);
                 setPhotoError(false);
                 setPhotoVersion((v) => v + 1);
               }}
@@ -479,7 +517,7 @@ function Login({ simulation, browse }: { simulation: boolean; browse: () => void
             />
           </>
         ))}
-      {!simulation && <Button label={step === "account" ? "Start browsing" : "Continue as guest"} secondary onPress={browse} />}
+      {!simulation && <Button label={studio ? "Return to Try On" : step === "account" ? "Start browsing" : "Continue as guest"} secondary onPress={browse} />}
     </Screen>
   );
 }
@@ -569,7 +607,7 @@ function SavedTryOn({ route, navigate }: Props) {
         if (active && alive.current) setChecking(false);
       });
     const sub = AppState.addEventListener("change", (s) => {
-      if (s !== "active") {
+      if (s !== "active" && !isPickingLibraryPhoto()) {
         active = false;
         abort.current.abort();
         void download.current?.cancelAsync();
@@ -681,7 +719,7 @@ function SavedTryOn({ route, navigate }: Props) {
         body: form,
         signal: abort.current?.signal,
       });
-      if (start.status === 401 || start.status === 409) postBegan = false;
+      if (start.status === 401 || start.status === 409 || start.status === 503) postBegan = false;
       if (start.status === 401) tryOnSession.clear();
       if (!start.ok)
         throw new Error(
@@ -689,7 +727,7 @@ function SavedTryOn({ route, navigate }: Props) {
             ? "Session expired. Sign in again."
             : start.status === 409
               ? "Save your full-body photo first."
-              : "Try-on submission was not accepted.",
+              : start.status === 503 ? "Try-on generation is unavailable. Your saved photo is ready for a later attempt." : "Try-on submission was not accepted.",
         );
       const job = (await start.json()) as {
         id?: string;
@@ -791,8 +829,10 @@ function SavedTryOn({ route, navigate }: Props) {
           </View>
           {checking ? (
             <AccountNotice compact busy message="Checking account and photo…" />
+          ) : prerequisite === "photo" ? (
+            <PhotoEditor upload onSaved={() => setCheckVersion(value => value + 1)} />
           ) : prerequisite ? (
-            <Button label={prerequisite === "sign-in" ? "Sign in to continue" : "Add an account photo"} onPress={() => navigate({ name: "login" })} />
+            <Button label={prerequisite === "sign-in" ? "Sign in to continue" : "Add an account photo"} onPress={() => navigate({ name: "login", productId: product?.id, brandId: route.brandId })} />
           ) : (
             <>
               <AccountNotice compact error={statusError} message={message} />
@@ -960,8 +1000,13 @@ function ActiveAccountScreen(props: Props) {
       active = false;
     };
   }, [route.name, product?.id, product?.image, inspectionVersion]);
+  const [studioLogin, setStudioLogin] = useState(false);
+  if (route.name === "prepare" && !route.productId) {
+    return studioLogin ? <Login studio simulation={false} browse={() => setStudioLogin(false)} openMerchant={() => navigate({name: "owner"})}/> :
+      <TryOnStudio scope={route.brandId} navigate={navigate} signIn={() => setStudioLogin(true)} />;
+  }
   if (route.name === "login" || route.name === "login-demo")
-    return <Login key={route.name} simulation={route.name === "login-demo"} browse={() => navigate({ name: "home" })} />;
+    return <Login key={route.name} simulation={route.name === "login-demo"} studio={!!route.productId} browse={() => navigate(route.productId ? { name: "try-on", productId: route.productId, brandId: route.brandId } : { name: "home" })} openMerchant={() => navigate({ name: "owner" })} />;
   if (route.name === "try-on")
     return <SavedTryOn key={route.productId} {...props} />;
   return (
@@ -1113,18 +1158,13 @@ function ActiveAccountScreen(props: Props) {
       </Card>
       {product && (
         <>
-          <PhotoEditor
-            key={product.id}
-            garmentReady={!!garmentInfo && !garmentError}
-          />
           <Card>
             <AccountSection
-              title="Want to generate a try-on?"
-              description="Use a photo saved in your account. Upload and generation each require separate consent."
+              title="Try on this garment"
+              description="Choose a photo from your library or use your saved account photo. You’ll review it before generation."
             />
             <Button
-              label="Open saved-photo try-on"
-              secondary
+              label="Continue to try-on"
               onPress={() =>
                 navigate({
                   name: "try-on",
@@ -1134,6 +1174,10 @@ function ActiveAccountScreen(props: Props) {
               }
             />
           </Card>
+          <PhotoEditor
+            key={product.id}
+            garmentReady={!!garmentInfo && !garmentError}
+          />
         </>
       )}
     </Screen>
@@ -1147,7 +1191,7 @@ export function AccountScreen(props: Props) {
   );
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) =>
-      setForeground(state === "active"),
+      setForeground(state === "active" || isPickingLibraryPhoto()),
     );
     return () => subscription.remove();
   }, []);

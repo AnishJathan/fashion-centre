@@ -1,0 +1,71 @@
+/* Keep the existing single-column catalogue flow on small and touch screens. */
+.catalogue-layout, .catalogue-filters, .catalogue-results { display: contents; }
+
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  :root {
+    --maxContentWidth: 1480px;
+    --gutter: clamp(32px, 4vw, 64px);
+    --desktop-gap: clamp(24px, 3vw, 48px);
+  }
+
+  .catalogue-layout {
+    display: grid;
+    grid-template-columns: clamp(228px, 20vw, 288px) minmax(0, 1fr);
+    gap: var(--desktop-gap);
+    align-items: start;
+  }
+  .catalogue-filters, .catalogue-results { display: block; min-width: 0; }
+  .catalogue-filters {
+    padding: var(--gap);
+    border: 1px solid var(--line);
+    border-radius: var(--cardRadius);
+    background: var(--surface);
+  }
+  .catalogue-filters .intro, .catalogue-filters .search { margin: 0; }
+  .catalogue-filters .intro, .catalogue-controls { display: grid; gap: var(--gap); }
+  .catalogue-filters :is(h1, h2) { margin: 0; font-size: 1.8rem; }
+  .catalogue-controls select { width: 100%; }
+  .catalogue-hero { margin-top: var(--gap); grid-template-columns: 32% minmax(0, 1fr); }
+  .catalogue-hero .campaign-caption strong { font-size: 1.1rem; }
+  .catalogue-filters .categories {
+    display: grid;
+    margin-top: var(--gap);
+    padding: var(--gap) 0 0;
+    border-top: 1px solid var(--line);
+    overflow: visible;
+  }
+  .categories button { text-align: start; }
+  .catalogue-results > :first-child,
+  .catalogue-results > :first-child > .section-title { margin-top: 0; }
+  .home-storefronts .brand-grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+  .catalogue-filters .home-storefronts { margin-bottom: 0; }
+  .catalogue-filters .home-storefronts .brand-grid { grid-template-columns: minmax(0, 1fr); }
+  .catalogue-filters .brand-grid a { grid-template-columns: 32% minmax(0, 1fr); }
+  .catalogue-filters .brand-grid img { min-height: 96px; }
+  .catalogue-filters .section-title h2 { font-size: 1.35rem; }
+  .catalogue-results .cover-copy { padding: clamp(24px, 3vw, 48px); }
+  .catalogue-results .cover-heading h1 { font-size: clamp(3rem, 4.4vw, 4.5rem); }
+  .products { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+
+  .detail-grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+  .detail-grid > img { position: sticky; top: var(--gap); }
+  .detail-grid > div {
+    padding: var(--panel-padding);
+    border: 1px solid var(--line);
+    border-radius: var(--cardRadius);
+    background: var(--surface);
+  }
+
+  .profile-page, .studio {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--gap);
+  }
+  .profile-page > :is(h1, h2, .profile-links, .profile-account),
+  .studio > :is(.eyebrow, h1) { grid-column: 1 / -1; margin-block: 0; }
+  .profile-page > .commerce-panel { margin: 0; }
+  .studio > section { margin: 0; padding: var(--panel-padding); border: 1px solid var(--line); border-radius: var(--cardRadius); background: var(--surface); }
+  .studio-photo { align-content: start; }
+  .studio > .garment-select { align-self: start; min-width: 0; }
+  .studio select { max-width: 100%; }
+}

@@ -1,13 +1,12 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import { Text, TextInput } from "./Typography";
 import {
   AccessibilityInfo,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   View,
-  Text,
   Pressable,
-  TextInput,
   ScrollView,
   Image,
   useWindowDimensions,
@@ -25,6 +24,8 @@ import { displayFont, metrics, pageLayout, palettes } from "./design";
 
 export type { IconName } from "./IconGlyph";
 type Palette = { [K in keyof typeof palettes.light]: string };
+export const DockInset = createContext(0);
+export const useDockInset = () => useContext(DockInset);
 const PaletteContext = createContext<Palette | undefined>(undefined);
 export function PaletteProvider({ palette, children }: React.PropsWithChildren<{ palette?: Palette }>) {
   return <PaletteContext.Provider value={palette}>{children}</PaletteContext.Provider>;
@@ -86,6 +87,7 @@ export function Screen({
   const [availableWidth, setAvailableWidth] = useState<number | null>(null);
   // A screen can occupy only part of a large window. Measure that viewport,
   // rather than treating every unfolded or multi-window surface as full width.
+  const dockInset = useDockInset();
   const layout = pageLayout(availableWidth ?? width, fontScale, insets);
   return (
     <KeyboardAvoidingView
@@ -106,7 +108,7 @@ export function Screen({
             paddingTop: metrics.gap,
             paddingLeft: layout.paddingLeft,
             paddingRight: layout.paddingRight,
-            paddingBottom: Math.max(32, insets.bottom + 20),
+            paddingBottom: Math.max(32, insets.bottom + 20, dockInset + metrics.gap),
             gap: metrics.gap,
           },
           contentContainerStyle,
@@ -239,12 +241,14 @@ export function Button({
 export function IconButton({
   name,
   label,
+  caption,
   onPress,
   selected = false,
   disabled = false,
 }: {
   name: IconName;
   label: string;
+  caption?: string;
   onPress: () => void;
   selected?: boolean;
   disabled?: boolean;
@@ -263,11 +267,14 @@ export function IconButton({
         borderRadius: metrics.cardRadius,
         alignItems: "center",
         justifyContent: "center",
+        flexDirection: "row",
+        gap: caption ? metrics.compactGap : 0,
         backgroundColor: selected ? p.tint : "transparent",
         opacity: disabled ? 0.45 : pressed ? 0.65 : 1,
       })}
     >
       <Icon name={name} color={selected ? p.accent : p.text} />
+      {caption && <Text style={{color: p.text, fontSize: 14, fontWeight: "600"}}>{caption}</Text>}
     </Pressable>
   );
 }
@@ -507,12 +514,15 @@ export function Photo({
   label,
   height = 270,
   contain = false,
+  embedded = false,
   allowRetry = true,
 }: {
   uri: string;
   label: string;
   height?: number;
   contain?: boolean;
+  /** The enclosing card clips the image and owns its corners. */
+  embedded?: boolean;
   allowRetry?: boolean;
 }) {
   const [failed, setFailed] = useState(false),
@@ -535,7 +545,7 @@ export function Photo({
         style={{
           height,
           width: "100%",
-          borderRadius: metrics.cardRadius,
+          borderRadius: embedded ? 0 : metrics.cardRadius,
           overflow: "hidden",
           backgroundColor: p.tint,
         }}
@@ -577,7 +587,7 @@ export function Photo({
         padding: 20,
         gap: 12,
         backgroundColor: p.tint,
-        borderRadius: metrics.cardRadius,
+        borderRadius: embedded ? 0 : metrics.cardRadius,
         alignItems: "center",
         justifyContent: "center",
       }}

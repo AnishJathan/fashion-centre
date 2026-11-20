@@ -15,6 +15,7 @@ export default defineConfig({
     visionRuntime(),
   ],
   server: {
+    fs: { deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**', '**/secrets.properties', '**/client_secret*.json'] },
     host: '127.0.0.1', port: 5173, strictPort: true,
     watch: { ignored: ['**/mobile/android/**', '**/mobile/ios/**', '**/mobile/dist/**', '**/backend/target/**', '**/test-results/**'] },
     proxy: { '/api': process.env.API_PROXY_TARGET || 'http://localhost:8081' },

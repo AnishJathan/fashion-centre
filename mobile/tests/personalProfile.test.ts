@@ -44,7 +44,7 @@ function harness(name = "ActivePersonalProfile", options: { signedOut?: boolean;
       if (options.error) throw Error("offline");
       return { ok: !options.signedOut, status: options.signedOut ? 401 : 200, json: async () => ({ id: "account-a", firstName: "", phone: "+61 •••• 123" }) };
     },
-    ...Object.fromEntries(["Screen", "View", "Text", "Icon", "Body", "Button", "ActivityIndicator", "Image", "ProfileNotice", "CompletedLook", "ActivePersonalProfile"].map(key => [key, key])),
+    ...Object.fromEntries(["ProfileOptions", "Screen", "View", "Text", "Icon", "Body", "Button", "ActivityIndicator", "Image", "ProfileNotice", "CompletedLook", "ActivePersonalProfile"].map(key => [key, key])),
   };
   const component = new Function("env", `with (env) { ${code}; return ${name}; }`)(env);
   const render = () => { index = 0; effects.length = 0; return component({ navigate: (route: unknown) => routes.push(route), look: record }) as Element; };

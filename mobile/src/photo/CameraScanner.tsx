@@ -1,6 +1,7 @@
 import { runCaptureStep, shouldStopScanner } from "./scanSession";
 import React, { useEffect, useRef, useState } from "react";
-import { AppState, View, Text, useWindowDimensions } from "react-native";
+import { Text } from "../Typography";
+import { AppState, View, useWindowDimensions } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as FS from "expo-file-system/legacy";
 import { metrics, pageLayout } from "../design";

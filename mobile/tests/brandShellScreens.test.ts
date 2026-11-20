@@ -28,6 +28,8 @@ function harness(route: Route, dark = false, canGoBack = false) {
   };
   const imports: Record<string, any> = {
     react: { __esModule: true, default: react, ...react },
+    './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
+    './src/Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
     'react-native': { Animated: { Value: class { setValue() {} }, View: 'AnimatedView' }, ...Object.fromEntries(['ActivityIndicator', 'Pressable', 'ScrollView', 'Text', 'View'].map(n => [n, n])), Platform: { OS: 'ios' }, useWindowDimensions: () => ({ width: 320, height: 640, fontScale: 1 }), Keyboard: { dismiss: () => calls.push(['dismiss']), addListener: (name: string, cb: () => void) => { listeners[name] = cb; return { remove: () => {} }; } } },
     '@react-navigation/native': { NavigationContainer: 'NavigationContainer', createNavigationContainerRef: () => ({}), DarkTheme: {}, DefaultTheme: {} },
     '@react-navigation/native-stack': { createNativeStackNavigator: () => ({ Navigator: 'Stack', Screen: 'StackScreen' }) },
@@ -35,7 +37,8 @@ function harness(route: Route, dark = false, canGoBack = false) {
     'expo-font': { useFonts: () => [true, null] }, './src/Motion': { MotionProvider: 'MotionProvider', useReducedMotion: () => false },
     'expo-status-bar': { StatusBar: 'StatusBar' }, 'expo-linking': {},
     './src/state': { AppProvider: 'AppProvider', useApp: () => app }, './src/ShoppingScreens': { ShoppingScreen: 'ShoppingScreen' }, './src/SettingsScreens': { SettingsScreen: 'SettingsScreen' }, './src/StyleAssistant.tsx': { StyleAssistant: 'StyleAssistant' }, './src/AccountScreens': { AccountScreen: 'AccountScreen' },
-    './src/ui': { ...Object.fromEntries(['Body', 'Button', 'Icon', 'IconButton', 'PaletteProvider', 'Screen', 'Title'].map(n => [n, n])), usePalette: () => p, useReducedTransparency: () => false },
+    './src/ui': { DockInset: { Provider: 'DockInset' }, ...Object.fromEntries(['Body', 'Button', 'Icon', 'IconButton', 'PaletteProvider', 'Screen', 'Title'].map(n => [n, n])), usePalette: () => p, useReducedTransparency: () => false },
+    './src/LaunchReveal': { LaunchReveal: 'LaunchReveal' },
     './src/BrandMark': { BrandMark: 'BrandMark', AppMark: 'AppMark' }, './src/design': design, './src/brandExperience': experience, './src/shellPresentation': shell, './src/navigation': navigationHelpers,
   };
   const navModule = { exports: {} as any };
@@ -105,6 +108,10 @@ test('one compact header replaces duplicate brand bars and retains reachable exi
     const h = harness(route, false, true);
     const headers = h.all().filter(n => n.props.testID === 'compact-shell-header');
     assert.equal(headers.length, 1);
+    assert.equal(nodes(headers[0]).some(n => n.props.name === 'arrow-left'), false);
+    const returnRow = h.all().find(n => n.props.testID === 'shell-return-row');
+    assert.equal(!!returnRow, route.name !== 'home');
+    if (returnRow) assert.ok(nodes(returnRow).some(n => n.props.name === 'arrow-left'));
     assert.equal(headers[0].props.style.minHeight, 48);
     assert.equal(h.all().filter(n => n.props.accessibilityRole === 'header').length, 1);
     const marks = h.all().filter(n => n.type === 'BrandMark' && n.props.size === 24);
@@ -133,15 +140,15 @@ test('global shell combines Bag and Orders and exposes exactly four dock control
 });
 
 
-test('dock Try On opens local preparation with the current product and preserves back history', () => {
+test('dock Try On opens the store studio and preserves back history', () => {
   const h = harness({ name: 'product', brandId: 'atelier', productId: 'atelier:top' }, false, true);
   h.press('Try on');
-  assert.deepEqual(h.calls.at(-1), ['navigate', 'prepare', { brandId: 'atelier', productId: 'atelier:top' }]);
+  assert.deepEqual(h.calls.at(-1), ['navigate', 'prepare', { brandId: 'atelier' }]);
   assert.equal(h.calls.filter(c => c[0] === 'reset').length, 0);
   assert.equal(h.calls.filter(c => c[0] === 'dismiss').length, 1);
   h.press('Try on');
   assert.equal(h.calls.filter(c => c[0] === 'navigate').length, 2);
-  assert.deepEqual(h.calls.at(-1), ['navigate', 'prepare', { brandId: 'atelier', productId: 'atelier:top' }]);
+  assert.deepEqual(h.calls.at(-1), ['navigate', 'prepare', { brandId: 'atelier' }]);
   // Navigation uses navigate (not push/reset); the preparation route keeps a back path.
   const prepared = harness({ name: 'prepare', brandId: 'atelier', productId: 'atelier:top' }, false, true);
   prepared.press('Go back');
@@ -237,8 +244,8 @@ test('content and navigation have separate layout space, and the keyboard releas
     const viewport = h.all().find(n => n.props.testID === 'screen-viewport');
     assert.equal(viewport.props.style.flex, 1);
     assert.equal(viewport.props.style.overflow, 'hidden');
-    assert.equal(nav().props.style.flexShrink, 0);
-    assert.equal(nav().props.style.position, undefined);
+    assert.equal(nav().props.style.position, 'absolute');
+    assert.ok(h.all().find(n => n.type === 'DockInset').props.value >= 64);
     assert.equal(nodes(viewport).some(n => n.props.testID === 'curved-bottom-nav'), false);
     h.listeners.keyboardWillShow(); h.render();
     assert.equal(nav(), undefined);

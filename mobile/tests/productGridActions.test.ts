@@ -10,6 +10,7 @@ const source = ts.transpileModule(fs.readFileSync(new URL('../src/ShoppingCompon
 const react = { createElement: (type: any, props: any, ...children: any[]) => ({ type, props: { ...props, children } }), useState: (value: any) => [value, () => {}] };
 const imports: Record<string, any> = {
   react: { __esModule: true, default: react, ...react },
+  './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
   'react-native': { Pressable: 'Pressable', Text: 'Text', View: 'View', useWindowDimensions: () => ({ width: 320, fontScale: 1 }) },
   './ui': { ...Object.fromEntries(['Badge', 'Body', 'Button', 'Card', 'Heading', 'Icon', 'Photo', 'Title'].map(x => [x, x])), usePalette: () => ({}) },
   './core/domain': domain, './commerceHome': home, './shoppingLayout': layout,

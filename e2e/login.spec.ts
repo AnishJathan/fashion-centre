@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test';
 test('WhatsApp OTP is an explicit local simulation with recovery states',async({page}, testInfo)=>{
  await page.setViewportSize({width:390,height:844});
- const authRequests:string[]=[];page.on('request',r=>{if(r.url().includes('/api/auth'))authRequests.push(r.url())});
+ const authRequests:string[]=[];page.on('request',r=>{if(r.url().includes('/api/auth') && !(new URL(r.url()).pathname==='/api/auth/me' && r.method()==='GET' && page.url().includes('#/profile')))authRequests.push(r.url())});
  await page.goto('/#/profile');await page.getByRole('link',{name:'Preview WhatsApp OTP login'}).click();
  await expect(page.getByText(/WHATSAPP OTP .* UI SIMULATION/)).toBeVisible();
  await page.getByRole('button',{name:'Continue with demo OTP'}).click();await expect(page.getByRole('alert')).toContainText('Enter 7–12 digits');
@@ -16,8 +16,8 @@ test('WhatsApp OTP is an explicit local simulation with recovery states',async({
  await page.getByRole('button',{name:'Continue with demo OTP'}).click();await page.getByLabel('Enter 6-digit code').fill('123456');await page.getByRole('button',{name:'Verify demo code'}).click();
  await expect(page.getByText('Demo verification complete.')).toBeVisible();await expect(page.getByText(/No account was created/)).toBeVisible();
  await page.screenshot({path:testInfo.outputPath('otp-success-390.png'),fullPage:true});
- await page.getByRole('button',{name:'Continue browsing'}).click();await expect(page.getByRole('heading',{name:/Your local space/})).toBeVisible();
- await page.goto('/#/login-demo');await page.getByRole('button',{name:'Cancel and browse'}).click();await expect(page.getByRole('heading',{name:/Your local space/})).toBeVisible();
+ await page.getByRole('button',{name:'Continue browsing'}).click();await expect(page.getByRole('heading',{name:/Your profile/})).toBeVisible();
+ await page.goto('/#/login-demo');await page.getByRole('button',{name:'Cancel and browse'}).click();await expect(page.getByRole('heading',{name:/Your profile/})).toBeVisible();
  expect(authRequests).toEqual([]);
  expect(await page.evaluate(()=>Object.keys(localStorage).some(k=>/token|phone|session|otp/i.test(k)))).toBe(false);
 });

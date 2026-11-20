@@ -13,6 +13,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 // Import the demo controllers explicitly to exclude account, storage and provider components.
@@ -27,11 +28,16 @@ public class DemoApi {
 
     @RestController
     static class PreviewSession {
-        @GetMapping("/api/auth/me")
+        @GetMapping({"/api/auth/me", "/api/auth/sign-in/shopify/me"})
         ResponseEntity<Map<String, String>> signedOut() {
             return ResponseEntity.status(401)
                     .cacheControl(CacheControl.noStore())
                     .body(Map.of("message", "Sign-in requires a configured backend"));
+        }
+
+        @PostMapping({"/api/auth/sign-in/google/start", "/api/auth/sign-in/shopify/start"})
+        ResponseEntity<Void> providerUnavailable() {
+            return ResponseEntity.status(503).cacheControl(CacheControl.noStore()).build();
         }
     }
 }

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useMemo, useEffect, useRef, useState, type ReactNode } from 'react';
 import { parseNavigation, scopeHref } from './navigationScope';
 import { BrandContext, BrandLink } from './StoreNavigation';
 import { decodeRoute, loadCatalogue, loadSources, readIds, readStores, STORES_KEY, toggleId, type Brand, type Product, type StoreRegistration } from './domain';
@@ -9,6 +9,8 @@ import { LoginSimulation } from './LoginSimulation';
 import { TryOnPanel } from './TryOnPanel';
 import { CataloguePhotoViewer } from './CataloguePhotoViewer';
 import { MerchantDashboard } from './MerchantDashboard';
+import { useBrowsingHistory } from './useBrowsingHistory';
+import { TryOnStudio } from './TryOnStudio';
 import { TryOnPreparation } from './TryOnPreparation';
 import { monogramPath } from '../mobile/src/brandIcon';
 import { primaryNavigation } from '../mobile/src/primaryNavigation';
@@ -119,14 +121,16 @@ function useBrowserShopping() {
 }
 
 function useCatalogues(stores: StoreRegistration[]) {
+  const [marketplace, setMarketplace] = useState(false);
   const [directory, setDirectory] = useState<Directory>({ status: 'loading', sources: [] });
   const [loads, setLoads] = useState<Record<string, CatalogueLoad>>({});
   const [retryCount, setRetryCount] = useState(0);
+  useEffect(()=>{const refresh=()=>setRetryCount(n=>n+1);window.addEventListener('store-directory-changed',refresh);return ()=>window.removeEventListener('store-directory-changed',refresh);},[]);
 
   useEffect(() => {
     const controller = new AbortController();
     setDirectory(current => ({ ...current, status: 'loading' }));
-    void loadSources(controller.signal).then(sources => {
+    void loadSources(controller.signal, setMarketplace).then(sources => {
       if (!controller.signal.aborted) setDirectory({ status: 'ready', sources });
     }).catch(() => {
       if (!controller.signal.aborted) setDirectory(current => ({ ...current, status: 'error' }));
@@ -134,9 +138,12 @@ function useCatalogues(stores: StoreRegistration[]) {
     return () => controller.abort();
   }, [retryCount]);
 
+  const effectiveStores = useMemo(() => [
+    ...stores, ...directory.sources.filter(source=>(source.preview || source.key.startsWith('shop-'))&&!stores.some(store=>store.id===source.key)).map(source=>({id:source.key,enabled:true}))
+  ],[stores,directory.sources]);
   useEffect(() => {
     const controller = new AbortController();
-    const enabled = stores.filter(store => store.enabled);
+    const enabled = effectiveStores.filter(store => store.enabled);
     setLoads(Object.fromEntries(enabled.map(store => [store.id, { status: 'loading' }])));
     for (const store of enabled) {
       void loadCatalogue(store.id, controller.signal).then(brand => {
@@ -149,9 +156,9 @@ function useCatalogues(stores: StoreRegistration[]) {
       });
     }
     return () => controller.abort();
-  }, [stores, retryCount]);
+  }, [effectiveStores, retryCount]);
 
-  const enabled = stores.filter(store => store.enabled);
+  const enabled = effectiveStores.filter(store => store.enabled);
   const brands = enabled.flatMap(store => {
     const load = loads[store.id];
     return load?.status === 'ready' ? [load.brand] : [];
@@ -162,7 +169,7 @@ function useCatalogues(stores: StoreRegistration[]) {
   });
   const loading = enabled.some(store => !loads[store.id] || loads[store.id].status === 'loading');
 
-  return { directory, hasEnabledStores: enabled.length > 0, brands, loading, errors, retry: () => setRetryCount(n => n + 1) };
+  return { marketplace, directory, hasEnabledStores: enabled.length > 0, brands, loading, errors, retry: () => setRetryCount(n => n + 1) };
 }
 
 function Monogram() {
@@ -180,16 +187,34 @@ function selectedDestination(route: string) {
   if (['', 'brands', 'brand', 'product', 'photos', 'merchant'].includes(section)) return 'home';
 }
 
-function AppShell({ route, brandId, brandName, cartQuantity, children, overlay }: {
+function AppShell({ marketplace, route, brandId, brandName, cartQuantity, children, overlay }: {
   route: string;
   brandId: string;
   brandName: string;
   cartQuantity: number;
+  marketplace: boolean;
   children: ReactNode;
   overlay: ReactNode;
 }) {
   const title = brandId ? brandName : 'Fashion Centre';
   const selected = selectedDestination(route);
+  let backLink: { href: string; label: string } | undefined;
+  if (route.startsWith('/product/') && brandId) backLink = { href: '#/brand/' + brandId, label: brandName };
+  else if (route.startsWith('/checkout/')) backLink = { href: '#/cart', label: 'Back to cart' };
+  else if (route.startsWith('/orders/')) backLink = { href: '#/orders', label: 'All your demo orders' };
+  else if (route === '/login-demo') backLink = { href: '#/profile', label: 'Back to Profile' };
+  else if (route.startsWith('/try/')) backLink = { href: '#/try', label: 'Back to Try On' };
+  else if (route === '/try' && !brandId) backLink = { href: '#/', label: 'Back to Discover' };
+  const dock = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const bar = dock.current;
+    if (!bar) return;
+    const measure = () => bar.parentElement?.style.setProperty('--dock-clearance', bar.offsetHeight + 'px');
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(bar, { box: 'border-box' });
+    return () => observer.disconnect();
+  }, []);
   return (
     <BrandContext.Provider value={brandId}>
       <div className="app-shell">
@@ -199,20 +224,27 @@ function AppShell({ route, brandId, brandName, cartQuantity, children, overlay }
         document.getElementById('main-content')?.focus();
       }}>Skip to content</BrandLink>
       <div className="announcement">
-        Demo catalogues · No live purchases
+        Independent stores · Separate baskets
       </div>
       <header>
         <BrandLink className="logo" href="#/"><Monogram /><span>{title}</span></BrandLink>
         <nav className="desktop-nav" aria-label="Shop">
-          <BrandLink href="#/">Discover</BrandLink>
+          <BrandLink global={marketplace} href="#/">Discover</BrandLink>
           <BrandLink href="#/brands">Brands</BrandLink>
-          <BrandLink href={brandId ? '#/profile' : '#/merchant'}>{brandId ? 'Settings' : 'Demo stores'}</BrandLink>
+          {!marketplace && <BrandLink href={brandId ? '#/profile' : '#/merchant'}>{brandId ? 'Settings' : 'Demo stores'}</BrandLink>}
           <BrandLink href="#/orders">Orders</BrandLink>
           <BrandLink href="#/saved" aria-current={route === '/saved' ? 'page' : undefined}>Saved</BrandLink>
         </nav>
         {!brandId && <BrandLink className="owner-entry" href="#/owner">For brands</BrandLink>}
-        <BrandLink className="header-cart" href="#/cart" aria-label="Cart">Bag <span>{cartQuantity}</span></BrandLink>
+        <BrandLink global={brandId.startsWith('shop-')} className="header-cart" href="#/cart" aria-label="Cart">Bag <span>{cartQuantity}</span></BrandLink>
       </header>
+      {(backLink || brandId) && <nav className={'return-row' + (brandId ? ' brand-mode' : '')} aria-label="Page navigation">
+        {backLink && <BrandLink className="back" href={backLink.href}><span aria-hidden="true">←</span>{backLink.label}</BrandLink>}
+        {brandId && <>
+          <BrandLink global href="#/">{!backLink && <span aria-hidden="true">←</span>}Back to Fashion Centre</BrandLink>
+          <BrandLink global href="#/brands">Switch brand</BrandLink>
+        </>}
+      </nav>}
       <main id="main-content" tabIndex={-1} className={route === '/' ? 'discovery' : ''}>
         <div className="page-content" key={route}>{children}</div>
         <footer>
@@ -221,18 +253,18 @@ function AppShell({ route, brandId, brandName, cartQuantity, children, overlay }
             <BrandLink global href="#/brands">Brands</BrandLink>
             <BrandLink href="#/saved" aria-current={route === '/saved' ? 'page' : undefined}>Saved</BrandLink>
             <BrandLink href="#/orders">Orders</BrandLink>
-            <BrandLink href="#/merchant">Demo stores</BrandLink>
+            {!marketplace && <BrandLink href="#/merchant">Demo stores</BrandLink>}
           </nav>
-          <small>Public Mock Shop products, prices and availability are fictional. No real purchases. Account sign-in and saved-photo try-on require configured services.</small>
+          <small>Check out with each merchant for their payment methods and delivery options.{!marketplace && ' Mock Shop collections are for preview.'}</small>
         </footer>
       </main>
       </div>
-      <div className="navigation-bar">
+      <div className="navigation-bar" ref={dock}>
       <nav className="bottom-nav" aria-label="Main navigation">
         {primaryNavigation.map(({ id, href, path, label }) => {
           const count = id === 'cart' ? cartQuantity : 0;
           return (
-            <BrandLink href={'#' + href} key={id} aria-current={selected === id ? 'page' : undefined}
+            <BrandLink global={(marketplace && id === 'home') || (brandId.startsWith('shop-') && ['home', 'cart', 'profile'].includes(id))} href={'#' + href} key={id} aria-current={selected === id ? 'page' : undefined}
               aria-label={count > 0 ? label + ', ' + count + (count === 1 ? ' piece' : ' pieces') : undefined}>
               <span className="nav-symbol" aria-hidden="true">
                 <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
@@ -258,7 +290,7 @@ function Empty({ title, detail }: { title: string; detail: string }) {
       <p className="eyebrow">YOUR STORES. YOUR SELECTION.</p>
       <h1>{title}</h1>
       <p>{detail}</p>
-      <BrandLink className="primary" href="#/merchant">Manage demo stores</BrandLink>
+      <BrandLink global className="primary" href="#/brands">Browse stores</BrandLink>
     </section>
   );
 }
@@ -270,7 +302,7 @@ export function App() {
   const {
     state, stores, saved, followed, recovered, storageIssue, dispatch, changeStores, changeSaved, changeFollowed,
   } = useBrowserShopping();
-  const { directory, hasEnabledStores, brands, loading, errors, retry } = useCatalogues(stores);
+  const { marketplace, directory, hasEnabledStores, brands, loading, errors, retry } = useCatalogues(stores);
   const { route, brandId } = parseNavigation(hash);
   const parameterMatch = route.match(routeWithId);
   const parameter = parameterMatch ? decodeRoute(parameterMatch[2]) : null;
@@ -296,8 +328,10 @@ export function App() {
   const brand = brands.find(store => store.id === brandId);
   const brandName = brand?.name ?? directory.sources.find(source => source.key === brandId)?.name ?? 'Brand Centre';
   const scopedProducts = (brandId ? brands.filter(store => store.id === brandId) : brands).flatMap(store => store.products);
+  const viewedProduct = page === '/product' ? scopedProducts.find(item => item.id === parameter) : undefined;
+  const {history: browsing, clearHistory} = useBrowsingHistory(viewedProduct?.brandId || (page === '/brand' ? brand?.id : undefined), viewedProduct?.id);
   const scopedState = brandId ? { ...state, cart: state.cart.filter(line => line.brandId === brandId) } : state;
-  const cartQuantity = scopedState.cart.reduce((sum, line) => sum + line.quantity, 0);
+  const cartQuantity = (brandId.startsWith('shop-') ? state.cart : scopedState.cart).reduce((sum, line) => sum + line.quantity, 0);
 
   function go(path: string) {
     location.hash = scopeHref('#' + path, brandId);
@@ -338,6 +372,7 @@ export function App() {
       case '/owner':
         return <MerchantDashboard />;
       case '/merchant':
+        if (marketplace) return <MerchantDashboard />;
         return (
           <StoreManagement
             directory={directory}
@@ -376,12 +411,14 @@ export function App() {
         return <OrdersScreen state={state} orderId={parameter ?? undefined} />;
       case '/profile':
         return (
-          <ProfileScreen
+          <ProfileScreen marketplace={marketplace} clearHistory={clearHistory} hasHistory={!!(browsing.products.length || browsing.stores.length)}
             state={scopedState} dispatch={dispatch} saved={saved} followed={followed}
             unfollow={changeFollowed} products={scopedProducts} brands={brands}
           />
         );
       case '/try':
+        if (!parameter) return <>{catalogueIssues}<TryOnStudio history={browsing} loading={loading} products={scopedProducts}
+          brands={brandId ? brands.filter(store => store.id === brandId) : brands} /></>;
         return <TryOnPreparation key={route} products={scopedProducts} initialId={parameter ?? ''} />;
       case '/product': {
         const product = scopedProducts.find(item => item.id === parameter);
@@ -412,19 +449,19 @@ export function App() {
       case '/brands':
         return (
           <section className="commerce-page">
-            <p className="eyebrow">YOUR ONBOARDED STORES</p>
+            <p className="eyebrow">{marketplace ? 'INDEPENDENT STORES' : 'YOUR ONBOARDED STORES'}</p>
             <h1>Brand Centre.</h1>
             {catalogueIssues}
             <CatalogueDirectory brands={brands} />
-            {!brands.length && !loading && <Empty title="No catalogue to show yet." detail="Onboard a demo store to begin." />}
-            <BrandLink href="#/merchant" className="primary">Manage demo stores</BrandLink>
+            {!brands.length && !loading && <Empty title="No catalogue to show yet." detail="Published stores and their collections will appear here." />}
+            {!marketplace && <BrandLink href="#/merchant" className="primary">Manage demo stores</BrandLink>}
           </section>
         );
       default:
         return (
           <>
             {catalogueIssues}
-            {page === '/' && !brandId && <EditorialCover hasStores={hasEnabledStores} />}
+            {page === '/' && !brandId && !hasEnabledStores && <EditorialCover marketplace={marketplace} hasStores={hasEnabledStores} />}
             {brandId && !brand && !loading ? (
               <Empty title="This store is unavailable." detail="Re-enable its catalogue or return to Brand Centre. Products from other stores are not shown here." />
             ) : !hasEnabledStores && route !== '/saved' ? (
@@ -436,6 +473,7 @@ export function App() {
             ) : (
               <CatalogueBrowser
                 key={hash}
+                editorial={page === '/' && !brandId ? <EditorialCover marketplace={marketplace} hasStores={hasEnabledStores} /> : undefined}
                 mode={page === '/saved' ? 'saved' : brandId ? 'store' : 'home'}
                 brandId={brandId}
                 brands={brands}
@@ -454,7 +492,7 @@ export function App() {
 
   return (
     <AppShell
-      route={route} brandId={brandId} brandName={brandName} cartQuantity={cartQuantity}
+      marketplace={marketplace} route={route} brandId={brandId} brandName={brandName} cartQuantity={cartQuantity}
       overlay={
         <>
           {notice && (
@@ -475,14 +513,6 @@ export function App() {
         </div>
       )}
       {recovered && <p className="demo-note">Some stored records needed recovery. Valid records remain available; original data is preserved before any repaired save.</p>}
-      {brandId && (
-        <div className="brand-mode">
-          <strong>{brandName}</strong>
-          <span>Brand Centre</span>
-          <BrandLink global href="#/">Back to Fashion Centre</BrandLink>
-          <BrandLink global href="#/brands">Switch brand</BrandLink>
-        </div>
-      )}
       {brandId && ['/orders', '/profile', '/owner', '/merchant'].includes(page) && (
         <p className="demo-note">
           {page === '/orders' ? 'All-store order history: each record retains its original store and currency.'

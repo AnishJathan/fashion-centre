@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Text, TextInput, displayFont } from "./Typography";
+import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
 import { useApp } from './state';
 import { brandExperience, brandProducts, type BrandSort } from './brandExperience';
 import { type Brand, type Product } from './core/domain';
@@ -21,7 +22,7 @@ export function BrandStorefront({ brand, navigate, scrollTo }: Props) {
   const categories = ['All', ...new Set(scoped.map(piece => piece.category).filter(Boolean))];
   const list = brandProducts(app.products, brand.id, query, category, sort, tryOnOnly);
   const following = app.followed.includes(brand.id);
-  const fontFamily = identity.serif ? Platform.OS === 'ios' ? 'Georgia' : 'serif' : undefined;
+  const fontFamily = identity.serif ? displayFont : undefined;
   function reset() { setQuery(''); setCategory('All'); setSort('featured'); setTryOnOnly(false); }
   function open(piece: Product) { navigate({ name: 'product', productId: piece.id, brandId: brand.id }); }
   function tryOn(piece: Product) { navigate({ name: 'try-on', productId: piece.id, brandId: brand.id }); }
