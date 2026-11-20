@@ -10,6 +10,10 @@ import { TryOnPanel } from './TryOnPanel';
 import { CataloguePhotoViewer } from './CataloguePhotoViewer';
 import { MerchantDashboard } from './MerchantDashboard';
 import { TryOnPreparation } from './TryOnPreparation';
+import { monogramPath } from '../mobile/src/brandIcon';
+import { primaryNavigation } from '../mobile/src/primaryNavigation';
+import { visibleBadgeCount } from '../mobile/src/design';
+import { EditorialCover } from './EditorialCover';
 import { CatalogueBrowser, CatalogueDirectory } from './CatalogueBrowser';
 import { ProductDetail } from './ProductDetail';
 import { StoreManagement, type Directory } from './StoreManagement';
@@ -161,13 +165,20 @@ function useCatalogues(stores: StoreRegistration[]) {
   return { directory, hasEnabledStores: enabled.length > 0, brands, loading, errors, retry: () => setRetryCount(n => n + 1) };
 }
 
-const navigationLinks = [
-  ['/', 'discover', 'Discover'],
-  ['/brands', 'brands', 'Brands'],
-  ['/try', 'try', 'Try on'],
-  ['/saved', 'saved', 'Saved'],
-  ['/profile', 'profile', 'Profile'],
-];
+function Monogram() {
+  return <svg className="monogram" aria-hidden="true" focusable="false" viewBox="0 0 100 100">
+    <circle cx="50" cy="50" r="50" fill="var(--accent)" />
+    <path d={monogramPath} fill="var(--onAccent)" />
+  </svg>;
+}
+
+function selectedDestination(route: string) {
+  const section = route.split('/')[1];
+  if (['try', 'try-on'].includes(section)) return 'prepare';
+  if (['cart', 'orders', 'checkout'].includes(section)) return 'cart';
+  if (['login', 'login-demo', 'saved', 'owner', 'profile'].includes(section)) return 'profile';
+  if (['', 'brands', 'brand', 'product', 'photos', 'merchant'].includes(section)) return 'home';
+}
 
 function AppShell({ route, brandId, brandName, cartQuantity, children, overlay }: {
   route: string;
@@ -178,47 +189,64 @@ function AppShell({ route, brandId, brandName, cartQuantity, children, overlay }
   overlay: ReactNode;
 }) {
   const title = brandId ? brandName : 'Fashion Centre';
+  const selected = selectedDestination(route);
   return (
     <BrandContext.Provider value={brandId}>
+      <div className="app-shell">
+      <div className="app-scroll" id="app-scroll">
       <BrandLink className="skip-link" href="#main-content" onClick={event => {
         event.preventDefault();
         document.getElementById('main-content')?.focus();
       }}>Skip to content</BrandLink>
       <div className="announcement">
-        {brandId ? brandName : 'FASHION CENTRE'} <span>Onboarded demo catalogues · No live purchases</span>
+        Demo catalogues · No live purchases
       </div>
       <header>
-        <BrandLink className="logo" href="#/">{title}</BrandLink>
-        <nav className="desktop-nav">
+        <BrandLink className="logo" href="#/"><Monogram /><span>{title}</span></BrandLink>
+        <nav className="desktop-nav" aria-label="Shop">
           <BrandLink href="#/">Discover</BrandLink>
           <BrandLink href="#/brands">Brands</BrandLink>
           <BrandLink href={brandId ? '#/profile' : '#/merchant'}>{brandId ? 'Settings' : 'Demo stores'}</BrandLink>
           <BrandLink href="#/orders">Orders</BrandLink>
+          <BrandLink href="#/saved" aria-current={route === '/saved' ? 'page' : undefined}>Saved</BrandLink>
         </nav>
         {!brandId && <BrandLink className="owner-entry" href="#/owner">For brands</BrandLink>}
         <BrandLink className="header-cart" href="#/cart" aria-label="Cart">Bag <span>{cartQuantity}</span></BrandLink>
       </header>
       <main id="main-content" tabIndex={-1} className={route === '/' ? 'discovery' : ''}>
-        {children}
+        <div className="page-content" key={route}>{children}</div>
         <footer>
-          <BrandLink className="logo" href="#/">{title}</BrandLink>
-          <p>{brandId ? 'Your selected Brand Centre.' : 'Only your onboarded demo catalogues.'}</p>
+          <BrandLink className="logo" href="#/"><Monogram /><span>{title}</span></BrandLink>
+          <nav aria-label="More destinations">
+            <BrandLink global href="#/brands">Brands</BrandLink>
+            <BrandLink href="#/saved" aria-current={route === '/saved' ? 'page' : undefined}>Saved</BrandLink>
+            <BrandLink href="#/orders">Orders</BrandLink>
+            <BrandLink href="#/merchant">Demo stores</BrandLink>
+          </nav>
           <small>Public Mock Shop products, prices and availability are fictional. No real purchases. Account sign-in and saved-photo try-on require configured services.</small>
         </footer>
       </main>
+      </div>
+      <div className="navigation-bar">
       <nav className="bottom-nav" aria-label="Main navigation">
-        {navigationLinks.map(([path, icon, label]) => {
-          const isCurrent = route === path ||
-            (path === '/' && route === '/brand/' + brandId) ||
-            (path === '/try' && route.startsWith('/try/'));
+        {primaryNavigation.map(({ id, href, path, label }) => {
+          const count = id === 'cart' ? cartQuantity : 0;
           return (
-            <BrandLink href={'#' + path} key={path} aria-current={isCurrent ? 'page' : undefined} className={route === path ? 'active' : ''}>
-              <img className="nav-icon" src={'/images/' + icon + '.svg'} alt="" />
-              <span>{label}</span>
+            <BrandLink href={'#' + href} key={id} aria-current={selected === id ? 'page' : undefined}
+              aria-label={count > 0 ? label + ', ' + count + (count === 1 ? ' piece' : ' pieces') : undefined}>
+              <span className="nav-symbol" aria-hidden="true">
+                <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+                  <path d={path} />
+                </svg>
+                {count > 0 && <span className="nav-count">{visibleBadgeCount(count)}</span>}
+              </span>
+              <span className="nav-label">{label}</span>
             </BrandLink>
           );
         })}
       </nav>
+      </div>
+      </div>
       {overlay}
     </BrandContext.Provider>
   );
@@ -252,7 +280,7 @@ export function App() {
     function onHashChange() {
       setHash(location.hash);
       setTryOnProduct(null);
-      window.scrollTo(0, 0);
+      document.getElementById('app-scroll')?.scrollTo(0, 0);
     }
     addEventListener('hashchange', onHashChange);
     return () => removeEventListener('hashchange', onHashChange);
@@ -260,7 +288,9 @@ export function App() {
 
   useEffect(() => {
     const main = document.getElementById('main-content');
-    if (main && !main.contains(document.activeElement)) main.focus({ preventScroll: true });
+    if (main && (!main.contains(document.activeElement) || document.activeElement?.closest('footer'))) {
+      main.focus({ preventScroll: true });
+    }
   }, [route]);
 
   const brand = brands.find(store => store.id === brandId);
@@ -394,10 +424,15 @@ export function App() {
         return (
           <>
             {catalogueIssues}
+            {page === '/' && !brandId && <EditorialCover hasStores={hasEnabledStores} />}
             {brandId && !brand && !loading ? (
               <Empty title="This store is unavailable." detail="Re-enable its catalogue or return to Brand Centre. Products from other stores are not shown here." />
             ) : !hasEnabledStores && route !== '/saved' ? (
-              <Empty title="Your Fashion Centre starts here." detail="Choose a demo store to fill your centre with its fetched products." />
+              <section className="discovery-tools" aria-label="Explore Fashion Centre">
+                <BrandLink href="#/brands">Browse stores <span aria-hidden="true">↗</span></BrandLink>
+                <BrandLink href="#/try">Try-on studio <span aria-hidden="true">↗</span></BrandLink>
+                <BrandLink href="#/login">Your account <span aria-hidden="true">↗</span></BrandLink>
+              </section>
             ) : (
               <CatalogueBrowser
                 key={hash}

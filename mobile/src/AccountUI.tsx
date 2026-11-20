@@ -231,7 +231,7 @@ export function SelectedGarment({ name, brand, uri }: { name: string; brand: str
   const [failedUri, setFailedUri] = useState("");
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: metrics.gap, padding: metrics.gap, backgroundColor: p.surface, borderWidth: 1, borderColor: p.line, borderRadius: metrics.cardRadius }}>
-      <View style={{ width: 84, height: 108, flexShrink: 0, borderRadius: 8, backgroundColor: p.tint, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
+      <View style={{ width: 84, height: 108, flexShrink: 0, borderRadius: metrics.cardRadius, backgroundColor: p.tint, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
         {uri && failedUri !== uri ? <Image source={{ uri }} accessibilityLabel={`Selected garment: ${name}`} resizeMode="contain" onError={() => setFailedUri(uri)} style={{ width: "100%", height: "100%" }} /> : <Icon name="image" size={26} color={p.muted} />}
       </View>
       <View style={{ flex: 1, minWidth: 0, gap: 5 }}>

@@ -31,4 +31,4 @@ The demo supports catalogue browsing, local checkout, simulated OTP, and local p
 | API | [Spring entry](backend/src/main/java/com/fashioncentre/Application.java), [public Shopify catalogue](backend/src/main/java/com/fashioncentre/shopify/), [account](backend/src/main/java/com/fashioncentre/auth/), [account photos and try-on](backend/src/main/java/com/fashioncentre/photo/) |
 | Test and preview tools | [Unit tests](tests/), [browser tests](e2e/), [local scripts](scripts/), [CI workflow](.github/workflows/verify.yml) |
 
-Add tests alongside the area you change. Run the checks in the [verification guide](docs/verification.md). For design context, see [asset provenance](docs/assets.md) and the [historical notes](docs/history/README.md).
+Add tests alongside the area you change. Run the checks in the [verification guide](docs/verification.md). For layout, theming and navigation, start with the [design guide](docs/design.md). [Asset provenance](docs/assets.md) records artwork and font sources. Earlier specifications are in the [historical notes](docs/history/README.md).

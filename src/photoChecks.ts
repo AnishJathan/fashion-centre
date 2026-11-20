@@ -9,24 +9,37 @@ const MIN_SHARPNESS=120; // tune with real phone photos
 const LIVE_SIDE=320;
 const LIVE_MIN_SHARPNESS=40; // lower than the full-size check, because the live frame is smaller
 const BODY_IDS=[0,11,12,23,24,25,26,27,28];
-const WASM_URL='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
-const MODEL_URL='https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+const MODEL_URL = '/vision/pose-landmarker-lite-v1.task';
 
-// Live video needs VIDEO mode, so this is a separate landmarker from the upload check
-let liveLandmarkerPromise:Promise<PoseLandmarker>|null=null;
-function getLiveLandmarker(){
-  liveLandmarkerPromise??=(async()=>{
-    const vision=await FilesetResolver.forVisionTasks(WASM_URL);
-    return PoseLandmarker.createFromOptions(vision,{
-      baseOptions:{modelAssetPath:MODEL_URL},
-      runningMode:'VIDEO',
-      numPoses:1,
-    });
-  })().catch(err=>{
-    liveLandmarkerPromise=null; // allow a retry instead of caching the failure
-    throw err;
+function fullBodyVisible(pose: readonly { visibility?: number; x: number; y: number }[]) {
+  return BODY_IDS.every(index => {
+    const point = pose[index];
+    return point && (point.visibility ?? 0) > 0.5 && point.x > 0.02 && point.x < 0.98 && point.y > 0.02 && point.y < 0.98;
   });
-  return liveLandmarkerPromise;
+}
+
+function makeLandmarker(runningMode: 'VIDEO' | 'IMAGE') {
+  return FilesetResolver.forVisionTasks(__VISION_WASM_ROOT__).then(vision =>
+    PoseLandmarker.createFromOptions(vision, { baseOptions: { modelAssetPath: MODEL_URL }, runningMode, numPoses: 1 }));
+}
+
+let live: Promise<PoseLandmarker> | undefined;
+let still: Promise<PoseLandmarker> | undefined;
+function getLandmarker(mode: 'VIDEO' | 'IMAGE') {
+  if (mode === 'VIDEO') return live ??= makeLandmarker(mode).catch(error => { live = undefined; throw error; });
+  return still ??= makeLandmarker(mode).catch(error => { still = undefined; throw error; });
+}
+
+/** A wide camera uses the same centred portrait crop for its guide, live checks and final photo. */
+export function drawPortraitFrame(video: HTMLVideoElement, canvas: HTMLCanvasElement, maxHeight = video.videoHeight) {
+  const height = video.videoHeight, width = video.videoWidth;
+  if (!height || !width) return false;
+  const cropWidth = width >= height ? Math.round(height * .75) : width;
+  const scale = Math.min(1, maxHeight / height);
+  canvas.width = Math.max(1, Math.round(cropWidth * scale));
+  canvas.height = Math.round(height * scale);
+  canvas.getContext('2d', { willReadFrequently: true })!.drawImage(video, (width - cropWidth) / 2, 0, cropWidth, height, 0, 0, canvas.width, canvas.height);
+  return true;
 }
 
 export type LiveFeedback={ready:boolean;message:string};
@@ -36,17 +49,8 @@ export async function analyseLiveFrame(
   canvas:HTMLCanvasElement,
   timestampMs:number,
 ):Promise<LiveFeedback>{
-  if(!video.videoWidth) return {ready:false,message:'Starting camera…'};
-  if(video.videoHeight<=video.videoWidth){
-    return {ready:false,message:'Use a phone held upright. Laptop cameras are too wide, so upload a photo instead.'};
-  }
-
-  // Small copy of the frame, used for brightness and sharpness
-  const scale=LIVE_SIDE/video.videoHeight;
-  canvas.width=Math.round(video.videoWidth*scale);
-  canvas.height=LIVE_SIDE;
-  const ctx=canvas.getContext('2d',{willReadFrequently:true})!;
-  ctx.drawImage(video,0,0,canvas.width,canvas.height);
+  if (!drawPortraitFrame(video, canvas, LIVE_SIDE)) return {ready:false,message:'Starting camera…'};
+  const ctx = canvas.getContext('2d', { willReadFrequently:true })!;
   const {data}=ctx.getImageData(0,0,canvas.width,canvas.height);
   const gray=new Float32Array(data.length/4);
   for(let i=0;i<gray.length;i++){
@@ -60,35 +64,14 @@ export async function analyseLiveFrame(
     return {ready:false,message:'Hold still…'};
   }
 
-  const landmarker=await getLiveLandmarker();
-  const pose=landmarker.detectForVideo(video,timestampMs).landmarks[0];
+  const landmarker=await getLandmarker('VIDEO');
+  const pose=landmarker.detectForVideo(video.videoWidth >= video.videoHeight ? canvas : video,timestampMs).landmarks[0];
   if(!pose) return {ready:false,message:'Stand in the frame.'};
 
-  const visible=(i:number)=>{
-    const p=pose[i];
-    return (p.visibility??0)>0.5&&p.x>0.02&&p.x<0.98&&p.y>0.02&&p.y<0.98;
-  };
-  if(!BODY_IDS.every(visible)){
+  if(!fullBodyVisible(pose)){
     return {ready:false,message:'Step back so your head to your feet are in the frame.'};
   }
   return {ready:true,message:'Perfect, hold still…'};
-}
-
-let landmarkerPromise:Promise<PoseLandmarker>|null=null;
-function getLandmarker(){
-  landmarkerPromise??=(async()=>{
-    const vision=await FilesetResolver.forVisionTasks(
-      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
-    return PoseLandmarker.createFromOptions(vision,{
-      baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task'},
-      runningMode:'IMAGE',
-      numPoses:1,
-    });
-  })().catch(err=>{
-    landmarkerPromise=null; // allow a retry instead of caching the failure
-    throw err;
-  });
-  return landmarkerPromise;
 }
 
 function grayscaleCopy(bitmap:ImageBitmap,maxSide:number){
@@ -126,24 +109,21 @@ function sharpness(gray:Float32Array,w:number,h:number){
 }
 
 // Landmarks: 0 nose, 11/12 shoulders, 23/24 hips, 25/26 knees, 27/28 ankles
-const BODY_POINTS=[0,11,12,23,24,25,26,27,28];
+
 
 async function checkFullBody(bitmap:ImageBitmap):Promise<CheckResult>{
   let landmarker:PoseLandmarker;
   try{
-    landmarker=await getLandmarker();
+    landmarker=await getLandmarker('IMAGE');
   }catch{
     throw new Error('The body check could not load. Check your internet connection and try again.');
   }
-    const pose=landmarker.detect(bitmap).landmarks[0];
+  const pose=landmarker.detect(bitmap).landmarks[0];
+
   if(!pose){
     return {ok:false,message:'We could not see you. Stand in the frame and try again.'};
   }
-  const visible=(i:number)=>{
-    const p=pose[i];
-    return (p.visibility??0)>0.5&&p.x>0.02&&p.x<0.98&&p.y>0.02&&p.y<0.98;
-  };
-  if(!BODY_POINTS.every(visible)){
+  if(!fullBodyVisible(pose)){
     return {ok:false,message:'Step back so your head to your feet are all in the frame.'};
   }
   return {ok:true};

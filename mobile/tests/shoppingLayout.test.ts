@@ -63,8 +63,8 @@ test("phone, foldable-window and tablet grids fit actual safe-area content at ev
 });
 
 test("safe-area layout normalizes missing or transient invalid inset values", () => {
-  assert.equal(pageLayout(390).contentWidth, 366);
+  assert.equal(pageLayout(390).contentWidth, 390 - 2 * metrics.gap);
   assert.equal(pageLayout(390, 1, { left: 48, right: 30 }).contentWidth, 312);
-  assert.equal(pageLayout(390, 1, { left: NaN, right: Infinity }).contentWidth, 366);
-  assert.equal(pageLayout(390, 1, { left: -10, right: -20 }).contentWidth, 366);
+  assert.equal(pageLayout(390, 1, { left: NaN, right: Infinity }).contentWidth, 390 - 2 * metrics.gap);
+  assert.equal(pageLayout(390, 1, { left: -10, right: -20 }).contentWidth, 390 - 2 * metrics.gap);
 });

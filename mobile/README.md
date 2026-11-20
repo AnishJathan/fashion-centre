@@ -22,9 +22,11 @@ This Expo / React Native client supports Android and iOS. It includes a custom v
    npm run android -- --device
    ```
    Keep Metro, the demo API, and USB connected. Re-run the port forwarding command after reconnecting if needed.
-5. Open **Manage demo stores** in the app. Enable **Mock Shop** or **Elysian Thread** to populate the catalogue.
+5. Choose **Continue as guest** on the sign-in screen, then open **Choose a demo store**. Enable **Mock Shop** or **Elysian Thread** to populate the catalogue.
 
 For iOS, configure a reachable API origin and run `npm run ios` on a Mac with Xcode. A physical iPhone requires signing configuration. For live account features on either platform, set `EXPO_PUBLIC_API_URL` to the configured backend HTTPS origin and restart Metro. This value is public and bundled with the app. Keep all secrets on the server. [Full backend setup](../backend/README.md)
+
+The [design guide](../docs/design.md) describes the shared tokens, navigation and discovery controls.
 
 ## Code map
 

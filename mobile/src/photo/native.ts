@@ -65,9 +65,8 @@ export async function inspectFile(uri: string, type: string) {
   if (type === "image/png") validateStillPng(bytes);
   return dimensions;
 }
-export async function choosePhoto(camera: boolean): Promise<LocalPhoto | null> {
-  // The system photo picker grants access to the selected image only.
-  if (camera && !(await Picker.requestCameraPermissionsAsync()).granted) {
+export async function takePhoto(): Promise<LocalPhoto | null> {
+  if (!(await Picker.requestCameraPermissionsAsync()).granted) {
     throw new Error("Camera access was not granted. You can change access in your device settings.");
   }
   const options: Picker.ImagePickerOptions = {
@@ -77,9 +76,7 @@ export async function choosePhoto(camera: boolean): Promise<LocalPhoto | null> {
     base64: false,
     exif: false,
   };
-  const result = camera
-    ? await Picker.launchCameraAsync(options)
-    : await Picker.launchImageLibraryAsync(options);
+  const result = await Picker.launchCameraAsync(options);
   if (result.canceled) return null;
   const asset = result.assets[0];
   const type =

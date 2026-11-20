@@ -10,7 +10,7 @@ import {
   ConsentRow,
   PhotoPreview,
 } from "../AccountUI";
-import { appendPhoto, choosePhoto, discard, type LocalPhoto } from "./native";
+import { appendPhoto, takePhoto, discard, type LocalPhoto } from "./native";
 import {
   hasNativeVision,
   requireGoodPhoto,
@@ -65,7 +65,7 @@ export function PhotoEditor({
   useEffect(() => {
     if (!garmentReady) setReview(false);
   }, [garmentReady]);
-  async function select(camera: boolean) {
+  async function capture() {
     if (!alive.current || working.current) return;
     working.current = true;
     clear();
@@ -75,8 +75,7 @@ export function PhotoEditor({
     setMessage("");
     let next: LocalPhoto | null = null;
     try {
-      next = await choosePhoto(camera);
-      if (next && upload) await requireGoodPhoto(next.uri);
+      next = await takePhoto();
       if (!alive.current || token !== epoch.current) return;
       current.current = next;
       setPhoto(next);
@@ -149,7 +148,7 @@ export function PhotoEditor({
         step={upload ? "Account photo" : "Step 2 · Your photo"}
         title={photo ? "Review your photo" : "Add a full-body photo"}
         description={upload
-          ? "Choose an upright photo with your head and feet visible, in clear, even light."
+          ? "Scan in even light, with your head and feet in view."
           : "Take an upright photo with your head and feet visible, in clear, even light."}
       />
       <Text style={{ color: p.muted, fontSize: 12, lineHeight: 18 }}>
@@ -219,16 +218,8 @@ export function PhotoEditor({
               </Text>
             </View>
           )}
-          {upload && <Button
-            label={photo ? "Choose a different photo" : "Choose from photos"}
-            secondary={!!photo}
-            icon="image"
-            disabled={busy || (upload && !hasNativeVision)}
-            onPress={() => void select(false)}
-          />}
           {upload ? (
             <Button
-              secondary
               label="Scan full body automatically"
               icon="camera"
               disabled={busy || !hasNativeVision}
@@ -243,7 +234,7 @@ export function PhotoEditor({
               icon="camera"
               label="Take a photo"
               disabled={busy}
-              onPress={() => void select(true)}
+              onPress={() => void capture()}
             />
           )}
         </>

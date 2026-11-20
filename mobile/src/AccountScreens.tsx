@@ -1,3 +1,5 @@
+import { metrics } from "./design";
+import { phoneCoverAspect } from "./editorial";
 import { PhotoEditor } from "./photo/PhotoEditor";
 import { otpFieldMetrics } from "./photo/layout";
 import { useIsFocused } from "@react-navigation/native";
@@ -63,7 +65,7 @@ const configuredUrl = (path: string) => {
 };
 const errorText = (e: unknown) =>
   e instanceof Error ? e.message : "Something went wrong. Please try again.";
-function Login({ simulation }: { simulation: boolean }) {
+function Login({ simulation, browse }: { simulation: boolean; browse: () => void }) {
   const p = usePalette();
   const { width, fontScale } = useWindowDimensions();
   const [codeFieldWidth, setCodeFieldWidth] = useState(0);
@@ -222,6 +224,12 @@ function Login({ simulation }: { simulation: boolean }) {
     cooldown = Math.max(0, Math.ceil((resend - now) / 1000));
   return (
     <Screen contentContainerStyle={{ maxWidth: 704, gap: 12 }}>
+      {step === "phone" && !simulation && (
+        <View style={{ height: Math.min(160, width * .30), borderRadius: metrics.cardRadius, overflow: "hidden" }}>
+          <Image source={require("../assets/editorial/field-wide.jpg")} accessible={false} resizeMode="cover"
+            style={{ width: "100%", aspectRatio: phoneCoverAspect }} />
+        </View>
+      )}
       <View style={{ gap: 6, paddingTop: 4, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: p.line }}>
         <Badge>
           {simulation
@@ -237,14 +245,14 @@ function Login({ simulation }: { simulation: boolean }) {
               ? "Check your WhatsApp"
               : step === "account"
                 ? "Your account"
-                : "Make it yours"}
+                : "Sign in to Fashion Centre"}
         </Title>
         <Body>
           {simulation
             ? "Explore the sign-in flow with a sample number."
             : step === "account"
               ? "Manage your saved photo for your next look."
-              : "Sign in with your WhatsApp number. No password to remember."}
+              : "We’ll send a one-time code to your WhatsApp number."}
         </Body>
       </View>
       {simulation && (
@@ -471,19 +479,7 @@ function Login({ simulation }: { simulation: boolean }) {
             />
           </>
         ))}
-      {!simulation && step !== "account" && (
-        <Text
-          style={{
-            color: p.muted,
-            fontSize: 12,
-            lineHeight: 18,
-            textAlign: "center",
-          }}
-        >
-          Your session is handled by the native network stack. Session cookies
-          are never copied into local app storage.
-        </Text>
-      )}
+      {!simulation && <Button label={step === "account" ? "Start browsing" : "Continue as guest"} secondary onPress={browse} />}
     </Screen>
   );
 }
@@ -781,7 +777,7 @@ function SavedTryOn({ route, navigate }: Props) {
       {!!product && !ready && (
         <Card>
           <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
-            <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 16, backgroundColor: p.tint, alignItems: "center", justifyContent: "center" }}>
+            <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 24, backgroundColor: p.tint, alignItems: "center", justifyContent: "center" }}>
               <Icon name={prerequisite === "photo" ? "camera" : "user"} size={18} color={p.accent} />
             </View>
             <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
@@ -965,7 +961,7 @@ function ActiveAccountScreen(props: Props) {
     };
   }, [route.name, product?.id, product?.image, inspectionVersion]);
   if (route.name === "login" || route.name === "login-demo")
-    return <Login key={route.name} simulation={route.name === "login-demo"} />;
+    return <Login key={route.name} simulation={route.name === "login-demo"} browse={() => navigate({ name: "home" })} />;
   if (route.name === "try-on")
     return <SavedTryOn key={route.productId} {...props} />;
   return (
@@ -1012,7 +1008,7 @@ function ActiveAccountScreen(props: Props) {
                   width: 144,
                   minHeight: 64,
                   padding: 10,
-                  borderRadius: 12,
+                  borderRadius: 24,
                   gap: 4,
                   borderWidth: 1,
                   borderColor: selected ? p.accent : p.line,
@@ -1155,7 +1151,7 @@ export function AccountScreen(props: Props) {
     );
     return () => subscription.remove();
   }, []);
-  // Do not unmount camera/library pickers for their native activity transitions.
+  // Do not unmount camera screens for their native activity transitions.
   if (!focused || (props.route.name === "try-on" && !foreground))
     return (
       <Screen>

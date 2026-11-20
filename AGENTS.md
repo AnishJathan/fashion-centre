@@ -9,4 +9,4 @@ Read [README.md](README.md) for setup and the code map. Use Node.js 24 and JDK 1
 - Use the local demo API for manual browsing and the isolated Playwright fixture for browser tests. Tests use synthetic data. Keep provider keys, database credentials, phone numbers, and personal photos outside committed files and client environment variables.
 - Write browser test captures with `testInfo.outputPath()`. Historical screenshots and validation reports are reference material. Update current behavior in the root or component guides.
 
-See the [verification guide](docs/verification.md) for commands, reserved ports, and coverage limits.
+Read the [design guide](docs/design.md) before changing shared layouts or navigation. See the [verification guide](docs/verification.md) for commands, reserved ports, and coverage limits.

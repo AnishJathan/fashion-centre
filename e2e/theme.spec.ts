@@ -4,7 +4,7 @@ async function catalogue(page: Page) {
   await page.route('**/api/integrations/shopify/status', r => r.fulfill({ json: { shops: [{ key:'mock', name:'Mock Shop' }] } }));
   await page.route('**/api/integrations/shopify/catalogue/*', r => r.fulfill({ json: {
     shopKey:'mock', shopName:'Demo collection', hasNextPage:false,
-    products:[{ key:'mock:gid://shopify/Product/1', title:'Violet edit shirt', category:'Shirts', image:'/images/campaign.png', moreVariants:false,
+    products:[{ key:'mock:gid://shopify/Product/1', title:'Violet edit shirt', category:'Shirts', image:'/images/demo-bag.png', moreVariants:false,
       variants:[{ id:'gid://shopify/ProductVariant/1', key:'mock:gid://shopify/ProductVariant/1', title:'M', available:true, amount:'25.50', currency:'CAD', options:{Size:'M'} }] }]
   } }));
   await page.addInitScript(() => { if (!localStorage.getItem('fc.stores.v1')) localStorage.setItem('fc.stores.v1', JSON.stringify([{id:'mock',enabled:true,onboardedAt:'2026-10-18'}])); });
@@ -13,11 +13,11 @@ async function assertScreen(page: Page, dark: boolean) {
   await expect(page.locator('html')).toHaveAttribute('data-theme', dark ? 'dark' : 'light');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   if (dark) {
-    await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(20, 17, 28)');
+    await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(26, 24, 21)');
     const panels = await page.locator('.commerce-panel,.owner-card,.login-card,.preparation-panel').evaluateAll(
       nodes => nodes.flatMap(node => {
         const {backgroundColor, color} = getComputedStyle(node);
-        return backgroundColor === 'rgb(32, 26, 43)' && color === 'rgb(244, 239, 251)'
+        return backgroundColor === 'rgb(36, 33, 29)' && color === 'rgb(248, 241, 230)'
           ? []
           : [{className: node.className, backgroundColor, color}];
       }),
@@ -59,10 +59,10 @@ for (const width of [320,390,430,1440]) test(`light and dark navigation, profile
   await expect(page.getByRole('radio',{name:'Dark',exact:true})).toBeChecked();
   await expect.poll(()=>page.evaluate(()=>localStorage.getItem('fc.theme.v1'))).toBe('"dark"');
   await page.locator('.bottom-nav').getByRole('link',{name:'Discover'}).click();
-  await expect(page.getByRole('heading',{name:'Discover your next favourite.'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'The field edit.'})).toBeVisible();
   await assertScreen(page,true); await capture(page,testInfo,`home-dark-${width}`);
   const nav = page.locator('.bottom-nav');
-  if(width<700) expect((await nav.boundingBox())!.height).toBe(60);
+  if(width<700) expect((await nav.boundingBox())!.height).toBe(64);
   for(const link of await nav.getByRole('link').all()) { const b=(await link.boundingBox())!; expect(b.height).toBeGreaterThanOrEqual(44); expect(b.width).toBeGreaterThanOrEqual(44); }
   await page.reload();
   await expect(page.locator('.product')).toHaveCount(1);

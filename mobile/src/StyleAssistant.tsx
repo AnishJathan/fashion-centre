@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, Path, RadialGradient, Stop } from 'react-native-svg';
+import { useReducedMotion } from './Motion';
 import { metrics } from './design';
 import { Icon, usePalette } from './ui';
 import type { Route } from './navigation';
@@ -25,9 +26,9 @@ type Message = { id: number; role: 'user'; text: string } | { id: number; role: 
 function AssistantMark({ gradientId }: { gradientId: string }) {
   return <Svg width={36} height={36} viewBox="0 0 48 48" accessible={false} focusable={false}>
     <Defs><RadialGradient id={gradientId} cx="30%" cy="26%" r="88%">
-      <Stop offset="0" stopColor="#935BFF" />
-      <Stop offset="0.56" stopColor="#7041D9" />
-      <Stop offset="1" stopColor="#4D2C9A" />
+      <Stop offset="0" stopColor="#B47853" />
+      <Stop offset="0.56" stopColor="#934124" />
+      <Stop offset="1" stopColor="#55301F" />
     </RadialGradient></Defs>
     <Circle cx={24} cy={24} r={23} fill={`url(#${gradientId})`} />
     <Path d="M24 11 C24 19 29 24 37 24 C29 24 24 29 24 37 C24 29 19 24 11 24 C19 24 24 19 24 11Z" fill="#FFFFFF" />
@@ -40,6 +41,7 @@ export function StyleAssistant({
   products, onNavigate, brandId, currentProductId, catalogueLoading, catalogueError,
   launcherMode = 'floating', bottomOffset = 84,
 }: StyleAssistantProps) {
+  const reducedMotion = useReducedMotion();
   const palette = usePalette(), insets = useSafeAreaInsets();
   // Navigation keeps several route shells mounted. SVG references must never
   // resolve to a gradient inside another screen's hidden helper.
@@ -137,15 +139,15 @@ export function StyleAssistant({
       onPress={() => { clearTimeout(restoreTimer.current); setOpen(true); }}
       style={({ pressed }) => ({
         ...(launcherMode === 'floating' ? { position: 'absolute' as const, right: Math.max(metrics.gap, insets.right), bottom: bottomOffset + insets.bottom, zIndex: 10 } : {}),
-        width: 48, height: 48, minWidth: 48, minHeight: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center',
+        width: 48, height: 48, minWidth: 48, minHeight: 48, borderRadius: metrics.cardRadius, alignItems: 'center', justifyContent: 'center',
         opacity: pressed ? 0.8 : 1,
       })}>
-      <View testID="style-assistant-orb" pointerEvents="none" style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.line, shadowColor: '#1D1929', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 3 }}>
+      <View testID="style-assistant-orb" pointerEvents="none" style={{ width: 40, height: 40, borderRadius: metrics.cardRadius, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.line, shadowColor: palette.text, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 3 }}>
         <AssistantMark gradientId={gradientId} />
       </View>
     </Pressable>
-    <Modal visible={open} transparent animationType="fade" onRequestClose={close} onShow={() => focus(heading.current)}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(29,25,41,0.36)' }}>
+    <Modal visible={open} transparent animationType={reducedMotion ? 'none' : 'fade'} onRequestClose={close} onShow={() => focus(heading.current)}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(30,24,18,0.42)' }}>
         <Pressable testID="style-assistant-backdrop" accessible={false} onPress={close} style={{ position: 'absolute', inset: 0 }} />
         <KeyboardAvoidingView pointerEvents="box-none" behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1, justifyContent: 'flex-end', alignItems: 'center', paddingTop: Math.max(12, insets.top), paddingBottom: Math.max(12, insets.bottom), paddingLeft: insets.left, paddingRight: insets.right }}>
@@ -153,7 +155,7 @@ export function StyleAssistant({
             <View testID="style-assistant-header" style={{ flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 12, paddingRight: 4, paddingVertical: 4, borderBottomWidth: 1, borderColor: palette.line }}>
               <Text ref={heading} accessible accessibilityRole="header" style={{ flex: 1, minWidth: 0, color: palette.text, fontSize: 16, lineHeight: 22, fontWeight: '700' }}>Local style helper</Text>
               <Pressable testID="style-assistant-close" accessibilityRole="button" accessibilityLabel="Close and clear chat" onPress={close}
-                style={({ pressed }) => ({ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 24, backgroundColor: pressed ? palette.tint : palette.surface })}>
+                style={({ pressed }) => ({ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: metrics.cardRadius, backgroundColor: pressed ? palette.tint : palette.surface })}>
                 <Icon name="x" size={22} color={palette.text} />
               </Pressable>
             </View>
@@ -165,7 +167,7 @@ export function StyleAssistant({
               {!messages.length && <ScrollView testID="style-assistant-starters" horizontal showsHorizontalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 6, paddingVertical: 2 }}>
                 {styleAssistantStarters(context).map(starter => <Pressable key={starter} accessibilityRole="button" accessibilityLabel={starter} onPress={() => submit(starter)}
-                  style={({ pressed }) => ({ minHeight: 48, minWidth: 48, maxWidth: layout.panelWidth - 20, paddingHorizontal: 12, paddingVertical: 8, justifyContent: 'center', borderRadius: 24, borderWidth: 1, borderColor: palette.controlLine, backgroundColor: pressed ? palette.tint : palette.surface })}>
+                  style={({ pressed }) => ({ minHeight: 48, minWidth: 48, maxWidth: layout.panelWidth - 20, paddingHorizontal: 12, paddingVertical: 8, justifyContent: 'center', borderRadius: metrics.cardRadius, borderWidth: 1, borderColor: palette.controlLine, backgroundColor: pressed ? palette.tint : palette.surface })}>
                   <Text style={{ color: palette.accent, fontSize: 13, lineHeight: 19, fontWeight: '600' }}>{starter}</Text>
                 </Pressable>)}
               </ScrollView>}
@@ -179,7 +181,7 @@ export function StyleAssistant({
                 returnKeyType="send" submitBehavior="submit" onSubmitEditing={() => submit(input)}
                 style={{ flex: 1, minWidth: 0, minHeight: 48, borderRadius: metrics.cardRadius, borderWidth: 1, borderColor: palette.controlLine, color: palette.text, backgroundColor: palette.background, paddingHorizontal: 10, paddingVertical: 10, fontSize: 14, lineHeight: 20 }} />
               <Pressable testID="style-assistant-send" accessibilityRole="button" accessibilityLabel="Send message" accessibilityState={{ disabled: !input.trim() }} disabled={!input.trim()} onPress={() => submit(input)}
-                style={({ pressed }) => ({ width: 48, height: 48, minWidth: 48, minHeight: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: !input.trim() ? palette.disabled : palette.accent, opacity: pressed ? 0.72 : 1 })}>
+                style={({ pressed }) => ({ width: 48, height: 48, minWidth: 48, minHeight: 48, borderRadius: metrics.cardRadius, alignItems: 'center', justifyContent: 'center', backgroundColor: !input.trim() ? palette.disabled : palette.accent, opacity: pressed ? 0.72 : 1 })}>
                 <Icon name="arrow-up" size={22} color={!input.trim() ? palette.muted : palette.onAccent} />
               </Pressable>
             </View>

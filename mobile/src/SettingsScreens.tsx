@@ -340,7 +340,7 @@ function Merchant({ navigate }: Pick<Props, "navigate">) {
                 backgroundColor: p.tint,
                 paddingVertical: 6,
                 paddingHorizontal: 10,
-                borderRadius: 9,
+                borderRadius: 24,
                 fontSize: 13,
                 fontWeight: "600",
               }}

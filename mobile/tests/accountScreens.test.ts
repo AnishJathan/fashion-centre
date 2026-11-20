@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import ts from "typescript";
+import { phoneCoverAspect } from "../src/editorial.ts";
 import { metrics, pageLayout } from "../src/design.ts";
 import { normalisePhone, resolutionWarning, safeGarmentUrl } from "../src/photo/validation.ts";
 import { preparationReady } from "../src/photo/preparation.ts";
@@ -43,7 +44,8 @@ function componentHarness(
   let valueIndex = 0,
     refIndex = 0;
   const env = {
-    metrics,
+    require: (asset: string) => { assert.equal(asset, "../assets/editorial/field-wide.jpg"); return 1; },
+    metrics, phoneCoverAspect,
     pageLayout,
     React: {
       Fragment: "Fragment",
@@ -266,6 +268,7 @@ function photoHarness(
   let releaseValidation = () => {};
   return {
     uploads,
+    photo,
     checked,
     removed,
     alerts,
@@ -279,10 +282,10 @@ function photoHarness(
         preparationReady,
         hasNativeVision: true,
         visionUnavailableMessage: "Unavailable",
-        choosePhoto: async (camera: boolean) => { selections.push(camera); return photo; },
+        takePhoto: async () => { selections.push(true); return photo; },
         requireGoodPhoto: async (uri: string) => {
           checked.push(uri);
-          if (holdSaveValidation && checked.length > 1)
+          if (holdSaveValidation)
             await new Promise<void>((resolve) => {
               releaseValidation = resolve;
             });
@@ -308,9 +311,14 @@ function photoHarness(
   };
 }
 
+function acceptScan(h: ReturnType<typeof photoHarness>) {
+  find(h.render(), "Button", "Scan full body automatically").props.onPress();
+  find(h.render(), "CameraScanner").props.onAccepted(h.photo);
+}
+
 test("account-photo save retains consent, confirmation and duplicate upload protection", async () => {
   const h = photoHarness(true);
-  find(h.render(), "Button", "Choose from photos").props.onPress();
+  acceptScan(h);
   await flush();
   assert.equal(
     find(h.render(), "Button", "Save photo to account").props.disabled,
@@ -327,7 +335,7 @@ test("account-photo save retains consent, confirmation and duplicate upload prot
   await flush();
   assert.deepEqual(h.uploads, ["/api/users/me/photo"]);
   assert.equal(h.saves(), 1);
-  assert.equal(h.checked.length, 2);
+  assert.equal(h.checked.length, 1);
   assert.equal(all(h.render(), "PhotoPreview").length, 0);
 });
 
@@ -361,9 +369,9 @@ test("local preparation requires both acknowledgements and never uploads", async
 
 test("retained native upload confirmation cannot submit after the photo editor unmounts", async () => {
   const h = photoHarness(true);
-  const initial = h.render();
+  h.render();
   const cleanup = h.effects[0]();
-  find(initial, "Button", "Choose from photos").props.onPress();
+  acceptScan(h);
   await flush();
   find(h.render(), "ConsentRow").props.onChange(true);
   find(h.render(), "Button", "Save photo to account").props.onPress();
@@ -372,21 +380,21 @@ test("retained native upload confirmation cannot submit after the photo editor u
   retainedConfirm();
   await flush();
   assert.deepEqual(h.uploads, []);
-  assert.equal(h.checked.length, 1);
+  assert.equal(h.checked.length, 0);
   assert.equal(h.saves(), 0);
 });
 
 test("leaving during final photo validation aborts before any upload", async () => {
   const h = photoHarness(true, true, true);
-  const initial = h.render();
+  h.render();
   const cleanup = h.effects[0]();
-  find(initial, "Button", "Choose from photos").props.onPress();
+  acceptScan(h);
   await flush();
   find(h.render(), "ConsentRow").props.onChange(true);
   find(h.render(), "Button", "Save photo to account").props.onPress();
   h.alerts[0][2][1].onPress();
   await flush();
-  assert.equal(h.checked.length, 2);
+  assert.equal(h.checked.length, 1);
   cleanup?.();
   h.releaseValidation();
   await flush();
@@ -491,7 +499,7 @@ test("compact personal-photo previews still require both local acknowledgements"
   let screen = h.render();
   const placeholder = all(screen, "View").find(view => view.props.style?.borderStyle === "dashed")!;
   assert.equal(placeholder.props.style.padding, metrics.gap);
-  assert.equal(placeholder.props.style.borderRadius, 12);
+  assert.equal(placeholder.props.style.borderRadius, metrics.cardRadius);
   assert.equal(placeholder.props.style.height, undefined);
   find(screen, "Button", "Take a photo").props.onPress();
   await flush();
@@ -521,13 +529,14 @@ test("Try On preparation offers camera capture without a photo-library option", 
   assert.deepEqual(h.uploads, []);
 });
 
-test("account photo management retains its existing library and camera options", async () => {
+test("account photos require a scanned frame and explicit save consent", async () => {
   const h = photoHarness(true);
   assert.ok(find(h.render(), "Button", "Scan full body automatically"));
-  find(h.render(), "Button", "Choose from photos").props.onPress();
+  acceptScan(h);
   await flush();
-  assert.deepEqual(h.selections, [false]);
-  assert.ok(find(h.render(), "Button", "Choose a different photo"));
+  assert.deepEqual(h.selections, []);
+  assert.ok(!all(h.render(), "Button").some(b => b.props.label === "Choose from photos"));
+  assert.ok(find(h.render(), "PhotoPreview"));
   assert.equal(find(h.render(), "Button", "Save photo to account").props.disabled, true);
   assert.deepEqual(h.uploads, []);
 });

@@ -134,7 +134,7 @@ test("You uses compact profile and notice cards without clipping accessibility t
   assert.deepEqual(screen.props.contentContainerStyle, { maxWidth: 704, gap: 12 });
   const header = all(screen, "View")[0];
   assert.equal(header.props.style.padding, 10);
-  assert.equal(header.props.style.borderRadius, 12);
+  assert.equal(header.props.style.borderRadius, 24);
   const avatar = all(header, "View").find(view => view.props.accessibilityElementsHidden)!;
   assert.equal(avatar.props.style.width, 40);
   assert.equal(avatar.props.style.height, 40);
