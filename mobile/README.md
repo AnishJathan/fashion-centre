@@ -54,3 +54,11 @@ npm run test:native-quality
 ```
 
 Use `npm run android -- --device` or `npm run ios` to verify the generated native app on hardware. Check camera permissions, capture and cancellation, zoom, photo orientation, and app backgrounding on the device. See the [feature inventory](PARITY.md) and [original migration notes](../docs/history/NATIVE-MIGRATION.md) for context.
+
+## Build downloads
+
+Open a successful **Verify Fashion Centre** run in GitHub Actions. Its artifacts contain the ARM64 Android preview APK, a zipped Apple Silicon iOS Simulator app, and the web distribution. The native previews bundle JavaScript and use the public Cloudflare API. The web distribution is the desktop and mobile website built by Vite. Serve it on the same origin as the Worker API.
+
+Install the Android preview with `adb install -r app-release.apk` on a compatible device. Android requires matching signing keys for in-place updates. For iOS, extract FashionCentre-simulator.zip and drag FashionCentre.app onto a booted Apple Silicon Simulator.
+
+For a signed device or store build, run EAS CLI from this directory under the team Expo account. Link the team project with `eas init` on first setup. Use `eas build --profile preview --platform ios` for registered iPhones or `eas build --profile production --platform all` for the Play Store AAB and App Store IPA. Device and store distribution require the team's signing credentials. Keep them in the build service.
