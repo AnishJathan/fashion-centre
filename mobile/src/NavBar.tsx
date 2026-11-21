@@ -60,7 +60,7 @@ export function NavBar({ route, bagQuantity, onSelectTab, onTryOn, blurTarget }:
     }}>
       <View testID="curved-bottom-nav" accessibilityRole="tablist" accessibilityLabel="Main navigation" style={{
         width: frame.width, height: frame.height, flexDirection: 'row', alignItems: 'stretch',
-        paddingHorizontal: 7, paddingVertical: 3, borderRadius: metrics.pillRadius, borderWidth: 1,
+        paddingHorizontal: 7, paddingVertical: metrics.dockInnerPadding, borderRadius: metrics.pillRadius, borderWidth: 1,
         backgroundColor: solidContrast ? p.dock : 'transparent', borderColor: solidContrast ? p.dockText : 'transparent', borderTopWidth: 0,
         shadowColor: '#211810', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6,
       }}>

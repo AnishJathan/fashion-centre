@@ -11,7 +11,8 @@ export const metrics = {
   pillRadius: 999,
   dockWidth: 432,
   dockHeight: 64,
-  dockOffset: 6,
+  dockOffset: 3,
+  dockInnerPadding: 3,
   maxContentWidth: 1200,
 } as const;
 

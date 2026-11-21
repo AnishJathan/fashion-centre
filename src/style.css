@@ -35,7 +35,7 @@
   --panel-padding: var(--gap);
   --display: "DM Serif Text", Georgia, serif;
   --mobile-nav-safe-bottom: env(safe-area-inset-bottom, 0px);
-  --dock-bottom: max(var(--dockOffset), var(--mobile-nav-safe-bottom));
+  --dock-bottom: max(var(--dockOffset), var(--mobile-nav-safe-bottom) - var(--dockInnerPadding));
   --nav-clearance: calc(max(var(--dockHeight), 3.5rem + 16px) + var(--dock-bottom) + var(--sectionGap));
   --body: Inter, system-ui, sans-serif;
   font: 16px/1.55 var(--body);
@@ -116,7 +116,7 @@ footer nav { gap: var(--gap); }
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: stretch;
-  padding: 3px 7px;
+  padding: var(--dockInnerPadding) 7px;
   position: relative; isolation: isolate; pointer-events: auto;
   background: var(--dock);
   background-image: linear-gradient(170deg, #fff0da28, transparent 48%, #150e0912);

@@ -68,7 +68,7 @@ test('capsule remains inside safe areas and reserves its whole height at large f
       assert.ok(f.width <= width - f.left - f.right && f.width <= design.metrics.dockWidth);
       assert.ok((f.width - 16) / 4 >= 48);
       assert.ok(f.height >= 64 && f.height >= 42 + Math.ceil(15 * scale) * f.labelLines);
-      assert.equal(f.bottom, Math.max(bottom, design.metrics.dockOffset));
+      assert.equal(f.bottom, Math.max(bottom - 3, 3));
     }
   }
   assert.equal(shell.bottomNavFrame(844, 1, { left: 44, right: 0, bottom: 21 }).left, 44);

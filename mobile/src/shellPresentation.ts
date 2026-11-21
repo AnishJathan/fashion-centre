@@ -31,6 +31,6 @@ export function bottomNavFrame(width: number, fontScale: number, insets: { left:
   const scale = Math.min(2, Math.max(1, Number.isFinite(fontScale) ? fontScale : 1));
   const labelLines = (available - 16) / 4 < 51 * scale ? 2 : 1;
   const height = Math.max(metrics.dockHeight, 42 + Math.ceil(15 * scale) * labelLines);
-  const bottom = Math.max(insets.bottom, metrics.dockOffset);
+  const bottom = Math.max(insets.bottom - metrics.dockInnerPadding, metrics.dockOffset);
   return { left, right, bottom, width: available, height, labelLines };
 }
