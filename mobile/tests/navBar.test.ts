@@ -89,7 +89,13 @@ test('one selected symbol stays legible over imagery in both themes, with reduce
       assert.equal(selected[0].props.testID, id === 'prepare' ? 'bottom-try-on' : 'bottom-tab-' + id);
       assert.equal(nodes(selected[0]).find(node => node.type === 'Path').props.stroke, reduced ? p.dockSelectedInk : p.dockSelected);
       assert.equal(nodes(selected[0]).find(node => node.props.testID === 'bottom-active-capsule').props.style.backgroundColor, reduced ? p.dockSelected : 'transparent');
-      assert.equal(selected[0].props.style({ pressed: true }).transform[0].scale, reduced ? 1 : 0.96);
+      for (const tab of controls) {
+        assert.equal(tab.props.style({ pressed: true }).transform, undefined);
+        assert.equal(nodes(tab).find(node => node.type === 'Path').props.strokeWidth, 1.9);
+        const iconBox = nodes(tab).find(node => node.props.style?.width === 44);
+        assert.equal(iconBox.props.style.transform, undefined);
+        assert.equal(iconBox.props.style.flexShrink, 0);
+      }
       assert.equal(tree.find(node => node.props.testID === 'bottom-nav-safe-area').props.pointerEvents, 'box-none');
     }
   }

@@ -67,9 +67,18 @@ for (const width of [320, 390, 430, 1440]) {
     await page.evaluate(() => { if (document.activeElement instanceof HTMLElement) document.activeElement.blur(); });
     await page.screenshot({ path: testInfo.outputPath(`nav-${width}.png`) });
     const mountedDock = await nav.elementHandle();
-    await links.nth(2).click();
+    const bagIcon = links.nth(2).locator('.nav-icon');
+    const iconSize = () => bagIcon.evaluate(icon => {
+      const { width, height } = icon.getBoundingClientRect();
+      return [width, height, parseFloat(getComputedStyle(icon).strokeWidth)];
+    });
+    await links.nth(2).hover();
+    await page.mouse.down();
+    expect(await iconSize()).toEqual([22, 22, 1.9]);
+    await page.mouse.up();
     await expect(page).toHaveURL(/#\/cart$/);
     await expect(links.nth(2)).toHaveAttribute('aria-current', 'page');
+    expect(await iconSize()).toEqual([22, 22, 1.9]);
     expect(await nav.evaluate((current, before) => current === before, mountedDock)).toBe(true);
     await expect.poll(() => nav.evaluate(e => new DOMMatrix(getComputedStyle(e, '::before').transform).m41)).toBeCloseTo((metrics.width - 16) / 2, 0);
     await links.nth(2).focus();

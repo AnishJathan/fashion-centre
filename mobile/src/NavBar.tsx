@@ -5,7 +5,7 @@ import { BlurView } from 'expo-blur';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { metrics, motion, visibleBadgeCount } from './design';
+import { metrics, visibleBadgeCount } from './design';
 import { useReducedMotion } from './Motion';
 import { primaryNavigation } from './primaryNavigation';
 import { activeTab, bottomNavFrame, type BottomTabName } from './shellPresentation';
@@ -26,7 +26,6 @@ export function NavBar({ route, bagQuantity, onSelectTab, onTryOn, blurTarget }:
   const current = activeTab(route.name);
   const reducedMotion = useReducedMotion();
   const [focused, setFocused] = useState<string | null>(null);
-  const [selectionScale] = useState(() => new Animated.Value(1));
   const tabWidth = (frame.width - 16) / primaryNavigation.length;
   const targetX = tabWidth * primaryNavigation.findIndex(tab => tab.id === current);
   const [lensOffset] = useState(() => new Animated.Value(targetX));
@@ -42,17 +41,6 @@ export function NavBar({ route, bagQuantity, onSelectTab, onTryOn, blurTarget }:
     return () => slide.stop();
   }, [lensOffset, reducedMotion, targetX]);
   const solidContrast = useReducedTransparency();
-
-  useEffect(() => {
-    if (reducedMotion) {
-      selectionScale.setValue(1);
-      return;
-    }
-    selectionScale.setValue(0.88);
-    const animation = Animated.timing(selectionScale, { toValue: 1, duration: motion.press * 3, useNativeDriver: true });
-    animation.start();
-    return () => animation.stop();
-  }, [current, reducedMotion, selectionScale]);
 
   return (
     <View testID="bottom-nav-safe-area" pointerEvents="box-none" style={{
@@ -109,19 +97,14 @@ export function NavBar({ route, bagQuantity, onSelectTab, onTryOn, blurTarget }:
                 alignItems: 'center', justifyContent: 'center', borderRadius: metrics.pillRadius,
                 borderWidth: 2, borderColor: focused === id ? p.dockSelected : 'transparent',
                 opacity: pressed ? 0.78 : 1,
-                transform: [{ scale: pressed && !reducedMotion ? 0.96 : 1 }],
               })}>
-              <Animated.View testID={selected ? 'bottom-active-capsule' : undefined} style={{
-                width: 44, height: 26, alignItems: 'center', justifyContent: 'center', borderRadius: metrics.pillRadius,
+              <View testID={selected ? 'bottom-active-capsule' : undefined} style={{
+                width: 44, height: 26, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: metrics.pillRadius,
                 backgroundColor: selected && solidContrast ? p.dockSelected : 'transparent',
-                transform: selected && !reducedMotion ? [
-                  { scaleX: selectionScale.interpolate({inputRange: [.88, .95, 1], outputRange: [.82, 1.09, 1]}) },
-                  { scaleY: selectionScale.interpolate({inputRange: [.88, .95, 1], outputRange: [1.09, .94, 1]}) },
-                ] : [],
               }}>
                 <Svg accessible={false} focusable={false} width={22} height={22} viewBox="0 0 24 24">
                   <Path d={path} fill="none" stroke={selected ? (solidContrast ? p.dockSelectedInk : p.dockSelected) : p.dockText}
-                    strokeWidth={selected ? 1.9 : 1.7} strokeLinecap="round" strokeLinejoin="round" />
+                    strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" />
                 </Svg>
                 {count > 0 && <View accessible={false} style={{
                   position: 'absolute', top: -3, right: -4, minWidth: 16, paddingHorizontal: 3,
@@ -129,7 +112,7 @@ export function NavBar({ route, bagQuantity, onSelectTab, onTryOn, blurTarget }:
                 }}>
                   <Text allowFontScaling={false} style={{ textAlign: 'center', fontWeight: '700', fontSize: 9, lineHeight: 13, color: p.dockSelectedInk }}>{visibleBadgeCount(count)}</Text>
                 </View>}
-              </Animated.View>
+              </View>
               <Text numberOfLines={frame.labelLines} maxFontSizeMultiplier={2} adjustsFontSizeToFit minimumFontScale={0.8} style={{
                 textAlign: 'center', color: selected ? p.dockSelected : p.dockText,
                 fontSize: 11, lineHeight: 15, fontWeight: selected ? '700' : '500', includeFontPadding: false,
