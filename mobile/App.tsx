@@ -22,6 +22,7 @@ import {
   SafeAreaProvider,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import { BlurTargetView } from "expo-blur";
 import { useFonts } from "expo-font";
 import { MotionProvider, useReducedMotion } from "./src/Motion";
 import { displayFont, metrics, palettes } from "./src/design";
@@ -95,6 +96,8 @@ function ShellContent({
   const app = useApp(),
     palette = usePalette(),
     insets = useSafeAreaInsets();
+  const blurTarget = useRef<React.ComponentRef<typeof View>>(null);
+  const Viewport = Platform.OS === "android" ? BlurTargetView : View;
   const { height: viewportHeight, width, fontScale } = useWindowDimensions();
   const route = cleanRoute({
     ...nativeRoute.params,
@@ -311,7 +314,7 @@ function ShellContent({
         </ScrollView>
       )}
       <DockInset.Provider value={dockVisible ? dockFrame.height + dockFrame.bottom : 0}>
-      <View testID="screen-viewport" style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+      <Viewport ref={blurTarget} testID="screen-viewport" style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
       {!app.ready ? (
         <Screen>
           <Title>Opening your centre.</Title>
@@ -325,11 +328,12 @@ function ShellContent({
       ) : (
         <ShoppingScreen route={route} navigate={go} back={back} />
       )}
-      </View>
+      </Viewport>
       </DockInset.Provider>
       {dockVisible && (
         <View testID="shell-bottom-navigation" pointerEvents="box-none" style={{ position: "absolute", left: 0, right: 0, bottom: 0 }}>
         <NavBar
+          blurTarget={blurTarget}
           route={route}
           bagQuantity={app.commerce.cart
             .filter(line => !route.brandId || route.brandId.startsWith("shop-") || line.brandId === route.brandId)

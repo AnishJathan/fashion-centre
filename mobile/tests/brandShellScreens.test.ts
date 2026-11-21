@@ -30,6 +30,8 @@ function harness(route: Route, dark = false, canGoBack = false) {
     react: { __esModule: true, default: react, ...react },
     './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
     './src/Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
+    'expo-blur': { BlurView: 'BlurView', BlurTargetView: 'BlurTargetView' },
+    'expo-glass-effect': { GlassView: 'GlassView', isLiquidGlassAvailable: () => true },
     'react-native': { Animated: { Value: class { setValue() {} }, View: 'AnimatedView' }, ...Object.fromEntries(['ActivityIndicator', 'Pressable', 'ScrollView', 'Text', 'View'].map(n => [n, n])), Platform: { OS: 'ios' }, useWindowDimensions: () => ({ width: 320, height: 640, fontScale: 1 }), Keyboard: { dismiss: () => calls.push(['dismiss']), addListener: (name: string, cb: () => void) => { listeners[name] = cb; return { remove: () => {} }; } } },
     '@react-navigation/native': { NavigationContainer: 'NavigationContainer', createNavigationContainerRef: () => ({}), DarkTheme: {}, DefaultTheme: {} },
     '@react-navigation/native-stack': { createNativeStackNavigator: () => ({ Navigator: 'Stack', Screen: 'StackScreen' }) },

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Text } from "./Typography";
-import { Animated, Pressable, View, useWindowDimensions } from "react-native";
+import { Animated, Platform, Pressable, View, useWindowDimensions } from "react-native";
+import { BlurView } from 'expo-blur';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { metrics, motion, visibleBadgeCount } from './design';
@@ -10,7 +12,8 @@ import { activeTab, bottomNavFrame, type BottomTabName } from './shellPresentati
 import type { Route } from './navigation';
 import { usePalette, useReducedTransparency } from './ui';
 
-export function NavBar({ route, bagQuantity, onSelectTab, onTryOn }: {
+export function NavBar({ route, bagQuantity, onSelectTab, onTryOn, blurTarget }: {
+  blurTarget: React.RefObject<React.ComponentRef<typeof View> | null>;
   route: Route;
   bagQuantity: number;
   onSelectTab: (name: BottomTabName) => void;
@@ -44,10 +47,15 @@ export function NavBar({ route, bagQuantity, onSelectTab, onTryOn }: {
       <View testID="curved-bottom-nav" accessibilityRole="tablist" accessibilityLabel="Main navigation" style={{
         width: frame.width, height: frame.height, flexDirection: 'row', alignItems: 'stretch',
         paddingHorizontal: 7, paddingVertical: 3, borderRadius: metrics.pillRadius, borderWidth: 1,
-        backgroundColor: solidContrast ? p.dock : p.dock + 'E3', borderColor: solidContrast ? p.dockText : 'transparent', borderTopWidth: 0,
+        backgroundColor: solidContrast ? p.dock : 'transparent', borderColor: solidContrast ? p.dockText : 'transparent', borderTopWidth: 0,
         shadowColor: '#211810', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6,
       }}>
         {!solidContrast && <View pointerEvents="none" accessible={false} style={{ position: 'absolute', inset: 0, overflow: 'hidden', borderRadius: metrics.pillRadius }}>
+          {Platform.OS === 'ios' && isLiquidGlassAvailable()
+            ? <GlassView glassEffectStyle="regular" colorScheme="dark" style={{ position: 'absolute', inset: 0, borderRadius: metrics.pillRadius }}/>
+            : <BlurView intensity={64} tint="dark" blurMethod="dimezisBlurViewSdk31Plus" blurTarget={blurTarget}
+                style={{ position: 'absolute', inset: 0 }}/>}
+          <View style={{ position: 'absolute', inset: 0, backgroundColor: p.dock + 'AA' }}/>
           <Svg width="100%" height="100%" accessible={false}>
             <Defs><LinearGradient id="glass" x1="0%" y1="0%" x2="20%" y2="100%">
               <Stop offset="0" stopColor="#fff4dd" stopOpacity={0.24}/>
@@ -75,6 +83,20 @@ export function NavBar({ route, bagQuantity, onSelectTab, onTryOn }: {
                 opacity: pressed ? 0.78 : 1,
                 transform: [{ scale: pressed && !reducedMotion ? 0.96 : 1 }],
               })}>
+              {selected && !solidContrast && <Animated.View pointerEvents="none" style={{
+                position: 'absolute', inset: 1, overflow: 'hidden', borderRadius: metrics.pillRadius,
+                backgroundColor: p.dockSelected + '24',
+                transform: reducedMotion ? [] : [{ scaleX: selectionScale }],
+              }}>
+                <Svg width="100%" height="100%" accessible={false}>
+                  <Defs><LinearGradient id="lens" x1="0%" y1="80%" x2="100%" y2="20%">
+                    <Stop offset="0" stopColor="#fff2dc" stopOpacity={0.19}/>
+                    <Stop offset="0.46" stopColor="#fff2dc" stopOpacity={0}/>
+                    <Stop offset="1" stopColor="#fff2dc" stopOpacity={0.22}/>
+                  </LinearGradient></Defs>
+                  <Rect width="100%" height="100%" fill="url(#lens)"/>
+                </Svg>
+              </Animated.View>}
               <Animated.View testID={selected ? 'bottom-active-capsule' : undefined} style={{
                 width: 44, height: 26, alignItems: 'center', justifyContent: 'center', borderRadius: metrics.pillRadius,
                 backgroundColor: selected ? p.dockSelected : 'transparent',

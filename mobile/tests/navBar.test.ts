@@ -25,7 +25,9 @@ function harness(route: Route = { name: 'home' }, theme: 'light' | 'dark' = 'lig
   const imports: Record<string, any> = {
     react: { __esModule: true, default: react, ...react },
     './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
-    'react-native': { Pressable: 'Pressable', Text: 'Text', View: 'View',
+    'expo-blur': { BlurView: 'BlurView', BlurTargetView: 'BlurTargetView' },
+    'expo-glass-effect': { GlassView: 'GlassView', isLiquidGlassAvailable: () => true },
+    'react-native': { Platform: { OS: 'ios' }, Pressable: 'Pressable', Text: 'Text', View: 'View',
       Animated: { Value: class { setValue() {} interpolate() { return 0; } }, View: 'AnimatedView', timing: () => ({ start() {}, stop() {} }) },
       useWindowDimensions: () => ({ width: 390, fontScale: 1 }) },
     'react-native-svg': { __esModule: true, default: 'Svg', Path: 'Path' },
@@ -78,8 +80,9 @@ test('one selected symbol stays legible over imagery in both themes, with reduce
       const { tree, controls } = harness({ name: route }, theme, reduced);
       const p = design.palettes[theme];
       const dock = tree.find(node => node.props.accessibilityRole === 'tablist').props.style;
-      assert.equal(dock.backgroundColor, reduced ? p.dock : p.dock + 'E3');
+      assert.equal(dock.backgroundColor, reduced ? p.dock : 'transparent');
       assert.equal(dock.borderColor, reduced ? p.dockText : 'transparent');
+      assert.equal(tree.some(node => node.type === 'GlassView'), !reduced);
       assert.ok(dock.borderRadius >= dock.height / 2);
       const selected = controls.filter(node => node.props.accessibilityState.selected);
       assert.equal(selected.length, 1);
