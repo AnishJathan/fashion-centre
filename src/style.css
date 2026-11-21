@@ -143,7 +143,7 @@ footer nav { gap: var(--gap); }
   background: var(--dockSelected); color: var(--dockSelectedInk); font: 700 10px/13px var(--body);
 }
 .bottom-nav a[aria-current=page] { font-weight: 700; color: var(--dockSelected); }
-.bottom-nav a[aria-current=page] .nav-symbol { background: var(--dockSelected); color: var(--dockSelectedInk); }
+.bottom-nav a[aria-current=page] .nav-symbol { color: var(--dockSelected); }
 .bottom-nav a[aria-current=page] .nav-icon { stroke-width: 1.9; }
 .bottom-nav a:focus-visible { outline-color: var(--dockSelected); outline-offset: -2px; }
 @media (max-width: 319px) {
@@ -233,4 +233,5 @@ input[type=checkbox]:checked::after { content: ''; width: 10px; height: 5px; bor
 }
 @media (prefers-reduced-transparency: reduce), (forced-colors: active) {
   .bottom-nav::before { display: none; }
+  .bottom-nav a[aria-current=page] .nav-symbol { background: var(--dockSelected); color: var(--dockSelectedInk); }
 }

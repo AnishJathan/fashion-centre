@@ -55,7 +55,7 @@ for (const width of [320, 390, 430, 1440]) {
         expect(box.width).toBeGreaterThanOrEqual(48);
         expect(box.height).toBeGreaterThanOrEqual(48);
       }
-      expect(await links.first().locator('.nav-symbol').evaluate(e => getComputedStyle(e).backgroundColor)).toBe('rgb(245, 215, 182)');
+      expect(await links.first().locator('.nav-symbol').evaluate(e => getComputedStyle(e).color)).toBe('rgb(245, 215, 182)');
     } else {
       expect(metrics.width).toBe(432);
       expect(metrics.bottom).toBe(10);
@@ -66,9 +66,12 @@ for (const width of [320, 390, 430, 1440]) {
     await page.locator('.catalogue-hero img, .product-photo img').evaluateAll(images => Promise.all(images.map(img => (img as HTMLImageElement).decode().catch(() => {}))));
     await page.evaluate(() => { if (document.activeElement instanceof HTMLElement) document.activeElement.blur(); });
     await page.screenshot({ path: testInfo.outputPath(`nav-${width}.png`) });
+    const mountedDock = await nav.elementHandle();
     await links.nth(2).click();
     await expect(page).toHaveURL(/#\/cart$/);
     await expect(links.nth(2)).toHaveAttribute('aria-current', 'page');
+    expect(await nav.evaluate((current, before) => current === before, mountedDock)).toBe(true);
+    await expect.poll(() => nav.evaluate(e => new DOMMatrix(getComputedStyle(e, '::before').transform).m41)).toBeCloseTo((metrics.width - 16) / 2, 0);
     await links.nth(2).focus();
     await page.keyboard.press('Tab');
     await expect(links.nth(3)).toBeFocused();

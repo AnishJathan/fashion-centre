@@ -27,6 +27,20 @@ export function NavBar({ route, bagQuantity, onSelectTab, onTryOn, blurTarget }:
   const reducedMotion = useReducedMotion();
   const [focused, setFocused] = useState<string | null>(null);
   const [selectionScale] = useState(() => new Animated.Value(1));
+  const tabWidth = (frame.width - 16) / primaryNavigation.length;
+  const targetX = tabWidth * primaryNavigation.findIndex(tab => tab.id === current);
+  const [lensOffset] = useState(() => new Animated.Value(targetX));
+  useEffect(() => {
+    if (reducedMotion) {
+      lensOffset.setValue(targetX);
+      return;
+    }
+    const slide = Animated.spring(lensOffset, {
+      toValue: targetX, stiffness: 280, damping: 28, mass: 0.85, useNativeDriver: true,
+    });
+    slide.start();
+    return () => slide.stop();
+  }, [lensOffset, reducedMotion, targetX]);
   const solidContrast = useReducedTransparency();
 
   useEffect(() => {
@@ -65,6 +79,20 @@ export function NavBar({ route, bagQuantity, onSelectTab, onTryOn, blurTarget }:
             <Rect width="100%" height="100%" rx={frame.height / 2} fill="url(#glass)"/>
           </Svg>
         </View>}
+        {!solidContrast && <Animated.View testID="bottom-selection-lens" pointerEvents="none" style={{
+          position: 'absolute', left: 8, top: 5, bottom: 5, width: tabWidth, overflow: 'hidden', borderRadius: metrics.pillRadius,
+          backgroundColor: p.dockSelected + '38',
+          transform: [{ translateX: lensOffset }],
+        }}>
+          <Svg width="100%" height="100%" accessible={false}>
+            <Defs><LinearGradient id="lens" x1="0%" y1="80%" x2="100%" y2="20%">
+              <Stop offset="0" stopColor="#fff2dc" stopOpacity={0.19}/>
+              <Stop offset="0.46" stopColor="#fff2dc" stopOpacity={0}/>
+              <Stop offset="1" stopColor="#fff2dc" stopOpacity={0.22}/>
+            </LinearGradient></Defs>
+            <Rect width="100%" height="100%" fill="url(#lens)"/>
+          </Svg>
+        </Animated.View>}
         {primaryNavigation.map(({ id, label, path }) => {
           const selected = current === id;
           const count = id === 'cart' ? bagQuantity : 0;
@@ -83,30 +111,16 @@ export function NavBar({ route, bagQuantity, onSelectTab, onTryOn, blurTarget }:
                 opacity: pressed ? 0.78 : 1,
                 transform: [{ scale: pressed && !reducedMotion ? 0.96 : 1 }],
               })}>
-              {selected && !solidContrast && <Animated.View pointerEvents="none" style={{
-                position: 'absolute', inset: 1, overflow: 'hidden', borderRadius: metrics.pillRadius,
-                backgroundColor: p.dockSelected + '24',
-                transform: reducedMotion ? [] : [{ scaleX: selectionScale }],
-              }}>
-                <Svg width="100%" height="100%" accessible={false}>
-                  <Defs><LinearGradient id="lens" x1="0%" y1="80%" x2="100%" y2="20%">
-                    <Stop offset="0" stopColor="#fff2dc" stopOpacity={0.19}/>
-                    <Stop offset="0.46" stopColor="#fff2dc" stopOpacity={0}/>
-                    <Stop offset="1" stopColor="#fff2dc" stopOpacity={0.22}/>
-                  </LinearGradient></Defs>
-                  <Rect width="100%" height="100%" fill="url(#lens)"/>
-                </Svg>
-              </Animated.View>}
               <Animated.View testID={selected ? 'bottom-active-capsule' : undefined} style={{
                 width: 44, height: 26, alignItems: 'center', justifyContent: 'center', borderRadius: metrics.pillRadius,
-                backgroundColor: selected ? p.dockSelected : 'transparent',
+                backgroundColor: selected && solidContrast ? p.dockSelected : 'transparent',
                 transform: selected && !reducedMotion ? [
                   { scaleX: selectionScale.interpolate({inputRange: [.88, .95, 1], outputRange: [.82, 1.09, 1]}) },
                   { scaleY: selectionScale.interpolate({inputRange: [.88, .95, 1], outputRange: [1.09, .94, 1]}) },
                 ] : [],
               }}>
                 <Svg accessible={false} focusable={false} width={22} height={22} viewBox="0 0 24 24">
-                  <Path d={path} fill="none" stroke={selected ? p.dockSelectedInk : p.dockText}
+                  <Path d={path} fill="none" stroke={selected ? (solidContrast ? p.dockSelectedInk : p.dockSelected) : p.dockText}
                     strokeWidth={selected ? 1.9 : 1.7} strokeLinecap="round" strokeLinejoin="round" />
                 </Svg>
                 {count > 0 && <View accessible={false} style={{

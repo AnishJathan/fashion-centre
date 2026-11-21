@@ -11,7 +11,7 @@ import type { Route } from '../src/navigation.ts';
 
 // Execute the actual shell routing callbacks with inert native boundaries.
 const navSource = ts.transpileModule(fs.readFileSync(new URL('../src/NavBar.tsx', import.meta.url), 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
-const source = ts.transpileModule(fs.readFileSync(new URL('../App.tsx', import.meta.url), 'utf8') + '\nexport { Shell, ShellContent };', { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
+const source = ts.transpileModule(fs.readFileSync(new URL('../App.tsx', import.meta.url), 'utf8') + '\nexport { Shell, ShellContent, DockLayout };', { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
 function nodes(tree: any): any[] { return Array.isArray(tree) ? tree.flatMap(nodes) : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : []; }
 function harness(route: Route, dark = false, canGoBack = false) {
   const { name, ...params } = route;
@@ -50,9 +50,9 @@ function harness(route: Route, dark = false, canGoBack = false) {
   imports['./src/NavBar'] = { NavBar };
   const module = { exports: {} as any };
   new Function('require', 'module', 'exports', source)((name: string) => { assert.ok(name in imports, `Unexpected import: ${name}`); return imports[name]; }, module, module.exports);
-  const nav = { navigate: (...args: any[]) => calls.push(['navigate', ...args]), popTo: (...args: any[]) => calls.push(['popTo', ...args]), reset: (value: any) => calls.push(['reset', value]), canGoBack: () => canGoBack, goBack: () => calls.push(['goBack']), replace: (...args: any[]) => calls.push(['replace', ...args]), setOptions: (value: any) => calls.push(['options', value]) };
+  const nav = { navigate: (...args: any[]) => calls.push(['navigate', ...args]), popTo: (...args: any[]) => calls.push(['popTo', ...args]), reset: (value: any) => calls.push(['reset', value]), resetRoot: (value: any) => calls.push(['reset', value]), canGoBack: () => canGoBack, goBack: () => calls.push(['goBack']), replace: (...args: any[]) => calls.push(['replace', ...args]), setOptions: (value: any) => calls.push(['options', value]) };
   const props = { route: { name, params }, navigation: nav };
-  const render = () => { index = 0; tree = module.exports.ShellContent(props); };
+  const render = () => { index = 0; tree = module.exports.DockLayout({ route, navigation: nav, children: module.exports.ShellContent(props) }); };
   render();
   const header = () => calls.filter(c => c[0] === 'options').at(-1)?.[1].header();
   const all = () => [...nodes(tree), ...nodes(header())];

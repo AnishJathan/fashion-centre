@@ -96,9 +96,7 @@ function ShellContent({
   const app = useApp(),
     palette = usePalette(),
     insets = useSafeAreaInsets();
-  const blurTarget = useRef<React.ComponentRef<typeof View>>(null);
-  const Viewport = Platform.OS === "android" ? BlurTargetView : View;
-  const { height: viewportHeight, width, fontScale } = useWindowDimensions();
+  const { height: viewportHeight } = useWindowDimensions();
   const route = cleanRoute({
     ...nativeRoute.params,
     name: nativeRoute.name as RouteName,
@@ -129,48 +127,8 @@ function ShellContent({
           ? navigation.replace("profile", route.brandId ? { brandId: route.brandId } : {})
           : navigation.replace("home");
   const brand = app.brands.find((b) => b.id === route.brandId);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
-  useEffect(() => {
-    const show = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
-      () => setKeyboardVisible(true),
-    );
-    const hide = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
-      () => setKeyboardVisible(false),
-    );
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
-  function switchTab(name: BottomTabName) {
-    const previewStore = app.sources?.some(source => source.key === route.brandId && source.preview);
-    const { name: destination, ...params } = name === "home" && previewStore ? {name} : tabDestination(name, route);
-    Keyboard.dismiss();
-    if (
-      destination === route.name &&
-      JSON.stringify(params) === JSON.stringify(nativeRoute.params || {})
-    )
-      return;
-    navigation.reset({ index: 0, routes: [{ name: destination, params }] });
-  }
-  const openTryOn = () => {
-    Keyboard.dismiss();
-    if (route.name === "prepare") return;
-    const { name, ...params } = tryOnDestination(route, app.brands);
-    // This is an action, not a root-tab switch: Back returns to this screen.
-    // Use the validated destination directly instead of inheriting stale scope.
-    navigation.navigate(name, params);
-  };
   const exitStore = () => navigation.reset({ index: 0, routes: [{ name: "home" }] });
-  const showTabs = ![
-    "login",
-    "login-demo",
-    "try-on",
-    "photos",
-    "checkout",
-  ].includes(route.name) && !(route.name === "prepare" && route.productId);
+  const showTabs = showsDock(route);
   const brandRoot = route.name === "brand" || route.name === "home";
   useEffect(() => {
     navigation.setOptions({
@@ -207,8 +165,6 @@ function ShellContent({
       ),
     });
   }, [navigation, route.name, route.brandId, route.productId, brand?.name, app.theme, app.products, app.catalogueLoading, app.catalogueError, showTabs, palette.surface, palette.text, palette.background, palette.line, palette.tint, palette.accent, palette.muted, insets.top, insets.left, insets.right]);
-  const dockVisible = showTabs && !keyboardVisible;
-  const dockFrame = bottomNavFrame(width, fontScale, insets);
   const isAccount = ["login", "login-demo", "prepare", "try-on"].includes(
     route.name,
   );
@@ -313,8 +269,7 @@ function ShellContent({
           )}
         </ScrollView>
       )}
-      <DockInset.Provider value={dockVisible ? dockFrame.height + dockFrame.bottom : 0}>
-      <Viewport ref={blurTarget} testID="screen-viewport" style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+      <View testID="screen-viewport" style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
       {!app.ready ? (
         <Screen>
           <Title>Opening your centre.</Title>
@@ -328,19 +283,87 @@ function ShellContent({
       ) : (
         <ShoppingScreen route={route} navigate={go} back={back} />
       )}
-      </Viewport>
+      </View>
+    </View>
+  );
+}
+
+function showsDock(route: Route) {
+  return ![
+    "login",
+    "login-demo",
+    "try-on",
+    "photos",
+    "checkout",
+  ].includes(route.name) && !(route.name === "prepare" && route.productId);
+}
+
+// This layout belongs to the navigation container. Only its viewport transitions.
+function DockLayout({ route, navigation, children }: React.PropsWithChildren<{
+  route: Route;
+  navigation: typeof navigationRef;
+}>) {
+  const app = useApp();
+  const insets = useSafeAreaInsets();
+  const { width, fontScale } = useWindowDimensions();
+  const { name: currentName, ...currentParams } = route;
+  const brand = app.brands.find(b => b.id === route.brandId);
+  const blurTarget = useRef<React.ComponentRef<typeof View>>(null);
+  const Viewport = Platform.OS === "android" ? BlurTargetView : View;
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      () => setKeyboardVisible(true),
+    );
+    const hide = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => setKeyboardVisible(false),
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  function switchTab(name: BottomTabName) {
+    const previewStore = app.sources?.some(source => source.key === route.brandId && source.preview);
+    const { name: destination, ...params } = name === "home" && previewStore ? {name} : tabDestination(name, route);
+    Keyboard.dismiss();
+    if (
+      destination === currentName &&
+      JSON.stringify(params) === JSON.stringify(currentParams)
+    )
+      return;
+    navigation.resetRoot({ index: 0, routes: [{ name: destination, params }] });
+  }
+  const openTryOn = () => {
+    Keyboard.dismiss();
+    if (route.name === "prepare") return;
+    const { name, ...params } = tryOnDestination(route, app.brands);
+    // This is an action, not a root-tab switch: Back returns to this screen.
+    // Use the validated destination directly instead of inheriting stale scope.
+    navigation.navigate(name, params);
+  };
+  const dockVisible = showsDock(route) && !keyboardVisible;
+  const frame = bottomNavFrame(width, fontScale, insets);
+  return (
+    <View style={{ flex: 1 }}>
+      <DockInset.Provider value={dockVisible ? frame.height + frame.bottom : 0}>
+        <Viewport ref={blurTarget} style={{ flex: 1 }}>{children}</Viewport>
       </DockInset.Provider>
       {dockVisible && (
         <View testID="shell-bottom-navigation" pointerEvents="box-none" style={{ position: "absolute", left: 0, right: 0, bottom: 0 }}>
-        <NavBar
-          blurTarget={blurTarget}
-          route={route}
-          bagQuantity={app.commerce.cart
-            .filter(line => !route.brandId || route.brandId.startsWith("shop-") || line.brandId === route.brandId)
-            .reduce((count, line) => count + line.quantity, 0)}
-          onSelectTab={switchTab}
-          onTryOn={openTryOn}
-        />
+          <PaletteProvider palette={brand ? brandExperience(brand.id, app.theme).palette : undefined}>
+            <NavBar
+              blurTarget={blurTarget}
+              route={route}
+              bagQuantity={app.commerce.cart
+                .filter(line => !route.brandId || route.brandId.startsWith("shop-") || line.brandId === route.brandId)
+                .reduce((count, line) => count + line.quantity, 0)}
+              onSelectTab={switchTab}
+              onTryOn={openTryOn}
+            />
+          </PaletteProvider>
         </View>
       )}
     </View>
@@ -416,6 +439,7 @@ function Navigator() {
           }
         }}
       >
+        <DockLayout route={viewedRoute ?? { name: "login" }} navigation={navigationRef}>
         <Stack.Navigator
           initialRouteName="login"
           screenOptions={{
@@ -443,6 +467,7 @@ function Navigator() {
             />
           ))}
         </Stack.Navigator>
+        </DockLayout>
       </NavigationContainer>
     </>
   );

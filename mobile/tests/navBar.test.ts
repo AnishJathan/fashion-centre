@@ -28,7 +28,7 @@ function harness(route: Route = { name: 'home' }, theme: 'light' | 'dark' = 'lig
     'expo-blur': { BlurView: 'BlurView', BlurTargetView: 'BlurTargetView' },
     'expo-glass-effect': { GlassView: 'GlassView', isLiquidGlassAvailable: () => true },
     'react-native': { Platform: { OS: 'ios' }, Pressable: 'Pressable', Text: 'Text', View: 'View',
-      Animated: { Value: class { setValue() {} interpolate() { return 0; } }, View: 'AnimatedView', timing: () => ({ start() {}, stop() {} }) },
+      Animated: { Value: class { setValue() {} interpolate() { return 0; } }, View: 'AnimatedView', spring: () => ({ start() {}, stop() {} }), timing: () => ({ start() {}, stop() {} }) },
       useWindowDimensions: () => ({ width: 390, fontScale: 1 }) },
     'react-native-svg': { __esModule: true, default: 'Svg', Path: 'Path' },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }) },
@@ -87,8 +87,8 @@ test('one selected symbol stays legible over imagery in both themes, with reduce
       const selected = controls.filter(node => node.props.accessibilityState.selected);
       assert.equal(selected.length, 1);
       assert.equal(selected[0].props.testID, id === 'prepare' ? 'bottom-try-on' : 'bottom-tab-' + id);
-      assert.equal(nodes(selected[0]).find(node => node.type === 'Path').props.stroke, p.dockSelectedInk);
-      assert.equal(nodes(selected[0]).find(node => node.props.testID === 'bottom-active-capsule').props.style.backgroundColor, p.dockSelected);
+      assert.equal(nodes(selected[0]).find(node => node.type === 'Path').props.stroke, reduced ? p.dockSelectedInk : p.dockSelected);
+      assert.equal(nodes(selected[0]).find(node => node.props.testID === 'bottom-active-capsule').props.style.backgroundColor, reduced ? p.dockSelected : 'transparent');
       assert.equal(selected[0].props.style({ pressed: true }).transform[0].scale, reduced ? 1 : 0.96);
       assert.equal(tree.find(node => node.props.testID === 'bottom-nav-safe-area').props.pointerEvents, 'box-none');
     }
