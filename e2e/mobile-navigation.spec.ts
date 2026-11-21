@@ -46,7 +46,7 @@ for (const width of [320, 390, 430, 1440]) {
     if (width <= 700) {
       expect(metrics.x).toBeCloseTo(16, 0);
       expect(metrics.width).toBeCloseTo(width - 32, 0);
-      expect(metrics.bottom).toBeCloseTo(10, 0);
+      expect(metrics.bottom).toBeCloseTo(6, 0);
       expect(metrics.height).toBe(64);
       expect(metrics.radius).toBeGreaterThanOrEqual(metrics.height / 2);
       expect(metrics.scrollBottom).toBe(900);
@@ -58,7 +58,7 @@ for (const width of [320, 390, 430, 1440]) {
       expect(await links.first().locator('.nav-symbol').evaluate(e => getComputedStyle(e).color)).toBe('rgb(245, 215, 182)');
     } else {
       expect(metrics.width).toBe(432);
-      expect(metrics.bottom).toBe(10);
+      expect(metrics.bottom).toBe(6);
       expect(metrics.radius).toBeGreaterThanOrEqual(metrics.height / 2);
       expect(metrics.display).toBe('grid');
     }
@@ -86,8 +86,8 @@ for (const width of [320, 390, 430, 1440]) {
         return footer.y + footer.height - (await nav.boundingBox())!.y;
       }).toBeLessThan(0);
       await page.evaluate(() => document.documentElement.style.setProperty('--mobile-nav-safe-bottom', '34px'));
-      expect(await nav.evaluate(e => innerHeight - e.getBoundingClientRect().bottom)).toBe(44);
-      await expect.poll(() => page.locator('#app-scroll').evaluate(e => parseFloat(getComputedStyle(e, '::after').height))).toBeGreaterThanOrEqual(116);
+      expect(await nav.evaluate(e => innerHeight - e.getBoundingClientRect().bottom)).toBe(34);
+      await expect.poll(() => page.locator('#app-scroll').evaluate(e => parseFloat(getComputedStyle(e, '::after').height))).toBeGreaterThanOrEqual(106);
       await expect.poll(async () => {
         await page.evaluate(() => document.getElementById('app-scroll')!.scrollTo(0, document.getElementById('app-scroll')!.scrollHeight));
         const footer = (await page.locator('main footer').boundingBox())!;

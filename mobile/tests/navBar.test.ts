@@ -63,12 +63,12 @@ test('all four labelled destinations share one icon grid and each press preserve
 
 test('capsule remains inside safe areas and reserves its whole height at large font sizes', () => {
   for (const width of [240, 280, 320, 390, 430, 768, 1024, 1536]) {
-    for (const bottom of [0, 24, 34]) for (const scale of [1, 1.5, 2]) {
+    for (const bottom of [0, 3, 6, 24, 34]) for (const scale of [1, 1.5, 2]) {
       const f = shell.bottomNavFrame(width, scale, { left: 0, right: 0, bottom });
       assert.ok(f.width <= width - f.left - f.right && f.width <= design.metrics.dockWidth);
       assert.ok((f.width - 16) / 4 >= 48);
       assert.ok(f.height >= 64 && f.height >= 42 + Math.ceil(15 * scale) * f.labelLines);
-      assert.equal(f.bottom, bottom + design.metrics.dockOffset);
+      assert.equal(f.bottom, Math.max(bottom, design.metrics.dockOffset));
     }
   }
   assert.equal(shell.bottomNavFrame(844, 1, { left: 44, right: 0, bottom: 21 }).left, 44);

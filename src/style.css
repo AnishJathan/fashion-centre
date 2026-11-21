@@ -35,7 +35,8 @@
   --panel-padding: var(--gap);
   --display: "DM Serif Text", Georgia, serif;
   --mobile-nav-safe-bottom: env(safe-area-inset-bottom, 0px);
-  --nav-clearance: calc(max(var(--dockHeight), 3.5rem + 16px) + var(--dockOffset) + var(--mobile-nav-safe-bottom) + var(--sectionGap));
+  --dock-bottom: max(var(--dockOffset), var(--mobile-nav-safe-bottom));
+  --nav-clearance: calc(max(var(--dockHeight), 3.5rem + 16px) + var(--dock-bottom) + var(--sectionGap));
   --body: Inter, system-ui, sans-serif;
   font: 16px/1.55 var(--body);
   color: var(--text);
@@ -104,7 +105,7 @@ footer nav { gap: var(--gap); }
 .app-scroll::after { content: ""; display: block; height: var(--dock-clearance, 90px); }
 .navigation-bar {
   position: fixed; inset: auto 0 0; z-index: 4; pointer-events: none;
-  padding: var(--compactGap) max(var(--gap), env(safe-area-inset-right)) calc(var(--dockOffset) + var(--mobile-nav-safe-bottom)) max(var(--gap), env(safe-area-inset-left));
+  padding: var(--compactGap) max(var(--gap), env(safe-area-inset-right)) var(--dock-bottom) max(var(--gap), env(safe-area-inset-left));
 }
 /* The tinted fallback preserves legibility when backdrop filtering is unavailable. */
 .bottom-nav {
