@@ -1,6 +1,7 @@
 import {useEffect,useState,type FormEvent} from 'react';
 import {PhotoCapture} from './PhotoCapture';
-
+import {appleIdToken, googleIdToken, isIos, isNative, socialSupported} from './socialAuth';
+import { GoogleWebButton } from './GoogleWebButton';
 const API='/api/auth';
 type Step='phone'|'code'|'photo'|'success';
 
@@ -46,7 +47,12 @@ export function LoginDemo({close}:{close:()=>void}){
   const [savedNow,setSavedNow]=useState(false); // true only right after a photo was saved in this visit
 
   useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t)},[]);
-
+  useEffect(()=>{
+    fetch('/api/auth/me',{credentials:'include'})
+      .then(res=>res.ok?res.json():null)
+      .then(me=>{ if(me&&!me.hasPhoto) setStep('photo'); })
+      .catch(()=>{});
+  },[]);
   const remaining=Math.max(0,Math.ceil((expiresAt-now)/1000));
   const cooldown=Math.max(0,Math.ceil((resendAt-now)/1000));
 
@@ -102,7 +108,55 @@ export function LoginDemo({close}:{close:()=>void}){
       setBusy(false);
     }
   }
-
+async function finishSocial(provider: 'google' | 'apple', idToken: string) {
+  setBusy(true); setError('');
+  try {
+    const r = await postJson<{ ok: boolean; hasPhoto?: boolean }>(`/${provider}`, { idToken });
+    if (!r.ok) { setError('Sign-in failed. Please try again.'); return; }
+    setSavedNow(false);
+    setStep(r.data?.hasPhoto ? 'success' : 'photo');
+  } catch {
+    setError('Network error. Check your connection and try again.');
+  } finally {
+    setBusy(false);
+  }
+}
+async function socialLogin(provider: 'apple' | 'google') {
+  setBusy(true); setError('');
+  try {
+    const idToken = provider === 'apple' ? await appleIdToken() : await googleIdToken();
+    await finishSocial(provider, idToken);
+  } catch (e) {
+    setError(e instanceof Error ? e.message : 'Sign-in was cancelled.');
+  } finally {
+    setBusy(false);
+  }
+}
+//   async function socialLogin(provider:'apple'|'google'){
+//   if(!socialSupported){
+//     setError('Apple and Google sign-in are available in the iOS app.');
+//     return;
+//   }
+//   setBusy(true);setError('');
+//   try{
+//     const idToken = provider==='apple' ? await appleIdToken() : await googleIdToken();
+// const r = await postJson<{ ok: boolean; hasPhoto?: boolean }>(
+//   `/${provider}`,
+//   { idToken },
+// );
+//     if(!r.ok){
+//       setError('Sign-in failed. Please try again.');
+//       return;
+//     }
+//     setSavedNow(false);
+//     setStep(r.data?.hasPhoto?'success':'photo');
+//   }catch(e){
+//     // User cancelled the sheet or the plugin failed
+//     setError(e instanceof Error ? e.message : 'Sign-in was cancelled.');
+//   }finally{
+//     setBusy(false);
+//   }
+// }
   async function savePhoto(file:Blob){
     setBusy(true);setUploadError('');
     try{
@@ -128,8 +182,7 @@ export function LoginDemo({close}:{close:()=>void}){
     <section className="login-demo">
       <div className="login-card">
         <span className="pill">
-          {step==='photo'?'STEP 2 OF 2':'WHATSAPP VERIFICATION'}
-        </span>
+{step==='photo'?'STEP 2 OF 2':'SIGN IN'}     </span>
 
         {step==='phone'&&(
           <>
@@ -150,8 +203,19 @@ export function LoginDemo({close}:{close:()=>void}){
                 {busy?'Sending code…':'Send code on WhatsApp →'}
               </button>
             </form>
+            <div className="social-divider"><span>or</span></div>
+<div className="social-group">
+{isIos && isNative && (
+  <button type="button" className="social-btn" onClick={()=>socialLogin('apple')} disabled={busy}>
+    Continue with Apple
+  </button>
+)}
+{socialSupported && !isNative && (
+  <GoogleWebButton onToken={(t) => finishSocial('google', t)} disabled={busy} />
+)}
+</div>
           </>
-        )}
+        )}  
 
         {step==='code'&&(
           <>
@@ -198,7 +262,6 @@ export function LoginDemo({close}:{close:()=>void}){
         )}
 
         {error&&<p role="alert" className="login-error">{error}</p>}
-        <button className="secondary wide" disabled={busy} onClick={close}>Back to local profile</button>
       </div>
     </section>
   );

@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +25,8 @@ public class AuthService {
     private static final Duration RESEND_WAIT = Duration.ofSeconds(30);
     private static final int MAX_SENDS_PER_HOUR = 5;
     private static final int MAX_ATTEMPTS = 5;
-    private static final Duration SESSION_TTL = Duration.ofDays(30);
+    @Value("${auth.session-days:365}") private long sessionDays;
+    private static final long RENEW_WHEN_LEFT_DAYS = 30;
 
     private final SecureRandom random = new SecureRandom();
     private final UserRepository users;
@@ -34,19 +36,22 @@ public class AuthService {
     private final String pepper;
     private final boolean exposeDevCode;
 
+    private final SocialAccountService social;
+
     public AuthService(UserRepository users, LoginCodeRepository codes, SessionRepository sessions,
-                       CodeSender sender,
+                       CodeSender sender, SocialAccountService social,
                        @Value("${auth.code-pepper}") String pepper,
                        @Value("${auth.expose-dev-code:false}") boolean exposeDevCode) {
         this.users = users;
         this.codes = codes;
         this.sessions = sessions;
         this.sender = sender;
+        this.social = social;
         this.pepper = pepper;
         this.exposeDevCode = exposeDevCode;
     }
 
-    /** Returns the code only when auth.expose-dev-code is true (local development). Otherwise null. */
+    /** Returns the code only when auth.expose-dev-code is true (local development).*/
     @Transactional
     public String requestCode(String phone) {
         requireE164(phone);
@@ -104,22 +109,21 @@ public class AuthService {
             u.setPhoneNumber(phone);
             return users.save(u);
         });
-
-        String token = newToken();
-        AuthSession session = new AuthSession();
-        session.setUser(user);
-        session.setTokenHash(sha256(token));
-        session.setCreatedAt(now);
-        session.setExpiresAt(now.plus(SESSION_TTL));
-        sessions.save(session);
-        return token;
+        return createSession(user);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Optional<User> currentUser(String token) {
         if (token == null || token.isBlank()) return Optional.empty();
-        return sessions.findByTokenHashAndExpiresAtAfter(sha256(token), Instant.now())
-                .map(AuthSession::getUser);
+        Instant now = Instant.now();
+        return sessions.findByTokenHashAndExpiresAtAfter(sha256(token), now).map(session -> {
+            // Extend the session when it is close to expiring, so active users stay signed in
+            if (session.getExpiresAt().isBefore(now.plus(Duration.ofDays(RENEW_WHEN_LEFT_DAYS)))) {
+                session.setExpiresAt(now.plus(Duration.ofDays(sessionDays)));
+                sessions.save(session);
+            }
+            return session.getUser();
+        });
     }
 
     @Transactional
@@ -156,5 +160,27 @@ public class AuthService {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    public String createSession(User user) {
+        String token = newToken();
+        Instant now = Instant.now();
+        AuthSession session = new AuthSession();
+        session.setUser(user);
+        session.setTokenHash(sha256(token));
+        session.setCreatedAt(now);
+        session.setExpiresAt(now.plus(Duration.ofDays(sessionDays)));
+        sessions.save(session);
+        return token;
+    }
+
+    public String loginWithSocial(String provider, SocialTokenVerifier.VerifiedIdentity id) {
+        User user;
+        try {
+            user = social.findOrCreate(provider, id);
+        } catch (DataIntegrityViolationException e) {
+            user = social.findOrCreate(provider, id); // l'autre requête a gagné, on relit
+        }
+        return createSession(user);
     }
 }

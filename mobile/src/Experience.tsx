@@ -3,9 +3,9 @@ import { AccessibilityInfo, Animated, Image, Modal, Platform, Pressable, ScrollV
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from './state';
 import type { Route } from './navigation';
-import { moods, moodProducts, storyCopy, studioProducts, type MoodId } from './experience';
 import { Body, Button, Heading, Icon, IconButton, usePalette } from './ui';
 import { ProductGrid } from './ShoppingComponents';
+import { MoodId, moodProducts, moods, storyCopy, studioProducts } from './experienceData';
 
 const serif = Platform.OS === 'android' ? 'serif' : 'Georgia';
 const imagery = [require('../assets/editorial/campaign.png'), require('../assets/editorial/evening.jpg'), require('../assets/editorial/street.jpg')] as ImageSourcePropType[];

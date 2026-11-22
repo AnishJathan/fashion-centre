@@ -1,47 +1,67 @@
-import {FilesetResolver,PoseLandmarker} from '@mediapipe/tasks-vision';
+import * as tf from '@tensorflow/tfjs';
+import * as poseDetection from '@tensorflow-models/pose-detection';
 
 export type CheckResult={ok:true}|{ok:false;message:string};
+export type LiveFeedback={ready:boolean;message:string};
 
 const MIN_HEIGHT=1000;
 const MIN_BRIGHTNESS=50;
 const MAX_BRIGHTNESS=220;
-const MIN_SHARPNESS=120; // tune with real phone photos
+const MIN_SHARPNESS=120;
 const LIVE_SIDE=320;
-const LIVE_MIN_SHARPNESS=40; // lower than the full-size check, because the live frame is smaller
-const BODY_IDS=[0,11,12,23,24,25,26,27,28];
-const WASM_URL='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
-const MODEL_URL='https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+const LIVE_MIN_SHARPNESS=40;
+const MIN_KEYPOINT_SCORE=0.3;
+const EDGE_MARGIN=0.02;
 
-// Live video needs VIDEO mode, so this is a separate landmarker from the upload check
-let liveLandmarkerPromise:Promise<PoseLandmarker>|null=null;
-function getLiveLandmarker(){
-  liveLandmarkerPromise??=(async()=>{
-    const vision=await FilesetResolver.forVisionTasks(WASM_URL);
-    return PoseLandmarker.createFromOptions(vision,{
-      baseOptions:{modelAssetPath:MODEL_URL},
-      runningMode:'VIDEO',
-      numPoses:1,
+const REQUIRED=[
+  'nose','left_shoulder','right_shoulder','left_hip','right_hip',
+  'left_knee','right_knee','left_ankle','right_ankle',
+];
+
+let detectorPromise:Promise<poseDetection.PoseDetector>|null=null;
+function getDetector(){
+  detectorPromise??=(async()=>{
+    await tf.ready();
+    return poseDetection.createDetector(poseDetection.SupportedModels.MoveNet,{
+      modelType:poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
     });
   })().catch(err=>{
-    liveLandmarkerPromise=null; // allow a retry instead of caching the failure
+    detectorPromise=null; // allow a retry instead of caching the failure
     throw err;
   });
-  return liveLandmarkerPromise;
+  return detectorPromise;
 }
 
-export type LiveFeedback={ready:boolean;message:string};
+type Keypoint={name?:string;x:number;y:number;score?:number};
+
+// Returns a message for the first problem found, or null when the body is in frame
+function bodyProblem(keypoints:Keypoint[]|undefined,w:number,h:number):string|null{
+  if(!keypoints) return 'Stand in the frame.';
+  const byName=new Map(keypoints.filter(k=>k.name).map(k=>[k.name as string,k]));
+  const points=REQUIRED.map(n=>byName.get(n));
+  if(points.some(p=>!p||(p.score??0)<MIN_KEYPOINT_SCORE)){
+    return 'Step back so your head to your feet are all in the frame.';
+  }
+  const inside=(p:Keypoint)=>{
+    const x=p.x/w, y=p.y/h;
+    return x>EDGE_MARGIN&&x<1-EDGE_MARGIN&&y>EDGE_MARGIN&&y<1-EDGE_MARGIN;
+  };
+  if(!points.every(p=>inside(p as Keypoint))){
+    return 'Step back so your head to your feet are all in the frame.';
+  }
+  return null;
+}
 
 export async function analyseLiveFrame(
   video:HTMLVideoElement,
   canvas:HTMLCanvasElement,
-  timestampMs:number,
+  _timestampMs:number,
 ):Promise<LiveFeedback>{
   if(!video.videoWidth) return {ready:false,message:'Starting camera…'};
   if(video.videoHeight<=video.videoWidth){
     return {ready:false,message:'Use a phone held upright. Laptop cameras are too wide, so upload a photo instead.'};
   }
 
-  // Small copy of the frame, used for brightness and sharpness
   const scale=LIVE_SIDE/video.videoHeight;
   canvas.width=Math.round(video.videoWidth*scale);
   canvas.height=LIVE_SIDE;
@@ -60,35 +80,54 @@ export async function analyseLiveFrame(
     return {ready:false,message:'Hold still…'};
   }
 
-  const landmarker=await getLiveLandmarker();
-  const pose=landmarker.detectForVideo(video,timestampMs).landmarks[0];
-  if(!pose) return {ready:false,message:'Stand in the frame.'};
-
-  const visible=(i:number)=>{
-    const p=pose[i];
-    return (p.visibility??0)>0.5&&p.x>0.02&&p.x<0.98&&p.y>0.02&&p.y<0.98;
-  };
-  if(!BODY_IDS.every(visible)){
-    return {ready:false,message:'Step back so your head to your feet are in the frame.'};
-  }
+  const detector=await getDetector();
+  const [pose]=await detector.estimatePoses(video,{flipHorizontal:false});
+  const problem=bodyProblem(pose?.keypoints,video.videoWidth,video.videoHeight);
+  if(problem) return {ready:false,message:problem};
   return {ready:true,message:'Perfect, hold still…'};
 }
 
-let landmarkerPromise:Promise<PoseLandmarker>|null=null;
-function getLandmarker(){
-  landmarkerPromise??=(async()=>{
-    const vision=await FilesetResolver.forVisionTasks(
-      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
-    return PoseLandmarker.createFromOptions(vision,{
-      baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task'},
-      runningMode:'IMAGE',
-      numPoses:1,
-    });
-  })().catch(err=>{
-    landmarkerPromise=null; // allow a retry instead of caching the failure
-    throw err;
-  });
-  return landmarkerPromise;
+async function checkFullBody(bitmap:ImageBitmap):Promise<CheckResult>{
+  let detector:poseDetection.PoseDetector;
+  try{
+    detector=await getDetector();
+  }catch{
+    throw new Error('The body check could not load. Check your internet connection and try again.');
+  }
+  const canvas=document.createElement('canvas');
+  canvas.width=bitmap.width;
+  canvas.height=bitmap.height;
+  canvas.getContext('2d')!.drawImage(bitmap,0,0);
+
+  const [pose]=await detector.estimatePoses(canvas,{flipHorizontal:false});
+  const problem=bodyProblem(pose?.keypoints,canvas.width,canvas.height);
+  if(problem){
+    return {ok:false,message:pose?problem:'We could not see you. Stand in the frame and try again.'};
+  }
+  return {ok:true};
+}
+
+export async function checkPhoto(file:Blob):Promise<CheckResult>{
+  const bitmap=await createImageBitmap(file);
+  try{
+    if(bitmap.height<MIN_HEIGHT||bitmap.height<=bitmap.width){
+      return {ok:false,message:`Use a tall photo held upright, at least ${MIN_HEIGHT}px high. This one is ${bitmap.width}×${bitmap.height}.`};
+    }
+    const {gray,w,h}=grayscaleCopy(bitmap,512);
+    const brightness=averageBrightness(gray);
+    if(brightness<MIN_BRIGHTNESS){
+      return {ok:false,message:'The photo is too dark. Move somewhere brighter.'};
+    }
+    if(brightness>MAX_BRIGHTNESS){
+      return {ok:false,message:'The photo is overexposed. Avoid bright light behind you.'};
+    }
+    if(sharpness(gray,w,h)<MIN_SHARPNESS){
+      return {ok:false,message:'The photo looks blurry. Hold still and try again.'};
+    }
+    return await checkFullBody(bitmap);
+  }finally{
+    bitmap.close();
+  }
 }
 
 function grayscaleCopy(bitmap:ImageBitmap,maxSide:number){
@@ -123,51 +162,4 @@ function sharpness(gray:Float32Array,w:number,h:number){
   }
   const mean=sum/n;
   return sumSq/n-mean*mean;
-}
-
-// Landmarks: 0 nose, 11/12 shoulders, 23/24 hips, 25/26 knees, 27/28 ankles
-const BODY_POINTS=[0,11,12,23,24,25,26,27,28];
-
-async function checkFullBody(bitmap:ImageBitmap):Promise<CheckResult>{
-  let landmarker:PoseLandmarker;
-  try{
-    landmarker=await getLandmarker();
-  }catch{
-    throw new Error('The body check could not load. Check your internet connection and try again.');
-  }
-    const pose=landmarker.detect(bitmap).landmarks[0];
-  if(!pose){
-    return {ok:false,message:'We could not see you. Stand in the frame and try again.'};
-  }
-  const visible=(i:number)=>{
-    const p=pose[i];
-    return (p.visibility??0)>0.5&&p.x>0.02&&p.x<0.98&&p.y>0.02&&p.y<0.98;
-  };
-  if(!BODY_POINTS.every(visible)){
-    return {ok:false,message:'Step back so your head to your feet are all in the frame.'};
-  }
-  return {ok:true};
-}
-
-export async function checkPhoto(file:Blob):Promise<CheckResult>{
-  const bitmap=await createImageBitmap(file);
-  try{
-    if(bitmap.height<MIN_HEIGHT||bitmap.height<=bitmap.width){
-      return {ok:false,message:`Use a tall photo held upright, at least ${MIN_HEIGHT}px high. This one is ${bitmap.width}×${bitmap.height}.`};
-    }
-    const {gray,w,h}=grayscaleCopy(bitmap,512);
-    const brightness=averageBrightness(gray);
-    if(brightness<MIN_BRIGHTNESS){
-      return {ok:false,message:'The photo is too dark. Move somewhere brighter.'};
-    }
-    if(brightness>MAX_BRIGHTNESS){
-      return {ok:false,message:'The photo is overexposed. Avoid bright light behind you.'};
-    }
-    if(sharpness(gray,w,h)<MIN_SHARPNESS){
-      return {ok:false,message:'The photo looks blurry. Hold still and try again.'};
-    }
-    return await checkFullBody(bitmap);
-  }finally{
-    bitmap.close();
-  }
 }

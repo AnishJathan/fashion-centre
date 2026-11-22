@@ -18,9 +18,9 @@ import {
 import { useApp } from "./state";
 import { ExperienceIntro } from "./Experience";
 import { BrandMark } from "./BrandMark";
-import { CommerceHome } from "./CommerceHome";
+
 import { BrandStorefront } from "./BrandStorefront";
-import { moods, moodProducts, type MoodId } from "./experience";
+
 import type { Route } from "./navigation";
 import { money, selectProducts, type Product } from "./core/domain";
 import {
@@ -53,6 +53,8 @@ import {
   ShoppingLine,
   ShoppingNotice,
 } from "./ShoppingComponents";
+import { MoodId, moodProducts, moods } from "./experienceData";
+import { CommerceHome } from "./CommerceHome";
 type Props = { route: Route; navigate: (r: Route) => void; back: () => void };
 
 /** One line of small visual pills, with full-size touch targets and uncapped text. */

@@ -198,10 +198,10 @@ async function review(file:Blob){
             <strong>Scan full body</strong>
             <span>The camera checks your position and takes the photo automatically.</span>
           </button>
-          <button className="choice" onClick={()=>chooseMode('upload')}>
+          {/* <button className="choice" onClick={()=>chooseMode('upload')}>
             <strong>Upload from device</strong>
             <span>Pick a full-body photo already on your phone or computer.</span>
-          </button>
+          </button> */}
         </div>
       </div>
     );
@@ -254,7 +254,7 @@ async function review(file:Blob){
 {!preview&&mode==='upload'&&<p className="fine">
   Accepted: photos up to 10 MB, portrait, at least 1000 px tall. Use the original photo from your gallery, not one sent through WhatsApp or email.
 </p>}
-<input ref={fileRef} type="file" accept="image/*" hidden onChange={onFile}/>  
+{/* <input ref={fileRef} type="file" accept="image/*" hidden onChange={onFile}/>   */}
    <div className="photo-back">
   <button className="text-action" onClick={backToChoice} disabled={busy}>
     ← Choose a different method

@@ -152,3 +152,125 @@
 .photo-actions button{min-width:140px;}
 
 .photo-back{display:flex;justify-content:center;margin-top:4px;}
+
+.social-divider{display:flex;align-items:center;gap:12px;margin:16px 0;color:#777;font-size:14px}
+.social-divider::before,.social-divider::after{content:"";flex:1;height:1px;background:#ddd}
+.apple-btn{background:#000;color:#fff;border:0}
+
+/* One consistent dark style for the login and photo steps */
+.login-demo,
+.photo-step {
+  color-scheme: dark;
+}
+
+.login-demo {
+  background: #130f1f !important;
+}
+
+.login-demo .login-card {
+  background: #1f1a2e !important;
+  border: 1px solid #332b4a !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Text */
+.login-demo h1 { color: #f3efff !important; }
+.login-demo h1 em { color: #b79bff !important; }
+.login-demo label { color: #e6e0f5 !important; }
+.login-demo p,
+.login-demo .fine { color: #bdb6d1 !important; }
+.login-demo .pill { background: #2d2445 !important; color: #c9b5ff !important; }
+.login-demo .login-error { background: #3a1d2b !important; color: #ffb3c6 !important; }
+
+/* Inputs: readable text, stay dark when focused */
+.login-demo input,
+.login-demo select {
+  background: #2a2340 !important;
+  border: 1px solid #443a60 !important;
+  color: #f3efff !important;
+  -webkit-text-fill-color: #f3efff;
+}
+.login-demo input::placeholder {
+  color: #8c84a6 !important;
+  opacity: 1;
+}
+.login-demo input:focus,
+.login-demo select:focus {
+  background: #322a4d !important;
+  border-color: #9a6bff !important;
+  box-shadow: 0 0 0 4px rgba(154, 107, 255, 0.25) !important;
+}
+.login-demo select option {
+  background: #2a2340;
+  color: #f3efff;
+}
+
+/* Buttons */
+.login-demo button.primary,
+.photo-step button.primary {
+  background: linear-gradient(135deg, #7041d9, #9a6bff) !important;
+  color: #ffffff !important;
+  border: 0 !important;
+}
+
+.login-demo .text-action,
+.login-demo .login-actions button,
+.photo-step .text-action {
+  background: none !important;
+  border: 0 !important;
+  color: #b79bff !important;
+}
+.login-demo .login-actions button:disabled {
+  color: #6f6886 !important;
+}
+.login-demo .apple-btn {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border: 1px solid #3a3350 !important;
+}
+
+/* Scan step */
+.photo-step .choice {
+  background: #2a2340 !important;
+  color: #f3efff !important;
+  border: 1px solid #443a60 !important;
+}
+.photo-step .choice span {
+  color: #bdb6d1 !important;
+  opacity: 1;
+}
+.photo-frame {
+  background: #2a2340 !important;
+}
+.photo-checking {
+  background: rgba(19, 15, 31, 0.75) !important;
+  color: #ffffff !important;
+}
+
+/* Apple and Google buttons: same size, shape and colour */
+.login-demo .social-btn {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 40px;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: #ffffff !important;
+  color: #1a1530 !important;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.login-demo .social-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.login-demo .social-group {
+  display: grid;
+  gap: 12px;
+  margin-top: 4px;
+}

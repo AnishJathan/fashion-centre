@@ -7,6 +7,7 @@ import java.util.Map;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -17,15 +18,18 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+
     static final String COOKIE = "fc_session";
     private final AuthService auth;
+    private final SocialTokenVerifier verifier;
 
-    public AuthController(AuthService auth) {
+    public AuthController(AuthService auth, SocialTokenVerifier verifier) {
         this.auth = auth;
+        this.verifier = verifier;
     }
-
     public record PhoneRequest(@NotBlank String phone) {}
     public record VerifyRequest(@NotBlank String phone, @Pattern(regexp = "\\d{6}") String code) {}
+    public record SocialRequest(@NotBlank String idToken, String firstName) {}
 
     @PostMapping("/request-code")
     public Map<String, Object> requestCode(@Valid @RequestBody PhoneRequest req) {
@@ -38,7 +42,7 @@ public class AuthController {
         }
         return body;
     }
-
+    @Value("${auth.session-days:365}") private long sessionDays;
     @PostMapping("/verify-code")
     public ResponseEntity<Map<String, Object>> verifyCode(@Valid @RequestBody VerifyRequest req) {
         String token = auth.verifyCode(req.phone(), req.code());
@@ -48,7 +52,7 @@ public class AuthController {
 
         Map<String, Object> body = Map.of("ok", true, "hasPhoto", hasPhoto);
         return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookie(token, Duration.ofDays(30)).toString())
+                .header(HttpHeaders.SET_COOKIE, cookie(token, Duration.ofDays(sessionDays)).toString())
                 .body(body);
     }
 
@@ -60,14 +64,37 @@ public class AuthController {
                 .build();
     }
 
+    @PostMapping("/google")
+    public ResponseEntity<Map<String, Object>> google(@Valid @RequestBody SocialRequest req) {
+        String token = auth.loginWithSocial("google", verifier.verifyGoogle(req.idToken()));
+        return startSession(token);
+    }
+
+    @PostMapping("/apple")
+    public ResponseEntity<Map<String, Object>> apple(@Valid @RequestBody SocialRequest req) {
+        String token = auth.loginWithSocial("apple", verifier.verifyApple(req.idToken(), req.firstName()));
+        return startSession(token);
+    }
+
+    private ResponseEntity<Map<String, Object>> startSession(String token) {
+        boolean hasPhoto = auth.currentUser(token)
+                .map(u -> u.getPhotoPublicId() != null)
+                .orElse(false);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookie(token, Duration.ofDays(sessionDays)).toString())
+                .body(Map.of("ok", true, "hasPhoto", hasPhoto));
+    }
+
     @GetMapping("/me")
-    public Map<String, String> me(@CookieValue(name = COOKIE, required = false) String token) {
+    public Map<String, Object> me(@CookieValue(name = COOKIE, required = false) String token) {
         User user = auth.currentUser(token)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not signed in."));
-        return Map.of(
-                "id", user.getId(),
-                "phone", mask(user.getPhoneNumber()),
-                "firstName", user.getFirstName() == null ? "" : user.getFirstName());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("id", user.getId());
+        body.put("phone", mask(user.getPhoneNumber()));
+        body.put("firstName", user.getFirstName() == null ? "" : user.getFirstName());
+        body.put("hasPhoto", user.getPhotoPublicId() != null);
+        return body;
     }
 
     private static ResponseCookie cookie(String value, Duration maxAge) {
@@ -81,6 +108,7 @@ public class AuthController {
     }
 
     private static String mask(String phone) {
+        if (phone == null || phone.length() < 6) return "";
         return phone.substring(0, 3) + " •••• " + phone.substring(phone.length() - 3);
     }
 }

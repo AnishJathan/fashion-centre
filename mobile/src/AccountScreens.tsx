@@ -1,6 +1,7 @@
 import { PhotoEditor } from "./photo/PhotoEditor";
 import { otpFieldMetrics } from "./photo/layout";
 import { useIsFocused } from "@react-navigation/native";
+import * as AppleAuthentication from "expo-apple-authentication";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -54,6 +55,15 @@ import {
   pollJob,
   validJobId,
 } from "./photo/jobs";
+
+import {
+  appleAvailable,
+  signInWithApple,
+  signInWithGoogle,
+  signOutGoogle,
+  type SocialCredential,
+} from "./core/socialAuth";
+
 const configuredUrl = (path: string) => {
   try {
     return apiUrl(path);
@@ -63,7 +73,8 @@ const configuredUrl = (path: string) => {
 };
 const errorText = (e: unknown) =>
   e instanceof Error ? e.message : "Something went wrong. Please try again.";
-function Login({ simulation }: { simulation: boolean }) {
+function Login({ simulation, navigate }: { simulation: boolean; navigate: (route: Route) => void }) {
+  const app = useApp();
   const p = usePalette();
   const { width, fontScale } = useWindowDimensions();
   const [codeFieldWidth, setCodeFieldWidth] = useState(0);
@@ -105,6 +116,42 @@ function Login({ simulation }: { simulation: boolean }) {
       abort.current?.abort();
     };
   }, [simulation]);
+  async function socialSignIn(pick: () => Promise<SocialCredential | null>) {
+  if (inflight.current) return;
+  inflight.current = true;
+  setBusy(true);
+  setMessage("");
+  setMessageError(false);
+  try {
+    const credential = await pick();
+    if (!credential) return; // cancelled
+    if (simulation) {
+      setMessage("Social sign-in is not available in the demo.");
+      return;
+    }
+    const r = await apiFetch(`/api/auth/${credential.provider}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        credential.provider === "apple"
+          ? { idToken: credential.idToken, firstName: credential.firstName }
+          : { idToken: credential.idToken },
+      ),
+    });
+    if (!r.ok) throw new Error("Sign-in could not be completed. Please try again.");
+    tryOnSession.clear(); // a new account must not inherit the previous one's looks
+    if (active.current) navigate({ name: "home" });
+  } catch (e) {
+    if (active.current) {
+      setMessageError(true);
+      setMessage(errorText(e));
+    }
+  } finally {
+    inflight.current = false;
+    if (active.current) setBusy(false);
+  }
+}
+
   async function action(verify: boolean) {
     if (inflight.current) return;
     inflight.current = true;
@@ -193,31 +240,32 @@ function Login({ simulation }: { simulation: boolean }) {
       if (active.current) setBusy(false);
     }
   }
-  async function logout() {
-    if (inflight.current) return;
-    inflight.current = true;
-    setBusy(true);
-    setMessage("");
-    setMessageError(false);
-    try {
-      const r = await apiFetch("/api/auth/logout", { method: "POST" });
-      if (!r.ok) throw new Error("Could not sign out.");
-      tryOnSession.clear();
-      if (active.current) {
-        setStep("phone");
-        setCode("");
-        setMessage("Signed out.");
-      }
-    } catch (e) {
-      if (active.current) {
-        setMessageError(true);
-        setMessage(errorText(e));
-      }
-    } finally {
-      inflight.current = false;
-      if (active.current) setBusy(false);
+async function logout() {
+  if (inflight.current) return;
+  inflight.current = true;
+  setBusy(true);
+  setMessage("");
+  setMessageError(false);
+  try {
+    const r = await apiFetch("/api/auth/logout", { method: "POST" });
+    if (!r.ok) throw new Error("Could not sign out.");
+    tryOnSession.clear();
+    void signOutGoogle(); // clears the Google account on the device
+    if (active.current) {
+      setStep("phone");
+      setCode("");
+      setMessage("Signed out.");
     }
+  } catch (e) {
+    if (active.current) {
+      setMessageError(true);
+      setMessage(errorText(e));
+    }
+  } finally {
+    inflight.current = false;
+    if (active.current) setBusy(false);
   }
+}
   const remaining = Math.max(0, Math.ceil((expires - now) / 1000)),
     cooldown = Math.max(0, Math.ceil((resend - now) / 1000));
   return (
@@ -256,7 +304,32 @@ function Login({ simulation }: { simulation: boolean }) {
       {!!message && <AccountNotice message={message} error={messageError} />}
       {step === "phone" && (
         <Card>
-          <AccountSection step="Step 1 of 2" title="Your mobile number" />
+          <AccountSection step="Step 1 of 2" title="Continue with" />
+    {appleAvailable() && (
+      <AppleAuthentication.AppleAuthenticationButton
+        buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+        buttonStyle={
+          app.theme === "dark"
+            ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+            : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+        }
+        cornerRadius={12}
+        style={{ width: "100%", height: 48 }}
+        onPress={() => void socialSignIn(signInWithApple)}
+      />
+    )}
+    <Button
+      secondary
+      label="Continue with Google"
+      icon="user"
+      disabled={busy}
+      onPress={() => void socialSignIn(signInWithGoogle)}
+    />
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+      <View style={{ flex: 1, height: 1, backgroundColor: p.line }} />
+      <Text style={{ color: p.muted, fontSize: 12 }}>or use your WhatsApp number</Text>
+      <View style={{ flex: 1, height: 1, backgroundColor: p.line }} />
+    </View>
           <Choices
             label="Country code"
             value={country}
@@ -563,7 +636,7 @@ function SavedTryOn({ route, navigate }: Props) {
         setReady(true);
         setMessage("");
       })
-      .catch((e) => {
+    .catch((e) => {
         if (active && alive.current) {
           setStatusError(true);
           setMessage(errorText(e));
@@ -964,8 +1037,8 @@ function ActiveAccountScreen(props: Props) {
       active = false;
     };
   }, [route.name, product?.id, product?.image, inspectionVersion]);
-  if (route.name === "login" || route.name === "login-demo")
-    return <Login key={route.name} simulation={route.name === "login-demo"} />;
+if (route.name === "login" || route.name === "login-demo")
+  return <Login key={route.name} simulation={route.name === "login-demo"} navigate={navigate} />;
   if (route.name === "try-on")
     return <SavedTryOn key={route.productId} {...props} />;
   return (

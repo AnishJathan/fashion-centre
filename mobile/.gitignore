@@ -4,6 +4,6 @@ dist/
 .env
 .env.local
 .env.*.local
-/android/
+/android
 /ios/
 *.tsbuildinfo

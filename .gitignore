@@ -22,3 +22,12 @@ backend/secrets.properties
 *.mv.db
 *.trace.db
 *.lock.db
+/.idea
+
+mobile/modules/**/build/
+mobile/modules/**/.gradle/
+mobile/modules/**/.cxx/
+mobile/modules/**/Pods/
+mobile/modules/**/local.properties
+mobile/modules/**/xcuserdata/
+mobile/modules/**/DerivedData/

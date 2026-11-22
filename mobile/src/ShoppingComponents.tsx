@@ -12,8 +12,8 @@ import {
   usePalette,
 } from "./ui";
 import { type Product } from "./core/domain";
-import { homePrice } from "./commerceHome";
 import { shoppingGridLayout } from "./shoppingLayout";
+import { homePrice } from "./homeLogic";
 
 export function ShoppingHeader({
   eyebrow,

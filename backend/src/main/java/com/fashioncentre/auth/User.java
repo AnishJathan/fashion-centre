@@ -14,7 +14,10 @@ public class User {
     @Column(length = 36)
     private String id = UUID.randomUUID().toString();
 
-    @Column(nullable = false, unique = true, length = 20)
+    @Version
+    private Long version;
+
+    @Column(unique = true, length = 20)
     private String phoneNumber;
     private String firstName;
     private String lastName;
@@ -25,4 +28,11 @@ public class User {
     private Instant createdAt = Instant.now();
     @Column(nullable = false)
     private Instant updatedAt = Instant.now();
+    @Column(unique = true)
+    private String googleSub;
+
+    @Column(unique = true)
+    private String appleSub;
+    @PreUpdate
+    void touch() { updatedAt = Instant.now(); }
 }

@@ -9,14 +9,24 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+      {
+        "CFBundleURLSchemes": ["com.googleusercontent.apps.150441056689-ddj0ho1g5gbqp3tb2flhpcg9frror2pg"]
+    }]
       },
-      "bundleIdentifier": "com.fashioncentre.preview"
+      "bundleIdentifier": "com.fashioncentre.app",
+      "usesAppleSignIn": true 
+
     },
     "android": {
       "predictiveBackGestureEnabled": true,
-      "package": "com.fashioncentre.preview"
+      "package": "com.fashioncentre.app",
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
+
     "plugins": [
       [
         "expo-image-picker",
@@ -32,8 +42,19 @@
           "cameraPermission": "Fashion Centre checks your pose and photo quality on this device before you choose whether to upload.",
           "recordAudioAndroid": false
         }
-      ]
+      ],
+ 
+      "expo-apple-authentication"
+
     ],
-    "platforms": ["ios", "android"]
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "750ea94d-0342-421c-ade4-2e3b95a1a227"
+      }
+    }
   }
 }

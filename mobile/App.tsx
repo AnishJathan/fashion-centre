@@ -389,7 +389,7 @@ function Navigator() {
         }}
       >
         <Stack.Navigator
-          initialRouteName="home"
+          initialRouteName="login"
           screenOptions={{
             headerStyle: { backgroundColor: p.surface },
             headerTintColor: p.text,

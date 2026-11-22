@@ -11,7 +11,7 @@ import {
   STYLE_CHAT_HISTORY_LIMIT, STYLE_CHAT_LIMIT, styleAssistantLayout, styleAssistantPrice,
   styleAssistantReply, styleAssistantStarters, styleAssistantWelcome,
   type StyleAssistantContext, type StyleReply,
-} from './styleAssistant';
+} from './styleAssistantLogic';
 
 export type StyleAssistantProps = StyleAssistantContext & {
   onNavigate: (route: Route) => void;
