@@ -14,9 +14,16 @@ export function validateApiBase(
     throw new Error("EXPO_PUBLIC_API_URL must be an absolute HTTPS origin.");
   }
   const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+
+  const privateIPv4 =
+    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(url.hostname) ||
+    /^192\.168\.\d{1,3}\.\d{1,3}$/.test(url.hostname) ||
+    /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(url.hostname);
+
+  const localDevelopmentHost = loopback || privateIPv4;
   if (
     (url.protocol !== "https:" &&
-      !(development && loopback && url.protocol === "http:")) ||
+  !(development && localDevelopmentHost && url.protocol === "http:")) ||
     url.username ||
     url.password ||
     url.search ||
@@ -30,6 +37,8 @@ export function validateApiBase(
   return url.origin;
 }
 export function apiUrl(path: string): string {
+  console.log("API URL:", process.env.EXPO_PUBLIC_API_URL);
+  console.log("Development mode:", __DEV__);
   if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\"))
     throw new Error("API paths must be relative to the configured backend.");
   return (

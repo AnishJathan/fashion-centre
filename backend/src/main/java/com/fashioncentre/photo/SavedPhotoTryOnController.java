@@ -1,4 +1,4 @@
-package com.fashioncentre;
+package com.fashioncentre.photo;
 
 import java.io.IOException;
 import java.util.Map;
@@ -13,9 +13,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.fashioncentre.PrunaService;
 import com.fashioncentre.auth.AuthService;
 import com.fashioncentre.auth.User;
-import com.fashioncentre.photo.PhotoStorage;
 
 import lombok.RequiredArgsConstructor;
 

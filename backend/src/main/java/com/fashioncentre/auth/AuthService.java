@@ -122,6 +122,18 @@ public class AuthService {
                 .map(AuthSession::getUser);
     }
 
+    @Transactional(readOnly = true)
+    public Optional<AuthSession> currentSession(String token) {
+        if (token == null || token.isBlank()) {
+            return Optional.empty();
+        }
+
+        return sessions.findByTokenHashAndExpiresAtAfter(
+                sha256(token),
+                Instant.now()
+        );
+    }
+
     @Transactional
     public void logout(String token) {
         if (token != null && !token.isBlank()) {

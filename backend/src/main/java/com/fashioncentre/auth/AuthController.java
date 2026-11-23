@@ -13,15 +13,40 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException; 
+import jakarta.servlet.http.HttpServletRequest;
+import java.security.SecureRandom;
+import java.util.Base64;
+import org.springframework.http.CacheControl;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
     static final String COOKIE = "fc_session";
     private final AuthService auth;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     public AuthController(AuthService auth) {
         this.auth = auth;
+    }
+
+    @GetMapping("/csrf")
+    public ResponseEntity<Map<String, String>> csrf(
+            HttpServletRequest request) {
+
+        var session = request.getSession(true);
+
+        byte[] bytes = new byte[32];
+        SECURE_RANDOM.nextBytes(bytes);
+
+        String token = Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(bytes);
+
+        session.setAttribute("merchant.csrf", token);
+
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(Map.of("csrfToken", token));
     }
 
     public record PhoneRequest(@NotBlank String phone) {}
@@ -74,7 +99,7 @@ public class AuthController {
         return ResponseCookie.from(COOKIE, value)
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("Lax")
+                .sameSite("None")
                 .path("/")
                 .maxAge(maxAge)
                 .build();

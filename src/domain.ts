@@ -9,6 +9,7 @@ export interface Variant {
     options: Record<string, string>;
 }
 export interface Product {
+    url?: string;
     description?: string;
     createdAt?: string;
     id: string;
@@ -81,6 +82,15 @@ export function safeImage(value: unknown): string { if (typeof value !== 'string
 catch {
     return '';
 } }
+export function safeLink(value: unknown): string {
+    if (typeof value !== 'string' || !value) return '';
+    try {
+        const u = new URL(value);
+        return u.protocol === 'https:' && !u.username && !u.password ? u.toString() : '';
+    } catch {
+        return '';
+    }
+}
 export function parseSources(data: unknown): Source[] { if (!record(data) || !Array.isArray(data.shops))
     throw Error('Demo store directory response is invalid.'); const seen = new Set<string>(); return data.shops.map(s => { if (!record(s) || !text(s.key) || !/^[a-z0-9-]+$/.test(s.key) || !text(s.name) || seen.has(s.key))
     throw Error('Demo store directory response is invalid.'); seen.add(s.key); return { key: s.key, name: s.name }; }); }
@@ -107,7 +117,7 @@ export function parseCatalogue(id: string, data: unknown): Brand {
             variantDefinitions.set(variant.key, definition);
             return variant;
         });
-        return { id: p.key, brandId: id, brandName: names, name: p.title, description: p.description as string || undefined, createdAt: p.createdAt as string || undefined, category: p.category, image: safeImage(p.image), variants, moreVariants: p.moreVariants };
+        return { id: p.key, brandId: id, brandName: names, name: p.title, url: safeLink(p.url), description: p.description as string || undefined, createdAt: p.createdAt as string || undefined, category: p.category, image: safeImage(p.image), variants, moreVariants: p.moreVariants };
     });
     return { id, name: names, image: products.find(p => p.image)?.image || '', products, more: data.hasNextPage };
 }
@@ -115,3 +125,92 @@ export async function loadSources(signal?: AbortSignal): Promise<Source[]> { con
     throw Error('Demo store directory unavailable.'); return parseSources(await r.json()); }
 export async function loadCatalogue(id: string, signal?: AbortSignal): Promise<Brand> { const r = await fetch('/api/integrations/shopify/catalogue/' + encodeURIComponent(id) + '?source=public', { signal }); if (!r.ok)
     throw Error('Catalogue unavailable. Retry when your connection is ready.'); return parseCatalogue(id, await r.json()); }
+
+export interface ConnectedStore {
+  shop: string;
+  status: string;
+  connectedAt?: string;
+}
+
+export async function loadMerchantStores(signal?: AbortSignal): Promise<ConnectedStore[]> {
+  const r = await fetch('/api/merchant/shopify/stores', {
+    signal, cache: 'no-store', credentials: 'same-origin'
+  });
+  if (!r.ok) throw Error('Connected stores unavailable.');
+  const d = await r.json();
+  if (!record(d) || !Array.isArray(d.stores)) throw Error('Connected stores response is invalid.');
+  return d.stores.map((s: unknown) => {
+    if (!record(s) || !text(s.shop)) throw Error('Connected stores response is invalid.');
+    return {
+      shop: s.shop,
+      status: typeof s.status === 'string' ? s.status : 'connected',
+      connectedAt: typeof s.connectedAt === 'string' ? s.connectedAt : undefined
+    };
+  });
+}
+
+export async function loadMerchantCatalogue(shop: string, signal?: AbortSignal): Promise<Brand> {
+  const r = await fetch('/api/merchant/shopify/products?limit=48', {
+    signal, cache: 'no-store', credentials: 'same-origin'
+  });
+  if (!r.ok) throw Error('Store products unavailable.');
+  const raw = await r.json();
+  if (!record(raw) || !Array.isArray(raw.products)) throw Error('Store products response is invalid.');
+
+  const adapted = {
+    shopKey: shop,
+    shopName: shop,
+    hasNextPage: false,
+    products: raw.products.map((p: any) => ({
+      key: shop + ':' + p.id,
+      title: p.title,
+      description: typeof p.description === 'string' ? p.description : undefined,
+      category: typeof p.productType === 'string' && p.productType ? p.productType : 'General',
+      image: p.imageUrl ?? '',
+      url: p.productUrl || (p.handle ? 'https://' + shop + '/products/' + p.handle : ''),
+      moreVariants: !!p.moreVariants,
+      variants: (p.variants ?? []).map((v: any) => ({
+        id: v.id,
+        key: shop + ':' + v.id,
+        title: v.title,
+        available: !!v.available,
+        amount: v.price,
+        currency: v.currency || p.currency,
+        options: Object.fromEntries((v.options ?? []).map((o: any) => [o.name, o.value]))
+      }))
+    }))
+  };
+
+  return parseCatalogue(shop, adapted);
+}
+
+export interface PublicBrand {
+  key: string;
+  name: string;
+  image: string;
+  productCount: number;
+}
+
+export async function loadPublicBrands(signal?: AbortSignal): Promise<PublicBrand[]> {
+  const r = await fetch('/api/public/brands', { signal, cache: 'no-store' });
+  if (!r.ok) throw Error('Merchant brands unavailable.');
+  const d = await r.json();
+  if (!record(d) || !Array.isArray(d.brands)) throw Error('Merchant brands response is invalid.');
+  return d.brands.map((b: unknown) => {
+    if (!record(b) || !text(b.key) || !text(b.name)) throw Error('Merchant brands response is invalid.');
+    return {
+      key: b.key,
+      name: b.name,
+      image: safeImage(b.image),
+      productCount: typeof b.productCount === 'number' ? b.productCount : 0
+    };
+  });
+}
+
+export async function loadPublicCatalogue(shop: string, signal?: AbortSignal): Promise<Brand> {
+  const r = await fetch('/api/public/brands/' + encodeURIComponent(shop) + '/catalogue', {
+    signal, cache: 'no-store'
+  });
+  if (!r.ok) throw Error('Brand catalogue unavailable.');
+  return parseCatalogue(shop, await r.json());
+}

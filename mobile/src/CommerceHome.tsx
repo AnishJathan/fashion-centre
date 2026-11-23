@@ -13,7 +13,7 @@ import { BrandMark } from './BrandMark';
 import { Button, Icon, Photo, useBottomOverlay, usePalette } from './ui';
 import { money, type Product } from './core/domain';
 import type { Route } from './navigation';
-import { homeCategories, homePrice, homeSuggestions, homeValueCollections, type BrowseSelection } from './commerceHome';
+import { homeCategories, homePrice, homeSuggestions, homeValueCollections, type BrowseSelection } from './commerceHome.ts';
 
 const citrus = '#FFEA52', ink = '#101B2D';
 const collectionColors = ['#FFEA52', '#83D6FF', '#FF998A', '#A5F0D1'];

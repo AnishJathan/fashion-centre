@@ -1,3 +1,4 @@
+
 import React, {
   createContext,
   useContext,
@@ -12,6 +13,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { readStorefront } from "./core/catalogue.ts";
 import { NativeStorage } from "./core/storage.ts";
+import { apiFetch } from "./core/api.ts";
 import {
   COMMERCE_KEY,
   commerceReducer,
@@ -44,6 +46,7 @@ interface Snapshot {
   registrations: StoreRegistration[];
   themePreference: ThemePreference;
 }
+
 export interface AppState extends Snapshot {
   ready: boolean;
   error: string;
@@ -64,8 +67,57 @@ export interface AppState extends Snapshot {
   setTheme(value: ThemePreference): Promise<void>;
   exportBackup(): Promise<void>;
 }
+
+interface ShopifyOption {
+  name: string;
+  value: string;
+}
+
+interface ShopifyVariant {
+  id: string;
+  title: string;
+  available: boolean;
+  price: string;
+  currency: string;
+  options?: ShopifyOption[];
+}
+
+interface ShopifyProduct {
+  id: string;
+  title: string;
+  handle?: string;
+  description?: string;
+  imageUrl?: string;
+  imageAlt?: string;
+  price?: string;
+  currency?: string;
+  productUrl?: string;
+  variants?: ShopifyVariant[];
+  moreVariants?: boolean;
+}
+
+interface ShopifyCatalogueResponse {
+  products?: ShopifyProduct[];
+}
+
+interface ShopifyReadinessResponse {
+  connected?: boolean;
+  connections?: Array<{
+    brandId?: string;
+    brandName?: string;
+    name?: string;
+    shop?: string;
+    shopName?: string;
+  }>;
+  brandId?: string;
+  brandName?: string;
+  shop?: string;
+  shopName?: string;
+}
+
 const Context = createContext<AppState | null>(null);
 const repository = new NativeStorage(AsyncStorage);
+
 const empty = (): Snapshot => ({
   commerce: initialCommerce(),
   saved: [],
@@ -73,10 +125,109 @@ const empty = (): Snapshot => ({
   registrations: [],
   themePreference: "system",
 });
+
 const message = (error: unknown) =>
   error instanceof Error
     ? error.message
     : "Device data could not be saved. Reload and try again.";
+
+function getShopifyBrandId(readiness: ShopifyReadinessResponse): string | null {
+  return (
+    readiness.connections?.find((connection) => connection.brandId)?.brandId ??
+    readiness.brandId ??
+    null
+  );
+}
+
+function mapShopifyProduct(
+  product: ShopifyProduct,
+  brandId: string,
+  brandName: string,
+): Product {
+  const variants = (product.variants ?? []).map((variant) => ({
+    key: `${brandId}:${variant.id}`,
+    id: variant.id,
+    title: variant.title || "Default",
+    available: variant.available,
+    amount: Number(variant.price ?? product.price ?? 0),
+    currency: variant.currency || product.currency || "INR",
+    options: Object.fromEntries(
+      (variant.options ?? []).map((option) => [
+        option.name,
+        option.value,
+      ]),
+    ),
+  }));
+
+  return {
+    id: `${brandId}:${product.id}`,
+    brandId,
+    brandName,
+    name: product.title,
+    description: product.description ?? "",
+    category: "Shopify",
+    image: product.imageUrl ?? "",
+    variants,
+    moreVariants: product.moreVariants ?? false,
+  };
+}
+
+async function loadConnectedShopify(): Promise<Brand[]> {
+  try {
+    const readinessResponse = await apiFetch(
+      "/api/merchant/shopify/readiness",
+    );
+
+    if (!readinessResponse.ok) return [];
+
+    const readiness =
+      (await readinessResponse.json()) as ShopifyReadinessResponse;
+
+    const brandId = getShopifyBrandId(readiness);
+
+    if (!brandId) return [];
+
+    const productsResponse = await apiFetch(
+      "/api/merchant/shopify/products?limit=50",
+    );
+
+    if (!productsResponse.ok) return [];
+
+    const catalogue =
+      (await productsResponse.json()) as ShopifyCatalogueResponse;
+
+    const connection = readiness.connections?.find(
+      (item) => item.brandId === brandId,
+    );
+
+    const brandName =
+      connection?.brandName ??
+      connection?.name ??
+      readiness.brandName ??
+      connection?.shopName ??
+      readiness.shopName ??
+      connection?.shop ??
+      readiness.shop ??
+      "Connected Shopify Store";
+
+    const products = (catalogue.products ?? []).map((product) =>
+      mapShopifyProduct(product, brandId, brandName),
+    );
+
+    return [
+      {
+        id: brandId,
+        name: brandName,
+        image: products.find((product) => product.image)?.image ?? "",
+        products,
+        more: false,
+      },
+    ];
+  } catch {
+    return [];
+  }
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [snapshot, setSnapshot] = useState<Snapshot>(empty);
   const current = useRef(snapshot);
@@ -93,17 +244,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const generation = useRef(0);
   const catalogueAbort = useRef<AbortController | null>(null);
   const liveProducts = useRef<Product[]>([]);
+  const liveShopifyBrandIds = useRef<string[]>([]);
   const scheme = useColorScheme();
+
   function publish(next: Snapshot) {
     current.current = next;
     if (mounted.current) setSnapshot(next);
   }
+
   function invalidateCatalogue() {
     generation.current++;
     catalogueAbort.current?.abort();
     liveProducts.current = [];
+    liveShopifyBrandIds.current = [];
     if (mounted.current) setBrands([]);
   }
+
   async function reload() {
     await repository.run(async () => {
       initialized.current = false;
@@ -111,7 +267,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setReady(false);
         setError("");
       }
+
       invalidateCatalogue();
+
       try {
         const next: Snapshot = {
           commerce: await repository.read(
@@ -128,11 +286,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
             "system" as ThemePreference,
           ),
         };
+
         publish(next);
         initialized.current = true;
+
         if (mounted.current) {
           setReady(true);
           setRetry((n) => n + 1);
+
           if (repository.recoveryNeeded())
             setNotice(
               "Some saved records need repair. Original data will be preserved before your next change.",
@@ -143,63 +304,105 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     });
   }
+
   useEffect(() => {
     mounted.current = true;
     void reload();
+
     return () => {
       mounted.current = false;
       invalidateCatalogue();
     };
   }, []);
-  // Catalogue requests are read-only. No auth, upload, or generation is triggered here.
+
+  // Loads demo catalogues and authenticated Shopify products separately.
   useEffect(() => {
     if (!ready) return;
+
     const abort = new AbortController();
     catalogueAbort.current = abort;
     const version = ++generation.current;
+
     const valid = () =>
       mounted.current &&
       !abort.signal.aborted &&
       version === generation.current;
+
     setCatalogueLoading(true);
     setCatalogueError("");
     setBrands([]);
     liveProducts.current = [];
+    liveShopifyBrandIds.current = [];
+
     const enabled = current.current.registrations.filter((s) => s.enabled);
-    let directoryError = "",
-      storeErrors: string[] = [];
+
+    let directoryError = "";
+    let storeErrors: string[] = [];
+
     const publishErrors = () =>
       setCatalogueError(
         [directoryError, ...storeErrors].filter(Boolean).join("\n"),
       );
+
     void readStorefront(
       enabled.map((s) => s.id),
       abort.signal,
       (result) => {
         if (!valid()) return;
+
         setSources(result.status === "fulfilled" ? result.value : []);
+
         directoryError =
           result.status === "rejected" ? message(result.reason) : "";
+
         publishErrors();
       },
-      (results) => {
+      async (results) => {
         if (!valid()) return;
-        const loaded = results.flatMap((r) =>
+
+        const demoBrands = results.flatMap((r) =>
           r.status === "fulfilled" ? [r.value] : [],
         );
-        setBrands(loaded);
-        liveProducts.current = loaded.flatMap((b) => b.products);
+
         storeErrors = results.flatMap((r, i) =>
           r.status === "rejected"
             ? [enabled[i].id + ": " + message(r.reason)]
             : [],
         );
+
+        try {
+          const shopifyBrands = await loadConnectedShopify();
+
+          if (!valid()) return;
+
+          const combinedBrands = [...demoBrands, ...shopifyBrands];
+
+          setBrands(combinedBrands);
+
+          liveProducts.current = combinedBrands.flatMap(
+            (brand) => brand.products,
+          );
+
+          liveShopifyBrandIds.current = shopifyBrands.map(
+            (brand) => brand.id,
+          );
+        } catch {
+          if (!valid()) return;
+
+          setBrands(demoBrands);
+          liveProducts.current = demoBrands.flatMap(
+            (brand) => brand.products,
+          );
+        }
+
         publishErrors();
         setCatalogueLoading(false);
       },
     );
+
     return () => abort.abort();
   }, [ready, snapshot.registrations, retry]);
+
   async function mutate(operation: () => Promise<void>): Promise<void> {
     await repository.run(async () => {
       try {
@@ -207,13 +410,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
           throw new Error(
             "Wait for device data to load, or reload after a storage error.",
           );
+
         await operation();
+
         if (mounted.current) setError("");
       } catch (e) {
         if (mounted.current) setError(message(e));
       }
     });
   }
+
   async function changeStores(
     update: (old: StoreRegistration[]) => StoreRegistration[],
   ) {
@@ -224,12 +430,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       publish({ ...current.current, registrations });
     });
   }
+
   async function onboard(id: string) {
     await changeStores((old) => {
       if (!sources.some((s) => s.key === id))
         throw new Error(
           "Reload the store directory before onboarding this store.",
         );
+
       return old.some((s) => s.id === id)
         ? old.map((s) => (s.id === id ? { ...s, enabled: true } : s))
         : [
@@ -238,54 +446,76 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ];
     });
   }
+
   async function toggleStore(id: string) {
     await changeStores((old) =>
       old.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s)),
     );
   }
+
   async function toggle(key: "saved" | "followed", id: string) {
     await mutate(async () => {
       if (!id) throw new Error("A saved reference is required.");
+
       const next = toggleId(current.current[key], id);
       await repository.write("fc." + key, next);
       publish({ ...current.current, [key]: next });
     });
   }
+
   async function dispatch(action: CommerceAction): Promise<boolean> {
     let changed = false;
+
     await mutate(async () => {
       let safeAction = action;
+
       if (action.type === "add" || action.type === "checkout") {
         await repository.assertCurrent(STORES_KEY);
+
         const id =
           action.type === "add" ? action.product.brandId : action.brandId;
-        if (
-          !current.current.registrations.some((s) => s.id === id && s.enabled)
-        )
+
+        const isDemoStore = current.current.registrations.some(
+          (s) => s.id === id && s.enabled,
+        );
+
+        const isConnectedShopifyStore =
+          liveShopifyBrandIds.current.includes(id);
+
+        if (!isDemoStore && !isConnectedShopifyStore)
           throw new Error(
             "Enable this store before adding items or checking out.",
           );
+
         if (action.type === "add") {
           const product = liveProducts.current.find(
             (p) => p.id === action.product.id && p.brandId === id,
           );
+
           if (!product)
             throw new Error("Reload this catalogue before adding the item.");
+
           safeAction = { ...action, product };
-        } else
+        } else {
           safeAction = {
             ...action,
             catalogue: liveProducts.current.filter((p) => p.brandId === id),
           };
+        }
       }
+
       const next = commerceReducer(current.current.commerce, safeAction);
+
       if (next === current.current.commerce) return;
+
       await repository.write(COMMERCE_KEY, next);
       publish({ ...current.current, commerce: next });
       changed = true;
     });
+
     return changed;
   }
+
   async function setTheme(themePreference: ThemePreference) {
     await mutate(async () => {
       parseTheme(JSON.stringify(themePreference));
@@ -293,28 +523,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
       publish({ ...current.current, themePreference });
     });
   }
+
   async function exportBackup() {
     try {
       if (!(await Sharing.isAvailableAsync()))
         throw new Error("Sharing is unavailable on this device.");
+
       const backup = await repository.run(() => repository.backup());
+
       if (!FileSystem.cacheDirectory)
         throw new Error("Temporary device storage is unavailable.");
+
       const uri =
         FileSystem.cacheDirectory +
         "fashion-centre-local-backup-" +
         Date.now() +
         ".json";
+
       try {
         await FileSystem.writeAsStringAsync(
           uri,
           JSON.stringify(backup, null, 2),
         );
+
         await Sharing.shareAsync(uri, {
           mimeType: "application/json",
           UTI: "public.json",
           dialogTitle: "Export private shopping records",
         });
+
         if (mounted.current)
           setNotice(
             "Backup sharing opened. Keep your local shopping records private.",
@@ -326,6 +563,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (mounted.current) setError(message(e));
     }
   }
+
   const value: AppState = {
     ...snapshot,
     ready,
@@ -347,10 +585,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTheme,
     exportBackup,
   };
+
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
+
 export function useApp(): AppState {
   const value = useContext(Context);
+
   if (!value) throw new Error("useApp must be used within AppProvider.");
+
   return value;
 }

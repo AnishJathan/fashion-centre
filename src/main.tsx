@@ -2,7 +2,7 @@ import { parseNavigation, scopeHref } from './navigationScope';
 import { BrandContext, BrandLink } from './StoreNavigation';
 import React, { useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
-import { loadCatalogue, loadSources, readStores, STORES_KEY, readIds, toggleId, selectProducts, money, productPath, type Product, type Brand, type Source, type StoreRegistration, decodeRoute } from './domain';
+import { loadCatalogue, loadSources, readStores, STORES_KEY, readIds, toggleId, selectProducts, money, productPath, type Product, type Brand, type Source, type StoreRegistration, decodeRoute ,loadPublicBrands, loadPublicCatalogue} from './domain';
 import { writeStored, storageRecoveryNeeded, withStorageLock, assertStoredCurrent } from './browserStorage';
 import { commerceReducer, localCommerceRepository, COMMERCE_KEY, type CommerceAction } from './commerce';
 import { CartScreen, CheckoutScreen, OrdersScreen, ProfileScreen } from './CommerceScreens';
@@ -35,6 +35,7 @@ function App() {
     const [tryMe, setTryMe] = useState<Product | null>(null);
     useEffect(() => { const close = () => setTryMe(null); addEventListener('hashchange', close); return () => removeEventListener('hashchange', close); }, []);
     const [hash, setHash] = useState(location.hash), [stores, setStores] = useState(readStores), [sources, setSources] = useState<Source[]>([]), [directoryError, setDirectoryError] = useState(''), [loads, setLoads] = useState<Record<string, Load>>({}), [retry, setRetry] = useState(0);
+    const [publishedBrands, setPublishedBrands] = useState<Brand[]>([]);
     const { route, brandId } = parseNavigation(hash);
     const [state, setState] = useState(() => localCommerceRepository.read()), stateRef = useRef(state);
     const [storageIssue, setStorageIssue] = useState('');
@@ -59,6 +60,35 @@ function App() {
     useEffect(() => { const handler = () => { setHash(location.hash); setQuery(''); setCategory('All'); setStoreFilter(''); setSort('featured'); window.scrollTo(0, 0); }; addEventListener('hashchange', handler); return () => removeEventListener('hashchange', handler); }, []);
     useEffect(() => { const abort = new AbortController(); setDirectoryError(''); loadSources(abort.signal).then(setSources).catch(() => { if (!abort.signal.aborted)
         setDirectoryError('Demo store directory unavailable.'); }); return () => abort.abort(); }, [retry]);
+
+        useEffect(() => {
+  const abort = new AbortController();
+
+  loadPublicBrands(abort.signal)
+    .then(async publicList => {
+      const catalogues = await Promise.all(
+        publicList.map(async item => {
+          try {
+            return await loadPublicCatalogue(item.key, abort.signal);
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      if (!abort.signal.aborted) {
+        setPublishedBrands(
+          catalogues.filter((b): b is Brand => b !== null)
+        );
+      }
+    })
+    .catch(() => {
+      if (!abort.signal.aborted) setPublishedBrands([]);
+    });
+
+  return () => abort.abort();
+}, [retry]);
+
     useEffect(() => { const abort = new AbortController(); const active = stores.filter(s => s.enabled); setLoads(Object.fromEntries(active.map(s => [s.id, { status: 'loading' }]))); for (const s of active)
         loadCatalogue(s.id, abort.signal).then(brand => { if (!abort.signal.aborted)
             setLoads(old => ({ ...old, [s.id]: { status: 'ready', brand } })); }).catch(e => { if (!abort.signal.aborted)
@@ -68,7 +98,20 @@ function App() {
         setStorageIssue('Browser data changed in another tab. Reload to use the latest saved records.'); }; addEventListener('storage', handler); return () => removeEventListener('storage', handler); }, []);
     useEffect(() => { const main = document.getElementById('main-content'); if (main && !main.contains(document.activeElement))
         main.focus({ preventScroll: true }); }, [route]);
-    const enabled = stores.filter(s => s.enabled), brands = enabled.flatMap(s => loads[s.id]?.brand ? [loads[s.id].brand!] : []), products = brands.flatMap(b => b.products), loading = enabled.some(s => !loads[s.id] || loads[s.id].status === 'loading');
+    const enabled = stores.filter(s => s.enabled);
+
+    const demoBrands = enabled.flatMap(s =>
+    loads[s.id]?.brand ? [loads[s.id].brand!] : []
+    );
+
+    const brands = [...demoBrands, ...publishedBrands];
+
+    const products = brands.flatMap(b => b.products);
+
+    const loading = enabled.some(
+    s => !loads[s.id] || loads[s.id].status === 'loading'
+    );
+
     const brand = brands.find(b => b.id === brandId);
     const productId = route.startsWith('/product/') ? decodeRoute(route.slice(9)) || '' : '', product = products.find(p => p.id === productId && (!brandId || p.brandId === brandId)), isSaved = route === '/saved';
     const isHome = route === '/' && !brandId;
@@ -101,8 +144,68 @@ function App() {
     function onboard(id: string) { if (!sources.some(s => s.key === id))
         return; changeStores(old => old.some(s => s.id === id) ? old.map(s => s.id === id ? { ...s, enabled: true } : s) : [...old, { id, enabled: true, onboardedAt: new Date().toISOString() }]); }
     const issues = <>{enabled.map(s => loads[s.id]?.status === 'error' && <div className="demo-note" role="alert" key={s.id}><strong>{sources.find(x => x.key === s.id)?.name || s.id}</strong><p>{loads[s.id].error}</p><button onClick={() => setRetry(n => n + 1)}>Retry catalogue</button></div>)}{loading && <p role="status">Loading onboarded catalogues…</p>}</>;
-    const cards = <div className="products">{list.map(p => <article className="product" key={p.id}><div className="product-photo"><BrandLink className="photo-link" href={productPath(p.id)}>{p.image ? <CatalogueImage key={p.image} src={p.image} alt={p.name} loading="lazy" referrerPolicy="no-referrer"/> : <span className="no-image">No product image supplied</span>}</BrandLink><button className={'save ' + (saved.includes(p.id) ? 'selected' : '')} aria-label={(saved.includes(p.id) ? 'Unsave ' : 'Save ') + p.name} aria-pressed={saved.includes(p.id)} onClick={() => save(p.id)}>{saved.includes(p.id) ? '♥' : '♡'}</button></div><p className="eyebrow">{p.brandName}</p><BrandLink className="product-title" href={productPath(p.id)}>{p.name}</BrandLink><p className="price">{p.variants[0] ? money(Number(p.variants[0].amount), p.variants[0].currency) : 'No variants supplied'}</p><small>{p.variants.some(v => v.available) ? 'Demo catalogue availability' : 'Unavailable'}</small></article>)}</div>;
-    const directory = <div className="brand-grid">{brands.map(b => <BrandLink href={'#/brand/' + b.id} key={b.id}>{b.image && <CatalogueImage key={b.image} src={b.image} alt={b.name + ' catalogue selection'} referrerPolicy="no-referrer"/>}<div><strong>{b.name}</strong><span>{b.products.length} loaded products{b.more ? ' · Partial catalogue' : ''}</span><b>Visit demo store →</b></div></BrandLink>)}</div>;
+    
+
+const cards = <div className="products">{list.map(p => {
+  const isShopify = p.brandId.endsWith('.myshopify.com') && !!p.url;
+  const productHref = isShopify ? p.url! : productPath(p.id);
+
+  return (
+    <article className="product" key={p.id}>
+      <div className="product-photo">
+        {isShopify ? (
+          <a className="photo-link" href={productHref} target="_blank" rel="noopener noreferrer">
+            {p.image ? <CatalogueImage key={p.image} src={p.image} alt={p.name} loading="lazy" referrerPolicy="no-referrer"/> : <span className="no-image">No product image supplied</span>}
+          </a>
+        ) : (
+          <BrandLink className="photo-link" href={productHref}>
+            {p.image ? <CatalogueImage key={p.image} src={p.image} alt={p.name} loading="lazy" referrerPolicy="no-referrer"/> : <span className="no-image">No product image supplied</span>}
+          </BrandLink>
+        )}
+        <button className={'save ' + (saved.includes(p.id) ? 'selected' : '')} aria-label={(saved.includes(p.id) ? 'Unsave ' : 'Save ') + p.name} aria-pressed={saved.includes(p.id)} onClick={() => save(p.id)}>{saved.includes(p.id) ? '♥' : '♡'}</button>
+      </div>
+
+      <p className="eyebrow">{p.brandName}</p>
+
+      {isShopify ? (
+        <a className="product-title" href={productHref} target="_blank" rel="noopener noreferrer">{p.name}</a>
+      ) : (
+        <BrandLink className="product-title" href={productHref}>{p.name}</BrandLink>
+      )}
+
+      <p className="price">{p.variants[0] ? money(Number(p.variants[0].amount), p.variants[0].currency) : 'No variants supplied'}</p>
+      <small>{p.variants.some(v => v.available) ? 'Demo catalogue availability' : 'Unavailable'}</small>
+    </article>
+  );
+})}</div>;
+
+    const directory = (
+  <div className="brand-grid">
+    {brands.map(b => {
+      const isPublishedShopify = b.id.endsWith('.myshopify.com');
+
+      return (
+        <BrandLink href={'#/brand/' + b.id} key={b.id}>
+          {b.image && (
+            <CatalogueImage
+              key={b.image}
+              src={b.image}
+              alt={b.name + ' catalogue selection'}
+              referrerPolicy="no-referrer"
+            />
+          )}
+          <div>
+            <strong>{b.name}</strong>
+            <span>
+              {b.products.length} loaded products{b.more ? ' · Partial catalogue' : ''}
+            </span>
+            <b>{isPublishedShopify ? 'View collection →' : 'Visit demo store →'}</b>
+          </div>
+        </BrandLink>
+      );
+    })}
+  </div>
+);
     return <BrandContext.Provider value={brandId}><BrandLink className="skip-link" href="#main-content" onClick={e => { e.preventDefault(); document.getElementById('main-content')?.focus(); }}>Skip to content</BrandLink><div className="announcement">{brandId ? brandName : 'FASHION CENTRE'} <span>Onboarded demo catalogues · No live purchases</span></div><header><BrandLink className="logo" href="#/">{brandId ? brandName : 'Fashion Centre'}</BrandLink><nav className="desktop-nav"><BrandLink href="#/">Discover</BrandLink><BrandLink href="#/brands">Brands</BrandLink><BrandLink href={brandId ? '#/profile' : '#/merchant'}>{brandId ? 'Settings' : 'Demo stores'}</BrandLink><BrandLink href="#/orders">Orders</BrandLink></nav>{!brandId && <BrandLink className="owner-entry" href="#/owner">For brands</BrandLink>}<BrandLink className="header-cart" href="#/cart" aria-label="Cart">Bag <span>{scopedState.cart.reduce((n, l) => n + l.quantity, 0)}</span></BrandLink></header><main id="main-content" tabIndex={-1} className={route === '/' ? 'discovery' : ''}>
  {storageIssue && <div className="storage-warning" role="alert"><strong>Changes need your attention.</strong><p>{storageIssue}</p><p>No newer saved records have been overwritten. Reload before continuing.</p><button className="secondary" onClick={() => location.reload()}>Reload saved data</button></div>}
  {recovered && <p className="demo-note">Some stored records needed recovery. Valid records remain available; original data is preserved before any repaired save.</p>}

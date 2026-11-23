@@ -22,3 +22,7 @@ backend/secrets.properties
 *.mv.db
 *.trace.db
 *.lock.db
+
+mobile/modules/fashion-vision/android/.gradle/
+
+backend/fashion_centre_backup.sql
