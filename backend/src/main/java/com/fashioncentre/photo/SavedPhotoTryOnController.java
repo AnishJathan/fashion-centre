@@ -1,3 +1,4 @@
+
 package com.fashioncentre.photo;
 
 import java.io.IOException;
@@ -7,6 +8,7 @@ import com.fashioncentre.PrunaService;
 import com.fashioncentre.auth.AuthService;
 import com.fashioncentre.auth.User;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -36,20 +38,30 @@ public class SavedPhotoTryOnController {
     public ResponseEntity<Map<String, String>> start(
             @CookieValue(name = SESSION_COOKIE, required = false) String token,
             @RequestParam("garment") MultipartFile garment) throws IOException {
+
         User user = requireUser(token);
+
         if (user.getPhotoPublicId() == null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Add your full-body photo first.");
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT, "Add your full-body photo first.");
         }
+
         if (garment.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Add a garment image.");
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Add a garment image.");
         }
 
         byte[] garmentBytes = garment.getBytes();
         byte[] personBytes = photos.download(user.getPhotoPublicId());
+
         String personUrl = pruna.uploadImageAndGetUrl(personBytes, "person.jpg");
         String garmentUrl = pruna.uploadImageAndGetUrl(garmentBytes, "garment.jpg");
+
         String providerId = pruna.submitTryOn(personUrl, garmentUrl);
-        var prediction = predictions.save(new SavedPhotoPrediction(user.getId(), providerId));
+
+        var prediction = predictions.save(
+                new SavedPhotoPrediction(user.getId(), providerId));
+
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .body(Map.of("id", prediction.id()));
@@ -59,7 +71,9 @@ public class SavedPhotoTryOnController {
     public ResponseEntity<Map<String, String>> status(
             @CookieValue(name = SESSION_COOKIE, required = false) String token,
             @PathVariable String id) {
+
         var prediction = requirePrediction(token, id);
+
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .body(Map.of("status", pruna.predictionStatus(prediction.providerId())));
@@ -69,7 +83,9 @@ public class SavedPhotoTryOnController {
     public ResponseEntity<byte[]> result(
             @CookieValue(name = SESSION_COOKIE, required = false) String token,
             @PathVariable String id) {
+
         var prediction = requirePrediction(token, id);
+
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .contentType(MediaType.IMAGE_JPEG)
@@ -78,13 +94,19 @@ public class SavedPhotoTryOnController {
 
     private User requireUser(String token) {
         return auth.currentUser(token)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+                .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.UNAUTHORIZED));
     }
 
     private SavedPhotoPrediction requirePrediction(String token, String id) {
         User user = requireUser(token);
         var notFound = new ResponseStatusException(HttpStatus.NOT_FOUND);
-        if (id.length() != 36) throw notFound;
-        return predictions.findByIdAndUserId(id, user.getId()).orElseThrow(() -> notFound);
+
+        if (id.length() != 36) {
+            throw notFound;
+        }
+
+        return predictions.findByIdAndUserId(id, user.getId())
+                .orElseThrow(() -> notFound);
     }
 }

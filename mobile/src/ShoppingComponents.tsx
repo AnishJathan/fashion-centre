@@ -13,7 +13,7 @@ import {
   usePalette,
 } from "./ui";
 import { type Product } from "./core/domain";
-import { homePrice } from "./commerceHome";
+import { homePrice } from "./commerceHome.ts";
 import { shoppingGridLayout } from "./shoppingLayout";
 
 export function ShoppingHeader({

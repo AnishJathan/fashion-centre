@@ -1,12 +1,29 @@
-const valid = (id: string) => /^[a-z0-9-]+$/.test(id) ? id : '';
+const valid = (id: string) =>
+  /^[a-z0-9.-]+$/.test(id) ? id : '';
+
 export function parseNavigation(hash: string) {
   const [path, search = ''] = (hash.replace(/^#/, '') || '/').split('?');
+
   let owner = '';
+
   try {
-    if (/^\/(brand|checkout)\//.test(path)) owner = valid(decodeURIComponent(path.slice(path.indexOf('/', 1) + 1)));
-    else if (/^\/(product|try|photos)\//.test(path)) owner = valid(decodeURIComponent(path.slice(path.indexOf('/', 1) + 1)).split(':')[0]);
-  } catch { /* Existing route validation displays malformed URLs safely. */ }
-  return { route: path, brandId: owner || valid(new URLSearchParams(search).get('brand') || '') };
+    if (/^\/(brand|checkout)\//.test(path)) {
+      owner = valid(
+        decodeURIComponent(path.slice(path.indexOf('/', 1) + 1))
+      );
+    }  else if (/^\/(product|try|photos)\//.test(path)) {
+      owner = valid(
+        decodeURIComponent(path.slice(path.indexOf('/', 1) + 1)).split(':')[0]
+      );
+    }
+  } catch {
+    // Malformed routes are safely ignored.
+  }
+
+  return {
+    route: path,
+    brandId: owner || valid(new URLSearchParams(search).get('brand') || '')
+  };
 }
 /** The URL owns context: refresh, copied links and browser history retain the same shop. */
 export function scopeHref(href: string, brandId: string, global = false) {

@@ -1,3 +1,4 @@
+
 import React, {
   createContext,
   useContext,
@@ -12,6 +13,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { readStorefront } from "./core/catalogue.ts";
 import { NativeStorage } from "./core/storage.ts";
+import { apiFetch } from "./core/api.ts";
 import {
   COMMERCE_KEY,
   commerceReducer,
@@ -37,7 +39,13 @@ import {
   type ThemePreference,
 } from "./core/themePreference.ts";
 
-import { emptyHistory, readHistory, recordVisit, HISTORY_KEY, type BrowsingHistory } from "./core/browsingHistory";
+import {
+  emptyHistory,
+  readHistory,
+  recordVisit,
+  HISTORY_KEY,
+  type BrowsingHistory,
+} from "./core/browsingHistory";
 
 interface Snapshot {
   browsing: BrowsingHistory;
@@ -46,6 +54,7 @@ interface Snapshot {
   registrations: StoreRegistration[];
   themePreference: ThemePreference;
 }
+
 export interface AppState extends Snapshot {
   clearBrowsingHistory(): Promise<void>;
   visit(store: string, product?: string): Promise<void>;
@@ -68,8 +77,57 @@ export interface AppState extends Snapshot {
   setTheme(value: ThemePreference): Promise<void>;
   exportBackup(): Promise<void>;
 }
+
+interface ShopifyOption {
+  name: string;
+  value: string;
+}
+
+interface ShopifyVariant {
+  id: string;
+  title: string;
+  available: boolean;
+  price: string;
+  currency: string;
+  options?: ShopifyOption[];
+}
+
+interface ShopifyProduct {
+  id: string;
+  title: string;
+  handle?: string;
+  description?: string;
+  imageUrl?: string;
+  imageAlt?: string;
+  price?: string;
+  currency?: string;
+  productUrl?: string;
+  variants?: ShopifyVariant[];
+  moreVariants?: boolean;
+}
+
+interface ShopifyCatalogueResponse {
+  products?: ShopifyProduct[];
+}
+
+interface ShopifyReadinessResponse {
+  connected?: boolean;
+  connections?: Array<{
+    brandId?: string;
+    brandName?: string;
+    name?: string;
+    shop?: string;
+    shopName?: string;
+  }>;
+  brandId?: string;
+  brandName?: string;
+  shop?: string;
+  shopName?: string;
+}
+
 const Context = createContext<AppState | null>(null);
 const repository = new NativeStorage(AsyncStorage);
+
 const empty = (): Snapshot => ({
   browsing: emptyHistory(),
   commerce: initialCommerce(),
@@ -77,10 +135,112 @@ const empty = (): Snapshot => ({
   registrations: [],
   themePreference: "system",
 });
+
 const message = (error: unknown) =>
   error instanceof Error
     ? error.message
     : "Device data could not be saved. Reload and try again.";
+
+function getShopifyBrandId(
+  readiness: ShopifyReadinessResponse,
+): string | null {
+  return (
+    readiness.connections?.find((connection) => connection.brandId)
+      ?.brandId ??
+    readiness.brandId ??
+    null
+  );
+}
+
+function mapShopifyProduct(
+  product: ShopifyProduct,
+  brandId: string,
+  brandName: string,
+): Product {
+  const variants = (product.variants ?? []).map((variant) => ({
+    key: `${brandId}:${variant.id}`,
+    id: variant.id,
+    title: variant.title || "Default",
+    available: variant.available,
+    amount: Number(variant.price ?? product.price ?? 0),
+    currency: variant.currency || product.currency || "INR",
+    options: Object.fromEntries(
+      (variant.options ?? []).map((option) => [
+        option.name,
+        option.value,
+      ]),
+    ),
+  }));
+
+  return {
+    id: `${brandId}:${product.id}`,
+    brandId,
+    brandName,
+    name: product.title,
+    description: product.description ?? "",
+    category: "Shopify",
+    image: product.imageUrl ?? "",
+    variants,
+    moreVariants: product.moreVariants ?? false,
+  };
+}
+
+async function loadConnectedShopify(): Promise<Brand[]> {
+  try {
+    const readinessResponse = await apiFetch(
+      "/api/merchant/shopify/readiness",
+    );
+
+    if (!readinessResponse.ok) return [];
+
+    const readiness =
+      (await readinessResponse.json()) as ShopifyReadinessResponse;
+
+    const brandId = getShopifyBrandId(readiness);
+
+    if (!brandId) return [];
+
+    const productsResponse = await apiFetch(
+      "/api/merchant/shopify/products?limit=50",
+    );
+
+    if (!productsResponse.ok) return [];
+
+    const catalogue =
+      (await productsResponse.json()) as ShopifyCatalogueResponse;
+
+    const connection = readiness.connections?.find(
+      (item) => item.brandId === brandId,
+    );
+
+    const brandName =
+      connection?.brandName ??
+      connection?.name ??
+      readiness.brandName ??
+      connection?.shopName ??
+      readiness.shopName ??
+      connection?.shop ??
+      readiness.shop ??
+      "Connected Shopify Store";
+
+    const products = (catalogue.products ?? []).map((product) =>
+      mapShopifyProduct(product, brandId, brandName),
+    );
+
+    return [
+      {
+        id: brandId,
+        name: brandName,
+        image: products.find((product) => product.image)?.image ?? "",
+        products,
+        more: false,
+      },
+    ];
+  } catch {
+    return [];
+  }
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [snapshot, setSnapshot] = useState<Snapshot>(empty);
   const current = useRef(snapshot);
@@ -89,7 +249,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const mounted = useRef(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [publishedIds,setPublishedIds]=useState<string[]>([]);
+  const [publishedIds, setPublishedIds] = useState<string[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [directoryLoading, setDirectoryLoading] = useState(true);
@@ -99,275 +259,493 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const generation = useRef(0);
   const catalogueAbort = useRef<AbortController | null>(null);
   const liveProducts = useRef<Product[]>([]);
+  const liveShopifyBrandIds = useRef<string[]>([]);
   const scheme = useColorScheme();
+
   function publish(next: Snapshot) {
     current.current = next;
     if (mounted.current) setSnapshot(next);
   }
+
   function invalidateCatalogue() {
     generation.current++;
     catalogueAbort.current?.abort();
     liveProducts.current = [];
+    liveShopifyBrandIds.current = [];
+
     if (mounted.current) {
       setDirectoryLoading(true);
       setBrands([]);
     }
   }
+
   async function reload() {
     await repository.run(async () => {
       initialized.current = false;
+
       if (mounted.current) {
         setReady(false);
         setError("");
       }
+
       invalidateCatalogue();
+
       try {
         const next: Snapshot = {
-          browsing: await repository.read(HISTORY_KEY, readHistory, emptyHistory()),
+          browsing: await repository.read(
+            HISTORY_KEY,
+            readHistory,
+            emptyHistory(),
+          ),
           commerce: await repository.read(
             COMMERCE_KEY,
             parseCommerce,
             initialCommerce(),
           ),
-          registrations: await repository.read(STORES_KEY, parseStores, []),
-          followed: await repository.read("fc.followed", parseIds, []),
+          registrations: await repository.read(
+            STORES_KEY,
+            parseStores,
+            [],
+          ),
+          followed: await repository.read(
+            "fc.followed",
+            parseIds,
+            [],
+          ),
           themePreference: await repository.read(
             THEME_KEY,
             parseTheme,
             "system" as ThemePreference,
           ),
         };
+
         publish(next);
         initialized.current = true;
+
         if (mounted.current) {
           setReady(true);
           setRetry((n) => n + 1);
-          if (repository.recoveryNeeded())
+
+          if (repository.recoveryNeeded()) {
             setNotice(
               "Some saved records need repair. Original data will be preserved before your next change.",
             );
+          }
         }
       } catch (e) {
         if (mounted.current) setError(message(e));
       }
     });
   }
+
   useEffect(() => {
     mounted.current = true;
     void reload();
+
     return () => {
       mounted.current = false;
       invalidateCatalogue();
     };
   }, []);
-  // Catalogue requests are read-only. No auth, upload, or generation is triggered here.
+
+  // Loads demo catalogues and authenticated Shopify products separately.
   useEffect(() => {
     if (!ready) return;
+
     const abort = new AbortController();
     catalogueAbort.current = abort;
     const version = ++generation.current;
+
     const valid = () =>
       mounted.current &&
       !abort.signal.aborted &&
       version === generation.current;
+
     setDirectoryLoading(true);
     setCatalogueLoading(true);
     setCatalogueError("");
     setBrands([]);
     liveProducts.current = [];
-    const saved=current.current.registrations;
-    const enabled = [...saved.filter(s=>s.enabled), ...publishedIds.filter(id=>!saved.some(s=>s.id===id)).map(id=>({id}))];
-    let directoryError = "",
-      storeErrors: string[] = [];
+    liveShopifyBrandIds.current = [];
+
+    const saved = current.current.registrations;
+
+    const enabled = [
+      ...saved.filter((s) => s.enabled),
+      ...publishedIds
+        .filter((id) => !saved.some((s) => s.id === id))
+        .map((id) => ({ id })),
+    ];
+
+    let directoryError = "";
+    let storeErrors: string[] = [];
+
     const publishErrors = () =>
       setCatalogueError(
         [directoryError, ...storeErrors].filter(Boolean).join("\n"),
       );
+
     void readStorefront(
       enabled.map((s) => s.id),
       abort.signal,
       (result) => {
         if (!valid()) return;
-        setSources(result.status === "fulfilled" ? result.value : []);
-        if(result.status==="fulfilled"){
-          const ids=result.value.filter(s=>s.preview || s.key.startsWith("shop-")).map(s=>s.key).sort();
-          setPublishedIds(previous=>previous.join(",")===ids.join(",")?previous:ids);
+
+        setSources(
+          result.status === "fulfilled" ? result.value : [],
+        );
+
+        if (result.status === "fulfilled") {
+          const ids = result.value
+            .filter((s) => s.preview || s.key.startsWith("shop-"))
+            .map((s) => s.key)
+            .sort();
+
+          setPublishedIds((previous) =>
+            previous.join(",") === ids.join(",") ? previous : ids,
+          );
         }
+
         setDirectoryLoading(false);
+
         directoryError =
-          result.status === "rejected" ? message(result.reason) : "";
+          result.status === "rejected"
+            ? message(result.reason)
+            : "";
+
         publishErrors();
       },
-      (results) => {
+      async (results) => {
         if (!valid()) return;
-        const loaded = results.flatMap((r) =>
+
+        const demoBrands = results.flatMap((r) =>
           r.status === "fulfilled" ? [r.value] : [],
         );
-        setBrands(loaded);
-        liveProducts.current = loaded.flatMap((b) => b.products);
+
         storeErrors = results.flatMap((r, i) =>
           r.status === "rejected"
             ? [enabled[i].id + ": " + message(r.reason)]
             : [],
         );
+
+        try {
+          const shopifyBrands = await loadConnectedShopify();
+
+          if (!valid()) return;
+
+          const combinedBrands = [
+            ...demoBrands,
+            ...shopifyBrands,
+          ];
+
+          setBrands(combinedBrands);
+
+          liveProducts.current = combinedBrands.flatMap(
+            (brand) => brand.products,
+          );
+
+          liveShopifyBrandIds.current = shopifyBrands.map(
+            (brand) => brand.id,
+          );
+        } catch {
+          if (!valid()) return;
+
+          setBrands(demoBrands);
+
+          liveProducts.current = demoBrands.flatMap(
+            (brand) => brand.products,
+          );
+        }
+
         publishErrors();
         setCatalogueLoading(false);
       },
     );
+
     return () => abort.abort();
   }, [ready, snapshot.registrations, retry, publishedIds]);
-  async function mutate(operation: () => Promise<void>): Promise<void> {
+
+  async function mutate(
+    operation: () => Promise<void>,
+  ): Promise<void> {
     await repository.run(async () => {
       try {
-        if (!initialized.current)
+        if (!initialized.current) {
           throw new Error(
             "Wait for device data to load, or reload after a storage error.",
           );
+        }
+
         await operation();
+
         if (mounted.current) setError("");
       } catch (e) {
         if (mounted.current) setError(message(e));
       }
     });
   }
+
   async function changeStores(
     update: (old: StoreRegistration[]) => StoreRegistration[],
   ) {
     await mutate(async () => {
       const registrations = update(current.current.registrations);
+
       await repository.write(STORES_KEY, registrations);
+
       invalidateCatalogue();
-      publish({ ...current.current, registrations });
+
+      publish({
+        ...current.current,
+        registrations,
+      });
     });
   }
+
   async function onboard(id: string) {
     await changeStores((old) => {
-      if (!sources.some((s) => s.key === id))
+      if (!sources.some((s) => s.key === id)) {
         throw new Error(
           "Reload the store directory before onboarding this store.",
         );
+      }
+
       return old.some((s) => s.id === id)
-        ? old.map((s) => (s.id === id ? { ...s, enabled: true } : s))
+        ? old.map((s) =>
+            s.id === id ? { ...s, enabled: true } : s,
+          )
         : [
             ...old,
-            { id, enabled: true, onboardedAt: new Date().toISOString() },
+            {
+              id,
+              enabled: true,
+              onboardedAt: new Date().toISOString(),
+            },
           ];
     });
   }
+
   async function toggleStore(id: string) {
     await changeStores((old) =>
-      old.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s)),
+      old.map((s) =>
+        s.id === id ? { ...s, enabled: !s.enabled } : s,
+      ),
     );
   }
+
   async function toggleFollowed(id: string) {
     await mutate(async () => {
-      if (!id) throw new Error("A store reference is required.");
+      if (!id) {
+        throw new Error("A store reference is required.");
+      }
+
       const followed = toggleId(current.current.followed, id);
+
       await repository.write("fc.followed", followed);
-      publish({ ...current.current, followed });
+
+      publish({
+        ...current.current,
+        followed,
+      });
     });
   }
-  async function dispatch(action: CommerceAction): Promise<boolean> {
+
+  async function dispatch(
+    action: CommerceAction,
+  ): Promise<boolean> {
     let changed = false;
+
     await mutate(async () => {
       let safeAction = action;
+
       if (action.type === "add" || action.type === "checkout") {
         await repository.assertCurrent(STORES_KEY);
+
         const id =
-          action.type === "add" ? action.product.brandId : action.brandId;
-        if (
-          !(current.current.registrations.find(s=>s.id===id)?.enabled ?? publishedIds.includes(id))
-        )
+          action.type === "add"
+            ? action.product.brandId
+            : action.brandId;
+
+        const isEnabledStore =
+          current.current.registrations.find((s) => s.id === id)
+            ?.enabled ?? publishedIds.includes(id);
+
+        const isConnectedShopifyStore =
+          liveShopifyBrandIds.current.includes(id);
+
+        if (!isEnabledStore && !isConnectedShopifyStore) {
           throw new Error(
             "Enable this store before adding items or checking out.",
           );
+        }
+
         if (action.type === "add") {
           const product = liveProducts.current.find(
-            (p) => p.id === action.product.id && p.brandId === id,
+            (p) =>
+              p.id === action.product.id &&
+              p.brandId === id,
           );
-          if (!product)
-            throw new Error("Reload this catalogue before adding the item.");
-          safeAction = { ...action, product };
-        } else
+
+          if (!product) {
+            throw new Error(
+              "Reload this catalogue before adding the item.",
+            );
+          }
+
           safeAction = {
             ...action,
-            catalogue: liveProducts.current.filter((p) => p.brandId === id),
+            product,
           };
+        } else {
+          safeAction = {
+            ...action,
+            catalogue: liveProducts.current.filter(
+              (p) => p.brandId === id,
+            ),
+          };
+        }
       }
-      const next = commerceReducer(current.current.commerce, safeAction);
+
+      const next = commerceReducer(
+        current.current.commerce,
+        safeAction,
+      );
+
       if (next === current.current.commerce) return;
+
       await repository.write(COMMERCE_KEY, next);
-      publish({ ...current.current, commerce: next });
+
+      publish({
+        ...current.current,
+        commerce: next,
+      });
+
       changed = true;
     });
+
     return changed;
   }
-  async function setTheme(themePreference: ThemePreference) {
+
+  async function setTheme(
+    themePreference: ThemePreference,
+  ) {
     await mutate(async () => {
       parseTheme(JSON.stringify(themePreference));
+
       await repository.write(THEME_KEY, themePreference);
-      publish({ ...current.current, themePreference });
+
+      publish({
+        ...current.current,
+        themePreference,
+      });
     });
   }
+
   async function exportBackup() {
     try {
-      if (!(await Sharing.isAvailableAsync()))
+      if (!(await Sharing.isAvailableAsync())) {
         throw new Error("Sharing is unavailable on this device.");
-      const backup = await repository.run(() => repository.backup());
-      if (!FileSystem.cacheDirectory)
-        throw new Error("Temporary device storage is unavailable.");
+      }
+
+      const backup = await repository.run(() =>
+        repository.backup(),
+      );
+
+      if (!FileSystem.cacheDirectory) {
+        throw new Error(
+          "Temporary device storage is unavailable.",
+        );
+      }
+
       const uri =
         FileSystem.cacheDirectory +
         "fashion-centre-local-backup-" +
         Date.now() +
         ".json";
+
       try {
         await FileSystem.writeAsStringAsync(
           uri,
           JSON.stringify(backup, null, 2),
         );
+
         await Sharing.shareAsync(uri, {
           mimeType: "application/json",
           UTI: "public.json",
           dialogTitle: "Export private shopping records",
         });
-        if (mounted.current)
+
+        if (mounted.current) {
           setNotice(
             "Backup sharing opened. Keep your local shopping records private.",
           );
+        }
       } finally {
-        await FileSystem.deleteAsync(uri, { idempotent: true });
+        await FileSystem.deleteAsync(uri, {
+          idempotent: true,
+        });
       }
     } catch (e) {
       if (mounted.current) setError(message(e));
     }
   }
+
   const value: AppState = {
     ...snapshot,
-    clearBrowsingHistory: () => mutate(async () => {
-      const browsing = emptyHistory();
-      await repository.write(HISTORY_KEY, browsing);
-      publish({ ...current.current, browsing });
-      if (mounted.current) setNotice("Browsing history cleared.");
-    }),
-    visit: (store, product) => mutate(async () => {
-      const previous = current.current.browsing;
-      const browsing = recordVisit(previous, store, product);
-      if (browsing === previous) return;
-      await repository.write(HISTORY_KEY, browsing);
-      publish({ ...current.current, browsing });
-    }),
+
+    clearBrowsingHistory: () =>
+      mutate(async () => {
+        const browsing = emptyHistory();
+
+        await repository.write(HISTORY_KEY, browsing);
+
+        publish({
+          ...current.current,
+          browsing,
+        });
+
+        if (mounted.current) {
+          setNotice("Browsing history cleared.");
+        }
+      }),
+
+    visit: (store, product) =>
+      mutate(async () => {
+        const previous = current.current.browsing;
+        const browsing = recordVisit(
+          previous,
+          store,
+          product,
+        );
+
+        if (browsing === previous) return;
+
+        await repository.write(HISTORY_KEY, browsing);
+
+        publish({
+          ...current.current,
+          browsing,
+        });
+      }),
+
     ready,
     error,
     notice,
     clearNotice: () => setNotice(""),
+
     sources,
     brands,
     products: brands.flatMap((b) => b.products),
+
     directoryLoading,
     catalogueLoading,
     catalogueError,
-    theme: resolveTheme(snapshot.themePreference, scheme === "dark"),
+
+    theme: resolveTheme(
+      snapshot.themePreference,
+      scheme === "dark",
+    ),
+
     reload,
     onboard,
     toggleStore,
@@ -376,10 +754,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTheme,
     exportBackup,
   };
-  return <Context.Provider value={value}>{children}</Context.Provider>;
+
+  return (
+    <Context.Provider value={value}>
+      {children}
+    </Context.Provider>
+  );
 }
+
 export function useApp(): AppState {
   const value = useContext(Context);
-  if (!value) throw new Error("useApp must be used within AppProvider.");
+
+  if (!value) {
+    throw new Error(
+      "useApp must be used within AppProvider.",
+    );
+  }
+
   return value;
 }
