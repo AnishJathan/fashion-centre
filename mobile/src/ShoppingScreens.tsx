@@ -1,10 +1,13 @@
+import {isLiveStore,storeCheckout} from "./core/storeCheckout";
+import {apiFetch} from "./core/api";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Text } from "./Typography";
 import {
+  Linking,
   ActivityIndicator,
   FlatList,
   Pressable,
   ScrollView,
-  Text,
   View,
   useWindowDimensions,
 } from "react-native";
@@ -12,13 +15,12 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   defaultVariant,
-  browseControls,
   createOperationGate,
 } from "./core/shopper";
 import { useApp } from "./state";
-import { ExperienceIntro } from "./Experience";
+import { ExperienceIntro } from "./Experience.tsx";
 import { BrandMark } from "./BrandMark";
-import { CommerceHome } from "./CommerceHome";
+import { CommerceHome } from "./CommerceHome.tsx";
 import { BrandStorefront } from "./BrandStorefront";
 import { moods, moodProducts, type MoodId } from "./experience";
 import type { Route } from "./navigation";
@@ -101,7 +103,7 @@ function CatalogueChoices({ label, value, options, onChange, showLabel = false }
           onPress={() => onChange(option.value)}
           style={({ pressed }) => ({ minHeight: 48, minWidth: 48, maxWidth: Math.max(48, availableWidth || width - 32), paddingVertical: 4, justifyContent: "center", opacity: pressed ? 0.7 : 1 })}
         >
-          <View style={{ minHeight: 30, paddingHorizontal: 11, paddingVertical: 4, borderRadius: 18, borderWidth: 1, borderColor: selected ? palette.accent : palette.line, backgroundColor: selected ? palette.tint : palette.surface, justifyContent: "center" }}>
+          <View style={{ minHeight: 30, paddingHorizontal: 11, paddingVertical: 4, borderRadius: 24, borderWidth: 1, borderColor: selected ? palette.accent : palette.line, backgroundColor: selected ? palette.tint : palette.surface, justifyContent: "center" }}>
             <Text style={{ color: selected ? palette.accent : palette.text, fontSize: 13, lineHeight: 18, fontWeight: selected ? "600" : "400", flexShrink: 1 }}>{option.label}</Text>
           </View>
         </Pressable>;
@@ -121,8 +123,17 @@ function ShoppingPage(props: Props) {
   // Home owns its virtualized list and pinned controls. Never nest that list in
   // Screen's vertical ScrollView; browse/detail routes keep their existing shell.
   if (content.type === CommerceHome) return content;
+  const showDirectory = props.route.name === "stores";
+  const loading = showDirectory ? a.directoryLoading : a.catalogueLoading;
   return <Screen scrollRef={scroll} contentContainerStyle={{ paddingTop: 6, gap: 8 }}>
-    {a.catalogueLoading && <Card><Row><ActivityIndicator accessibilityLabel="Loading catalogues" /><Body>Loading your catalogues…</Body></Row></Card>}
+    {loading && (
+      <Card>
+        <Row>
+          <ActivityIndicator accessibilityLabel={showDirectory ? "Loading store directory" : "Loading catalogues"} />
+          <Body>{showDirectory ? "Loading the store directory…" : "Loading your catalogues…"}</Body>
+        </Row>
+      </Card>
+    )}
     {!!a.catalogueError && <Card><Status message={a.catalogueError} error /><Button label="Retry catalogues" onPress={() => { void a.reload(); }} /></Card>}
     {content}
   </Screen>;
@@ -187,7 +198,7 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
               onPress={() => { if (!selected) navigate({ name: section.name, brandId: route.brandId }); }}
               style={({ pressed }) => ({ flex: 1, minWidth: 48, minHeight: 48, paddingVertical: 4, justifyContent: "center", opacity: pressed ? 0.7 : 1 })}
             >
-              <View style={{ minHeight: 30, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, backgroundColor: selected ? palette.tint : "transparent", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 }}>
+              <View style={{ minHeight: 30, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 24, backgroundColor: selected ? palette.tint : "transparent", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 }}>
                 <Icon name={section.icon} size={16} color={selected ? palette.accent : palette.muted} />
                 <Text style={{ color: selected ? palette.accent : palette.muted, fontSize: 13, lineHeight: 18, fontWeight: selected ? "600" : "500", flexShrink: 1 }}>{section.label}</Text>
               </View>
@@ -310,7 +321,7 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
           Adding a store does not connect Shopify or authorize a merchant
           account.
         </ShoppingNotice>
-        {!a.sources.length && !a.catalogueLoading && (
+        {!a.sources.length && !a.directoryLoading && (
           <ShoppingEmpty
             title="No demo stores loaded"
             description="The directory is not available yet. Try loading it again."
@@ -401,8 +412,7 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
           key={product.image}
           uri={product.image}
           label={product.name}
-          contain
-          height={Math.min(280, Math.max(200, (window.width - 32) * .72))}
+          height={Math.min(460, Math.max(200, window.width - 32))}
         />
         <Button label="Try on this piece" icon="camera" disabled={!product.image} onPress={() => navigate({ name: "try-on", productId: product.id, brandId: product.brandId })} style={{ position: "absolute", bottom: 12, right: 12, minHeight: 48, paddingHorizontal: 14 }} />
         </View>
@@ -548,7 +558,7 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
         <ShoppingHeader compact
           eyebrow="Your local selection"
           title="Your bag"
-          description={`${count} ${count === 1 ? "piece" : "pieces"} · Each store has a separate demo checkout.`}
+          description={`${count} ${count === 1 ? "piece" : "pieces"} · Each store has its own basket and checkout.`}
         />
         {!lines.length && (
           <ShoppingEmpty compact
@@ -573,7 +583,7 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
                 <Badge>Known catalogue subtotal</Badge>
                 {prices(group)}
                 <Button
-                  label="Review demo checkout"
+                  label={isLiveStore(id) ? "Review basket" : "Review demo checkout"}
                   disabled={!checkoutReady(group, a.products)}
                   onPress={() => navigate({ name: "checkout", brandId: id })}
                 />
@@ -589,8 +599,7 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
           );
         })}
         <Body>
-          No combined cross-currency total, tax, shipping, reservations, or
-          payments are calculated.
+          Each merchant sets payment methods, delivery options and final charges at checkout.
         </Body>
       </>
     );
@@ -600,6 +609,13 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
     const ready = checkoutReady(lines, a.products);
     async function complete() {
       if (!ready || submitting.current || !route.brandId) return;
+      if(isLiveStore(route.brandId)){
+        submitting.current=true;setBusy(true);setMessage("");
+        try {await Linking.openURL(await storeCheckout(apiFetch,route.brandId,lines));}
+        catch {setMessageError(true);setMessage("Couldn’t open checkout. Your basket is saved.");}
+        finally {submitting.current=false;setBusy(false);}
+        return;
+      }
       const token = gate.current.capture();
       submitting.current = true;
       setBusy(true);
@@ -632,7 +648,7 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
     return (
       <>
         <ShoppingHeader compact
-          eyebrow="Local demo checkout"
+          eyebrow={isLiveStore(route.brandId) ? "Store checkout" : "Local demo checkout"}
           title="Review your selection"
           description={lines[0]?.brandName || "Your store selection"}
         />
@@ -645,12 +661,12 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
           />
         )}
         <ShoppingCard>
-          <Badge>Demo order total</Badge>
+          <Badge>{isLiveStore(route.brandId) ? "Basket subtotal" : "Demo order total"}</Badge>
           {prices(lines)}
-          <ShoppingNotice compact title="No payment will be taken">
+          {isLiveStore(route.brandId) ? <Body>Your merchant calculates delivery and collects payment securely on Shopify.</Body> : <ShoppingNotice compact title="No payment will be taken">
             Creates a record only on this device. No request is sent to Shopify
             or Mock Shop and no stock is reserved.
-          </ShoppingNotice>
+          </ShoppingNotice>}
           {!ready && (
             <Body>
               Checkout unavailable. All variants must be available from this
@@ -658,7 +674,7 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
             </Body>
           )}
           <Button
-            label={busy ? "Recording…" : "Place demo order"}
+            label={isLiveStore(route.brandId) ? "Continue to store checkout" : busy ? "Recording…" : "Place demo order"}
             busy={busy}
             disabled={!ready || busy}
             onPress={() => {
@@ -826,19 +842,18 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
     setShowFilters(!!selection.showFilters); setShowSearch(!!selection.query);
     setBrowseOnly(true); scrollTo?.(0);
   }}><ExperienceIntro compact navigate={navigate} mood={mood} onMood={setMood} onBrowse={() => { setQuery(""); setCategory("All"); setStore(""); setCurrencyFilter(""); setPriceCap(null); setSort("featured"); setShowFilters(false); setShowSearch(false); setBrowseOnly(true); scrollTo?.(0); }} /></CommerceHome>;
-  const controls = route.name === "home" ? { store, sort, showStoreAndSort: true } : browseControls(route.name, store, sort);
-  const list = selectProducts(route.name === "home" ? moodProducts(scoped, mood) : scoped, controls.store, query, category).filter(
+  const list = selectProducts(route.name === "home" ? moodProducts(scoped, mood) : scoped, store, query, category).filter(
     (p) => (!currencyFilter || p.variants.some(v => v.available && v.currency === currencyFilter)) && (!priceCap || p.variants.some(v => v.available && v.currency === priceCap.currency && v.amount <= priceCap.amount)),
   );
-  if (controls.sort === "name")
+  if (sort === "name")
     list.sort((a, b) => a.name.localeCompare(b.name));
-  if (controls.sort === "newest")
+  if (sort === "newest")
     list.sort(
       (a, b) =>
         (Date.parse(b.createdAt || "") || 0) -
         (Date.parse(a.createdAt || "") || 0),
     );
-  if (controls.sort === "price") {
+  if (sort === "price") {
     const firstPrice = (p: Product) => p.variants.filter(v => v.available && (!currencyFilter || v.currency === currencyFilter)).sort((a, b) => a.currency.localeCompare(b.currency) || a.amount - b.amount)[0];
     list.sort((a, b) => {
       const av = firstPrice(a), bv = firstPrice(b);
@@ -920,7 +935,7 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
               options={["All", ...new Set(scoped.map(p => p.category).filter(Boolean))].map(c => ({ value: c, label: c }))}
             />
           </View>
-          {controls.showStoreAndSort && <Pressable
+          <Pressable
             accessibilityRole="button"
             accessibilityLabel="Filters & sort"
             accessibilityHint="Show or hide store, sort and currency choices."
@@ -929,11 +944,11 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
             onPress={() => setShowFilters(value => !value)}
             style={({ pressed }) => ({ minHeight: 48, minWidth: 48, paddingVertical: 4, alignItems: "center", justifyContent: "center", opacity: pressed ? .65 : 1 })}
           >
-            <View style={{ minHeight: 30, minWidth: 38, borderRadius: 16, borderWidth: 1, borderColor: showFilters || activeOptions ? palette.accent : palette.line, backgroundColor: showFilters || activeOptions ? palette.tint : palette.surface, alignItems: "center", justifyContent: "center" }}>
+            <View style={{ minHeight: 30, minWidth: 38, borderRadius: 24, borderWidth: 1, borderColor: showFilters || activeOptions ? palette.accent : palette.line, backgroundColor: showFilters || activeOptions ? palette.tint : palette.surface, alignItems: "center", justifyContent: "center" }}>
               <Icon name="sliders" size={17} color={palette.accent} />
               {!!activeOptions && <View accessible={false} style={{ position: "absolute", top: 4, right: 4, width: 5, height: 5, borderRadius: 3, backgroundColor: palette.accent }} />}
             </View>
-          </Pressable>}
+          </Pressable>
         </View>
         {hasFilters && <View testID="catalogue-active-filters" style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <Text accessibilityLiveRegion="polite" style={{ flex: 1, minWidth: 0, color: palette.muted, fontSize: 12, lineHeight: 18 }}>{activeSummary.join(" · ")}</Text>
@@ -945,7 +960,7 @@ function useShoppingContent({ route, navigate, back, scrollTo }: Props & { scrol
             style={({ pressed }) => ({ minWidth: 48, minHeight: 48, paddingHorizontal: 4, alignItems: "center", justifyContent: "center", opacity: pressed ? .65 : 1 })}
           ><Text style={{ color: palette.accent, fontSize: 12, lineHeight: 18, fontWeight: "600" }}>Clear</Text></Pressable>
         </View>}
-        {showFilters && controls.showStoreAndSort && <View testID="catalogue-filter-options" style={{ paddingTop: 4, borderTopWidth: 1, borderColor: palette.line, gap: 2 }}>
+        {showFilters && <View testID="catalogue-filter-options" style={{ paddingTop: 4, borderTopWidth: 1, borderColor: palette.line, gap: 2 }}>
           {!route.brandId && <CatalogueChoices
             showLabel
             label="Store"

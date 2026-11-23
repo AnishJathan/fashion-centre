@@ -1,6 +1,6 @@
 # Client conversion inventory
 
-The retained original client route families have native source implementations. Wishlist was removed by request; its stored data is preserved. This is an implementation inventory, not a claim of installed-device certification. The Java backend remains a backend; its existing disabled/live boundaries are unchanged.
+This inventory maps web flows to their mobile counterparts. Stored wishlist records remain exportable in backups. Check the [setup guide](README.md) and [backend guide](../backend/README.md) for runtime requirements.
 
 | Original flow                  | Native implementation                                                                                        | Checks included                                                                                              |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
@@ -18,16 +18,16 @@ The retained original client route families have native source implementations. 
 | Local backup/recovery          | Native file/share sheet, raw malformed-record recovery                                                       | Queue, uncertain write, stale baseline, private-data exclusion tests                                         |
 | Real account OTP               | `login`, request/verify/resend/change-number, account photo, logout                                          | Backend contracts retained; real transport/cookies require device verification                               |
 | OTP presentation simulation    | `login-demo`, sample number, attempts/expiry/failure/restart                                                 | No network or account; distinct from real login                                                              |
-| Account photo selection        | Native gallery, normalized temporary JPEG, local checks, separate upload confirmation                        | Header/size/dimension limits and privacy cleanup; backend upload untested                                    |
+| Account photo selection        | Live camera scan, normalized temporary JPEG, local checks, separate upload confirmation                        | Header/size/dimension limits and privacy cleanup; backend upload untested                                    |
 | Automatic body scan            | Native camera + nine-joint pose, brightness/sharpness, sustained-ready capture                               | Threshold/gate tests, final validation, cancellation/late-frame cleanup, permission-sheet handling           |
-| iOS pose/quality               | Swift Expo module, Apple Vision, orientation-aware bounded ImageIO decode                                    | Autolinking/project generation; static API review, **not compiled or device-run**                            |
-| Android pose/quality           | Kotlin Expo module, bundled ML Kit, bounded EXIF-aware decode                                                | Autolinking/project generation; 28 pure Java synthetic assertions, **native module not compiled/device-run** |
+| iOS pose/quality               | Swift Expo module, Apple Vision, orientation-aware bounded ImageIO decode                                    | Native build run on an iPhone simulator. Physical iPhone capture and calibration remain open.                            |
+| Android pose/quality           | Kotlin Expo module, bundled ML Kit, bounded EXIF-aware decode                                                | Android development build installed previously; 28 synthetic metric assertions; physical camera calibration pending |
 | Local try-on preparation       | `prepare`, always-available scoped garment chooser, garment decode/dimension feedback, both acknowledgements | Missing/broken garment blocks review; replacing garment resets personal preview; no upload                   |
 | Saved-photo generation         | `try-on`, separate consent, saved-photo checks, one submission, bounded polling/result                       | Mocked actual coordinator tests for terminal retry vs uncertain locks; no paid calls                         |
 | Appearance                     | Light/dark/device; photographs unchanged                                                                     | Native theme provider and Expo system UI configuration; screen-reader/device appearance tests pending        |
 | Interrupted navigation         | Native back/focus handling, transient-photo teardown, stale result suppression                               | Pure focus/capture/polling tests; full UI device walkthrough pending                                         |
 
-The mobile UI refinement is documented in `UI-REFINEMENT.md`, including the retained route families and the device-verification boundary.
+See the historical [mobile UI refinement](../docs/history/MOBILE-UI-REFINEMENT.md) for the original design and test scope.
 
 ## Intentional platform adaptations
 

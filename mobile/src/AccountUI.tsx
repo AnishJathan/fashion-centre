@@ -1,15 +1,16 @@
 import React, { useState } from "react";
+import { Text } from "./Typography";
 import {
   ActivityIndicator,
   Image,
   Pressable,
-  Text,
   View,
   useWindowDimensions,
   type ImageProps,
 } from "react-native";
 import { Body, Heading, Icon, Status, usePalette } from "./ui";
 import { previewHeight } from "./photo/layout";
+import { metrics, pageLayout } from "./design";
 
 /** One large accessible target, rather than a small switch beside untappable text. */
 export function ConsentRow({
@@ -32,14 +33,14 @@ export function ConsentRow({
       disabled={disabled}
       onPress={() => onChange(!checked)}
       style={({ pressed }) => ({
-        minHeight: 48,
+        minHeight: metrics.touch,
         flexDirection: "row",
         alignItems: "flex-start",
-        gap: 10,
-        padding: 10,
+        gap: metrics.compactGap,
+        padding: metrics.gap,
         borderWidth: 1,
-        borderRadius: 12,
-        borderColor: checked ? p.accent : p.line,
+        borderRadius: metrics.controlRadius,
+        borderColor: checked ? p.accent : p.controlLine,
         backgroundColor: checked ? p.tint : p.surface,
         opacity: disabled ? 0.6 : pressed ? 0.75 : 1,
       })}
@@ -51,7 +52,7 @@ export function ConsentRow({
           height: 22,
           width: 22,
           flexShrink: 0,
-          borderRadius: 3,
+          borderRadius: 6,
           borderWidth: 1.5,
           borderColor: checked ? p.accent : p.muted,
           backgroundColor: checked ? p.accent : p.surface,
@@ -85,7 +86,7 @@ export function AccountNotice({
   const p = usePalette();
   if (!message) return null;
   if (compact) return (
-    <View accessibilityRole={error ? "alert" : undefined} accessibilityLiveRegion="polite" style={{ flexDirection: "row", alignItems: "flex-start", gap: 8, paddingVertical: 6 }}>
+    <View accessibilityRole={error ? "alert" : undefined} accessibilityLiveRegion="polite" style={{ flexDirection: "row", alignItems: "flex-start", gap: metrics.compactGap, paddingVertical: metrics.compactGap }}>
       {busy ? <ActivityIndicator color={p.accent} size="small" accessibilityLabel="In progress" /> : <Icon name="info" size={18} color={error ? p.error : p.muted} />}
       <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
         {!!title && <Text style={{ color: p.text, fontSize: 14, lineHeight: 20, fontWeight: "600" }}>{title}</Text>}
@@ -94,13 +95,13 @@ export function AccountNotice({
     </View>
   );
   return (
-    <View style={{ gap: 8 }}>
+    <View style={{ gap: metrics.compactGap }}>
       {!!title && (
         <Text style={{ color: p.text, fontSize: 14, fontWeight: "700" }}>
           {title}
         </Text>
       )}
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: metrics.compactGap }}>
         {busy && (
           <ActivityIndicator
             color={p.accent}
@@ -125,6 +126,7 @@ export function PhotoPreview({
 }) {
   const p = usePalette();
   const { width, height } = useWindowDimensions();
+  const fallbackWidth = Math.min(width, 704) - 2 * (pageLayout(width).horizontal + metrics.gap);
   const [measuredWidth, setMeasuredWidth] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const [failed, setFailed] = React.useState(false);
@@ -138,7 +140,7 @@ export function PhotoPreview({
       onLayout={(event) => setMeasuredWidth(event.nativeEvent.layout.width)}
       style={{
         overflow: "hidden",
-        borderRadius: 12,
+        borderRadius: metrics.cardRadius,
         backgroundColor: p.tint,
         borderWidth: 1,
         borderColor: p.line,
@@ -163,7 +165,7 @@ export function PhotoPreview({
         }}
         style={{
           width: "100%",
-          height: previewHeight(measuredWidth || width - 76, height, compact),
+          height: previewHeight(measuredWidth || fallbackWidth, height, compact),
         }}
       />
       {(loading || failed) && (
@@ -175,8 +177,8 @@ export function PhotoPreview({
             left: 0,
             right: 0,
             bottom: 0,
-            padding: 12,
-            gap: 8,
+            padding: metrics.gap,
+            gap: metrics.compactGap,
             justifyContent: "center",
             alignItems: "center",
             backgroundColor: p.tint,
@@ -212,12 +214,9 @@ export function AccountSection({
 }) {
   const p = usePalette();
   return (
-    <View style={{ gap: 6 }}>
+    <View style={{ gap: metrics.compactGap }}>
       {!!step && (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Text style={{ color: p.accent, fontSize: 11, lineHeight: 18, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase", flexShrink: 1 }}>{step}</Text>
-          <View style={{ flex: 1, minWidth: 20, height: 1, backgroundColor: p.line }} />
-        </View>
+        <Text style={{ color: p.accent, fontSize: 11, lineHeight: 18, fontWeight: "700", letterSpacing: 0.8, textTransform: "uppercase" }}>{step}</Text>
       )}
       <Heading>{title}</Heading>
       {!!description && <Body>{description}</Body>}
@@ -231,8 +230,8 @@ export function SelectedGarment({ name, brand, uri }: { name: string; brand: str
   const p = usePalette();
   const [failedUri, setFailedUri] = useState("");
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 10, backgroundColor: p.surface, borderWidth: 1, borderColor: p.line, borderRadius: 12 }}>
-      <View style={{ width: 84, height: 108, flexShrink: 0, borderRadius: 8, backgroundColor: p.tint, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
+    <View style={{ flexDirection: "row", alignItems: "center", gap: metrics.gap, padding: metrics.gap, backgroundColor: p.surface, borderWidth: 1, borderColor: p.line, borderRadius: metrics.cardRadius }}>
+      <View style={{ width: 84, height: 108, flexShrink: 0, borderRadius: metrics.cardRadius, backgroundColor: p.tint, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
         {uri && failedUri !== uri ? <Image source={{ uri }} accessibilityLabel={`Selected garment: ${name}`} resizeMode="contain" onError={() => setFailedUri(uri)} style={{ width: "100%", height: "100%" }} /> : <Icon name="image" size={26} color={p.muted} />}
       </View>
       <View style={{ flex: 1, minWidth: 0, gap: 5 }}>

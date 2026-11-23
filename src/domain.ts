@@ -33,6 +33,7 @@ export interface StoreRegistration {
     onboardedAt: string;
 }
 export interface Source {
+  preview?: true;
     key: string;
     name: string;
 }
@@ -53,7 +54,14 @@ export function readIds(key: string): string[] { return readStored(key, raw => {
 catch {
     return [];
 } }, []); }
-export function selectProducts(items: Product[], brandId = '', query = '', category = 'All') { return items.filter(p => (!brandId || p.brandId === brandId) && (category === 'All' || p.category === category) && (p.name + ' ' + p.brandName + ' ' + p.category).toLowerCase().includes(query.trim().toLowerCase())); }
+export function selectProducts(items: Product[], brandId = '', query = '', category = 'All') {
+    const search = query.trim().toLowerCase();
+    return items.filter(product =>
+        (!brandId || product.brandId === brandId) &&
+        (category === 'All' || product.category === category) &&
+        (product.name + ' ' + product.brandName + ' ' + product.category).toLowerCase().includes(search),
+    );
+}
 const currencies = new Set(Intl.supportedValuesOf('currency'));
 const precision = new Map<string, number>();
 export function currencyDigits(currency: string) { if (!/^[A-Z]{3}$/.test(currency) || !currencies.has(currency))
@@ -83,7 +91,7 @@ catch {
 } }
 export function parseSources(data: unknown): Source[] { if (!record(data) || !Array.isArray(data.shops))
     throw Error('Demo store directory response is invalid.'); const seen = new Set<string>(); return data.shops.map(s => { if (!record(s) || !text(s.key) || !/^[a-z0-9-]+$/.test(s.key) || !text(s.name) || seen.has(s.key))
-    throw Error('Demo store directory response is invalid.'); seen.add(s.key); return { key: s.key, name: s.name }; }); }
+    throw Error('Demo store directory response is invalid.'); seen.add(s.key); return { key: s.key, name: s.name, ...(s.preview === true ? {preview:true as const} : {}) }; }); }
 export function parseCatalogue(id: string, data: unknown): Brand {
     const fail = () => { throw Error('Catalogue response is invalid. Retry when the source is available.'); };
     if (!record(data) || data.shopKey !== id || !text(data.shopName) || !Array.isArray(data.products) || data.products.length > 48 || typeof data.hasNextPage !== 'boolean')
@@ -111,7 +119,10 @@ export function parseCatalogue(id: string, data: unknown): Brand {
     });
     return { id, name: names, image: products.find(p => p.image)?.image || '', products, more: data.hasNextPage };
 }
-export async function loadSources(signal?: AbortSignal): Promise<Source[]> { const r = await fetch('/api/integrations/shopify/status', { signal }); if (!r.ok)
-    throw Error('Demo store directory unavailable.'); return parseSources(await r.json()); }
+export async function loadSources(signal?: AbortSignal, onMarketplace?: (live: boolean) => void): Promise<Source[]> { const r = await fetch('/api/integrations/shopify/status', { signal }); if (!r.ok)
+    throw Error('Store directory unavailable.');
+    const data = await r.json();
+    if (!signal?.aborted) onMarketplace?.(data?.mode === 'MARKETPLACE');
+    return parseSources(data); }
 export async function loadCatalogue(id: string, signal?: AbortSignal): Promise<Brand> { const r = await fetch('/api/integrations/shopify/catalogue/' + encodeURIComponent(id) + '?source=public', { signal }); if (!r.ok)
     throw Error('Catalogue unavailable. Retry when your connection is ready.'); return parseCatalogue(id, await r.json()); }

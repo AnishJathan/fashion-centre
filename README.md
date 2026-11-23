@@ -1,43 +1,36 @@
-# Fashion Centre: combined merchant and account application
+# Fashion Centre
 
-This integrates `feature/shopify-foundation` with main's existing login, saved-photo storage and Pruna try-on code. It does not configure or deploy those services.
+Fashion Centre is a multi-store Shopify marketplace. The React web app and Expo apps share a Cloudflare Worker API. Each participating store publishes its own catalogue and handles its own checkout, delivery and payment methods. Shopping preferences and baskets stay on the device. The Spring Boot API remains available for local demos.
 
-## Local development
+[Open the marketplace](https://fashion-centre.fashion-centre-cloudflare.workers.dev) · [Cloudflare setup and merchant onboarding](cloudflare/README.md)
 
-Requires Node.js 24, JDK 17+, Maven 3.9+, and Chrome for browser tests.
+## Run the demo
 
-- `npm ci`
-- `npm run build`
-- `node scripts/check-bundle.mjs`
-- `npm test`
-- From `backend`: `mvn -B package`
-- `npm run test:ui`
+Use Node.js 24, JDK 17, and Maven 3.9+. From the repository root on macOS, Linux, or WSL:
 
-The browser suite starts isolated loopback servers on 5174 and 8082. Its API is an explicit test fixture, not the production Java API. Catalogue, auth, photo and generation responses in browser tests are mocked. Real combined-controller and persistence contracts are exercised by the Java suite using an in-memory test database and mocked provider clients. No real OTP delivery, personal-photo upload or paid generation is validated by these checks.
+```sh
+npm ci
+mvn -B -f backend/pom.xml package
+npm run dev:api
+```
 
-For normal development, `npm run dev` serves http://127.0.0.1:5173. It proxies `/api` to http://localhost:8081 (override with `API_PROXY_TARGET` for a separate development API). Start the packaged Java app only after configuring main's existing MySQL/auth/Pruna/R2 requirements. Do not invent placeholder credentials or treat the test fixture as a live service. Never expose secrets through `VITE_*` variables.
+The credential-free API runs at `http://127.0.0.1:8082`. Reuse it if it is already running, or set `FASHION_DEMO_API_PORT` and use the same port in the client configuration. In another terminal, start the web client:
 
-## Navigation
+```sh
+API_PROXY_TARGET=http://127.0.0.1:8082 npm run dev
+```
 
-- **For brands** / `/#/owner`: Shopify-domain format check and blocked installation readiness.
-- **Demo stores** / `/#/merchant`: explicitly onboard allowlisted fictional public catalogues. No merchant ownership or Shopify authorization is granted.
-- **Profile > Sign in or manage account** / `/#/login`: existing account verification and saved-photo flow; requires configured backend services.
-- **Profile > Preview WhatsApp OTP login** / `/#/login-demo`: separate local simulation, no messages or account.
-- Product > **Try on with my saved photo**: existing account-photo/Pruna flow. Requires sign-in, saved photo, and configured services.
-- **Prepare a try-on photo** / `/#/try`: separate local-only photo preparation. It never uploads or generates.
+Open [Fashion Centre](http://127.0.0.1:5173/), go to **Demo stores**, and onboard **Mock Shop** or **Elysian Thread**. The API reads the public sample catalogues, so product browsing requires internet access. For a physical phone, follow the [mobile setup](mobile/README.md#run-on-android-over-usb).
 
-Merchant shopping retains brand context, themes, recoverable local cart/order/preferences, and demo checkout. Real account identity does not grant merchant administration. Merchant Connect remains disabled.
+The demo supports catalogue browsing, local checkout, simulated OTP, and local photo preparation. Real account sign-in, photo storage, and provider try-on use the [full backend](backend/README.md). Vite proxies to the full backend on port 8081 by default.
 
-## Database safety
+## Find the code
 
-Main's existing MySQL Flyway `V1__auth_tables.sql` is unchanged. Merchant H2-only experimental scripts are under `backend/src/main/resources/db/manual/`, not Flyway's automatic migration path. No merchant schema is automatically installed on an existing database. See `backend/PERSISTENCE.md` for boundaries. This integration did not modify any deployed database or credentials.
+| Area | Start here |
+| --- | --- |
+| Web | [Bootstrap](src/main.tsx), [app shell](src/App.tsx), [catalogue](src/CatalogueBrowser.tsx), [account](src/AccountScreen.tsx), [commerce](src/commerce.ts), [persistence](src/browserStorage.ts) |
+| Mobile | [App entry](mobile/App.tsx), [navigation](mobile/src/navigation.ts), [state and storage](mobile/src/state.tsx), [photo pipeline](mobile/src/photo/), [native vision module](mobile/modules/fashion-vision/) |
+| API | [Spring entry](backend/src/main/java/com/fashioncentre/Application.java), [public Shopify catalogue](backend/src/main/java/com/fashioncentre/shopify/), [account](backend/src/main/java/com/fashioncentre/auth/), [account photos and try-on](backend/src/main/java/com/fashioncentre/photo/) |
+| Test and preview tools | [Unit tests](tests/), [browser tests](e2e/), [local scripts](scripts/), [CI workflow](.github/workflows/verify.yml) |
 
-## Verification limits
-
-The real production app still needs main's external service configuration. Camera permission/device behavior, real OTP transport, R2, real provider generation and end-to-end production database operation are not certified by mocked tests. No deployment is included.
-
-Account/camera analysis code is lazy-loaded. The combined gzip budget is 160 KB total JavaScript and 12 KB CSS; the storefront entry remains about 92 KB gzip. This includes main's previously added MediaPipe dependency in the separate account chunk.
-
-## Earlier design and implementation records
-
-`HANDOVER.md`, `READINESS.md`, `AUTH-BOUNDARY.md`, `PRUNA-BOUNDARY.md`, `VALIDATION.md` and related notes record their original branch state. Their older global statements that authentication, uploads and live-provider code do not exist apply to that earlier merchant-only branch, not this combined source tree. Its merchant OAuth and private-job pipeline remain gated; main's separately implemented account/photo/provider endpoints remain present.
+Add tests alongside the area you change. Run the checks in the [verification guide](docs/verification.md). For layout, theming and navigation, start with the [design guide](docs/design.md). [Asset provenance](docs/assets.md) records artwork and font sources. Earlier specifications are in the [historical notes](docs/history/README.md).

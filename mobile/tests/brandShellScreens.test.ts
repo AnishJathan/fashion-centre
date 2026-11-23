@@ -5,12 +5,13 @@ import ts from 'typescript';
 import * as experience from '../src/brandExperience.ts';
 import * as navigationHelpers from '../src/navigation.ts';
 import * as shell from '../src/shellPresentation.ts';
+import { primaryNavigation } from '../src/primaryNavigation.ts';
 import * as design from '../src/design.ts';
 import type { Route } from '../src/navigation.ts';
 
 // Execute the actual shell routing callbacks with inert native boundaries.
 const navSource = ts.transpileModule(fs.readFileSync(new URL('../src/NavBar.tsx', import.meta.url), 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
-const source = ts.transpileModule(fs.readFileSync(new URL('../App.tsx', import.meta.url), 'utf8') + '\nexport { Shell, ShellContent };', { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
+const source = ts.transpileModule(fs.readFileSync(new URL('../App.tsx', import.meta.url), 'utf8') + '\nexport { Shell, ShellContent, DockLayout };', { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
 function nodes(tree: any): any[] { return Array.isArray(tree) ? tree.flatMap(nodes) : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : []; }
 function harness(route: Route, dark = false, canGoBack = false) {
   const { name, ...params } = route;
@@ -21,31 +22,37 @@ function harness(route: Route, dark = false, canGoBack = false) {
   const p = route.brandId && brands.some(b => b.id === route.brandId) ? experience.brandExperience(route.brandId, dark ? 'dark' : 'light').palette : design.palettes[dark ? 'dark' : 'light'];
   let NavBar: any;
   const react = { Component: class {}, createElement: (type: any, props: any, ...children: any[]) => type === NavBar ? NavBar({ ...props, children }) : ({ type, props: { ...props, children } }),
-    useState: (initial: any) => { const i = index++; if (!(i in states)) states[i] = initial; return [states[i], (value: any) => { states[i] = typeof value === 'function' ? value(states[i]) : value; }]; },
+    useState: (initial: any) => { const i = index++; if (!(i in states)) states[i] = typeof initial === 'function' ? initial() : initial; return [states[i], (value: any) => { states[i] = typeof value === 'function' ? value(states[i]) : value; }]; },
     useRef: (initial: any) => ({ current: initial }),
     useEffect: (callback: () => any) => { const cleanup = callback(); if (cleanup) cleanups.push(cleanup); },
   };
   const imports: Record<string, any> = {
     react: { __esModule: true, default: react, ...react },
-    'react-native': { ...Object.fromEntries(['ActivityIndicator', 'Pressable', 'ScrollView', 'Text', 'View'].map(n => [n, n])), Platform: { OS: 'ios' }, useWindowDimensions: () => ({ width: 320, height: 640, fontScale: 1 }), Keyboard: { dismiss: () => calls.push(['dismiss']), addListener: (name: string, cb: () => void) => { listeners[name] = cb; return { remove: () => {} }; } } },
+    './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
+    './src/Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
+    'expo-blur': { BlurView: 'BlurView', BlurTargetView: 'BlurTargetView' },
+    'expo-glass-effect': { GlassView: 'GlassView', isLiquidGlassAvailable: () => true },
+    'react-native': { Animated: { Value: class { setValue() {} }, View: 'AnimatedView' }, ...Object.fromEntries(['ActivityIndicator', 'Pressable', 'ScrollView', 'Text', 'View'].map(n => [n, n])), Platform: { OS: 'ios' }, useWindowDimensions: () => ({ width: 320, height: 640, fontScale: 1 }), Keyboard: { dismiss: () => calls.push(['dismiss']), addListener: (name: string, cb: () => void) => { listeners[name] = cb; return { remove: () => {} }; } } },
     '@react-navigation/native': { NavigationContainer: 'NavigationContainer', createNavigationContainerRef: () => ({}), DarkTheme: {}, DefaultTheme: {} },
     '@react-navigation/native-stack': { createNativeStackNavigator: () => ({ Navigator: 'Stack', Screen: 'StackScreen' }) },
     'react-native-safe-area-context': { SafeAreaProvider: 'SafeAreaProvider', useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }) },
+    'expo-font': { useFonts: () => [true, null] }, './src/Motion': { MotionProvider: 'MotionProvider', useReducedMotion: () => false },
     'expo-status-bar': { StatusBar: 'StatusBar' }, 'expo-linking': {},
-    './src/state': { AppProvider: 'AppProvider', useApp: () => app }, './src/ShoppingScreens': { ShoppingScreen: 'ShoppingScreen' }, './src/SettingsScreens': { SettingsScreen: 'SettingsScreen' }, './src/StyleAssistant': { StyleAssistant: 'StyleAssistant' }, './src/AccountScreens': { AccountScreen: 'AccountScreen' },
-    './src/ui': { ...Object.fromEntries(['Body', 'BottomOverlayProvider', 'Button', 'Icon', 'IconButton', 'PaletteProvider', 'Screen', 'Title'].map(n => [n, n])), usePalette: () => p, useReducedTransparency: () => false },
-    './src/BrandMark': { BrandMark: 'BrandMark' }, './src/design': design, './src/brandExperience': experience, './src/shellPresentation': shell, './src/navigation': navigationHelpers,
+    './src/state': { AppProvider: 'AppProvider', useApp: () => app }, './src/ShoppingScreens': { ShoppingScreen: 'ShoppingScreen' }, './src/SettingsScreens': { SettingsScreen: 'SettingsScreen' }, './src/StyleAssistant.tsx': { StyleAssistant: 'StyleAssistant' }, './src/AccountScreens': { AccountScreen: 'AccountScreen' },
+    './src/ui': { DockInset: { Provider: 'DockInset' }, ...Object.fromEntries(['Body', 'Button', 'Icon', 'IconButton', 'PaletteProvider', 'Screen', 'Title'].map(n => [n, n])), usePalette: () => p, useReducedTransparency: () => false },
+    './src/LaunchReveal': { LaunchReveal: 'LaunchReveal' },
+    './src/BrandMark': { BrandMark: 'BrandMark', AppMark: 'AppMark' }, './src/design': design, './src/brandExperience': experience, './src/shellPresentation': shell, './src/navigation': navigationHelpers,
   };
   const navModule = { exports: {} as any };
-  const navImports: Record<string, any> = { ...imports, 'react-native-svg': { __esModule: true, default: 'Svg', Path: 'Path' }, './ui': imports['./src/ui'], './design': design, './shellPresentation': shell };
+  const navImports: Record<string, any> = { ...imports, './primaryNavigation': { primaryNavigation }, './Motion': { useReducedMotion: () => true }, 'react-native-svg': { __esModule: true, default: 'Svg', Path: 'Path' }, './ui': imports['./src/ui'], './design': design, './shellPresentation': shell };
   new Function('require', 'module', 'exports', navSource)((name: string) => { assert.ok(name in navImports, `Unexpected nav import: ${name}`); return navImports[name]; }, navModule, navModule.exports);
   NavBar = navModule.exports.NavBar;
   imports['./src/NavBar'] = { NavBar };
   const module = { exports: {} as any };
   new Function('require', 'module', 'exports', source)((name: string) => { assert.ok(name in imports, `Unexpected import: ${name}`); return imports[name]; }, module, module.exports);
-  const nav = { navigate: (...args: any[]) => calls.push(['navigate', ...args]), popTo: (...args: any[]) => calls.push(['popTo', ...args]), reset: (value: any) => calls.push(['reset', value]), canGoBack: () => canGoBack, goBack: () => calls.push(['goBack']), replace: (...args: any[]) => calls.push(['replace', ...args]), setOptions: (value: any) => calls.push(['options', value]) };
+  const nav = { navigate: (...args: any[]) => calls.push(['navigate', ...args]), popTo: (...args: any[]) => calls.push(['popTo', ...args]), reset: (value: any) => calls.push(['reset', value]), resetRoot: (value: any) => calls.push(['reset', value]), canGoBack: () => canGoBack, goBack: () => calls.push(['goBack']), replace: (...args: any[]) => calls.push(['replace', ...args]), setOptions: (value: any) => calls.push(['options', value]) };
   const props = { route: { name, params }, navigation: nav };
-  const render = () => { index = 0; tree = module.exports.ShellContent(props); };
+  const render = () => { index = 0; tree = module.exports.DockLayout({ route, navigation: nav, children: module.exports.ShellContent(props) }); };
   render();
   const header = () => calls.filter(c => c[0] === 'options').at(-1)?.[1].header();
   const all = () => [...nodes(tree), ...nodes(header())];
@@ -66,9 +73,9 @@ test('brand shell gives storefront, bag and profile the same scoped palette and 
 
 test('three brand destinations and a preparation action form a four-control dock', () => {
   const h = harness({ name: 'product', brandId: 'atelier', productId: 'atelier:top' });
-  assert.equal(h.all().filter(n => n.props.accessibilityRole === 'tab').length, 3);
+  assert.equal(h.all().filter(n => n.props.accessibilityRole === 'tab').length, 4);
   assert.equal(h.all().some(n => /wishlist|saved pieces/i.test(n.props.accessibilityLabel || n.props.label || '')), false);
-  h.press('Bag, 2 pieces'); h.press('Home, current store collection'); h.press('You');
+  h.press('Bag, 2 pieces'); h.press('Discover, current store collection'); h.press('Profile');
   assert.deepEqual(h.calls.filter(c => c[0] === 'reset').map(c => c[1].routes[0]), [
     { name: 'cart', params: { brandId: 'atelier' } }, { name: 'brand', params: { brandId: 'atelier' } }, { name: 'profile', params: { brandId: 'atelier' } },
   ]);
@@ -103,6 +110,10 @@ test('one compact header replaces duplicate brand bars and retains reachable exi
     const h = harness(route, false, true);
     const headers = h.all().filter(n => n.props.testID === 'compact-shell-header');
     assert.equal(headers.length, 1);
+    assert.equal(nodes(headers[0]).some(n => n.props.name === 'arrow-left'), false);
+    const returnRow = h.all().find(n => n.props.testID === 'shell-return-row');
+    assert.equal(!!returnRow, route.name !== 'home');
+    if (returnRow) assert.ok(nodes(returnRow).some(n => n.props.name === 'arrow-left'));
     assert.equal(headers[0].props.style.minHeight, 48);
     assert.equal(h.all().filter(n => n.props.accessibilityRole === 'header').length, 1);
     const marks = h.all().filter(n => n.type === 'BrandMark' && n.props.size === 24);
@@ -124,22 +135,22 @@ test('one compact header replaces duplicate brand bars and retains reachable exi
 
 test('global shell combines Bag and Orders and exposes exactly four dock controls', () => {
   const h = harness({ name: 'home' });
-  assert.deepEqual(h.all().filter(n => n.props.accessibilityRole === 'tab').map(n => n.props.accessibilityLabel), ['Home', 'Bag, 7 pieces', 'You']);
+  assert.deepEqual(h.all().filter(n => n.props.accessibilityRole === 'tab').map(n => n.props.accessibilityLabel), ['Discover', 'Try on', 'Bag, 7 pieces', 'Profile']);
   assert.equal(h.all().filter(n => n.type === 'Pressable').length, 4);
   assert.equal(h.all().some(n => n.props.testID === 'bottom-tab-orders'), false);
   h.dispose();
 });
 
 
-test('dock Try On opens local preparation with the current product and preserves back history', () => {
+test('dock Try On opens the store studio and preserves back history', () => {
   const h = harness({ name: 'product', brandId: 'atelier', productId: 'atelier:top' }, false, true);
-  h.press('Try On');
-  assert.deepEqual(h.calls.at(-1), ['navigate', 'prepare', { brandId: 'atelier', productId: 'atelier:top' }]);
+  h.press('Try on');
+  assert.deepEqual(h.calls.at(-1), ['navigate', 'prepare', { brandId: 'atelier' }]);
   assert.equal(h.calls.filter(c => c[0] === 'reset').length, 0);
   assert.equal(h.calls.filter(c => c[0] === 'dismiss').length, 1);
-  h.press('Try On');
+  h.press('Try on');
   assert.equal(h.calls.filter(c => c[0] === 'navigate').length, 2);
-  assert.deepEqual(h.calls.at(-1), ['navigate', 'prepare', { brandId: 'atelier', productId: 'atelier:top' }]);
+  assert.deepEqual(h.calls.at(-1), ['navigate', 'prepare', { brandId: 'atelier' }]);
   // Navigation uses navigate (not push/reset); the preparation route keeps a back path.
   const prepared = harness({ name: 'prepare', brandId: 'atelier', productId: 'atelier:top' }, false, true);
   prepared.press('Go back');
@@ -156,7 +167,7 @@ test('dock Try On never invents a garment or retains an unavailable store', () =
     [{ name: 'cart', productId: 'atelier:top', brandId: 'atelier' }, { brandId: 'atelier' }],
   ] as [Route, any][]) {
     const h = harness(route);
-    h.press('Try On');
+    h.press('Try on');
     assert.deepEqual(h.calls.at(-1), ['navigate', 'prepare', params]);
     h.dispose();
   }
@@ -209,7 +220,7 @@ test('style companion remains outside the four-control tablist and uses scoped n
   const h = harness({ name: 'product', brandId: 'atelier', productId: 'atelier:top' });
   const dock = h.all().find(n => n.props.testID === 'curved-bottom-nav');
   assert.equal(nodes(dock).some(n => n.type === 'StyleAssistant'), false);
-  const companion = h.all().find(n => n.type === 'StyleAssistant');
+  const companion = nodes(h.header()).find(n => n.type === 'StyleAssistant');
   assert.ok(companion); assert.equal(companion.props.launcherMode, 'inline');
   assert.equal(companion.props.brandId, 'atelier');
   assert.equal(companion.props.currentProductId, 'atelier:top');
@@ -228,20 +239,20 @@ test('settings opened directly recover Back to You without losing store scope', 
 });
 
 
-test('dock overlays content with scroll-only clearance and withdraws with the keyboard', () => {
-  for (const name of ['home', 'brand', 'product', 'cart', 'orders', 'order', 'profile', 'settings'] as const) {
+test('content and navigation have separate layout space, and the keyboard releases the footer', () => {
+  for (const name of ['home', 'prepare', 'brand', 'product', 'cart', 'orders', 'order', 'profile', 'settings'] as const) {
     const h = harness({ name, brandId: 'atelier' });
-    const overlay = h.all().find(n => n.props.testID === 'shell-bottom-overlay');
-    assert.ok(overlay, name);
-    assert.deepEqual(overlay.props.style, { position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 20 });
-    assert.equal(overlay.props.pointerEvents, 'box-none');
-    const clearance = () => h.all().find(n => n.type === 'BottomOverlayProvider').props.height;
-    assert.equal(clearance(), shell.bottomNavFrame(320, 1, { left: 0, right: 0, bottom: 34 }).footprint);
+    const nav = () => h.all().find(n => n.props.testID === 'shell-bottom-navigation');
+    const viewport = h.all().find(n => n.props.testID === 'screen-viewport');
+    assert.equal(viewport.props.style.flex, 1);
+    assert.equal(viewport.props.style.overflow, 'hidden');
+    assert.equal(nav().props.style.position, 'absolute');
+    assert.ok(h.all().find(n => n.type === 'DockInset').props.value >= 64);
+    assert.equal(nodes(viewport).some(n => n.props.testID === 'curved-bottom-nav'), false);
     h.listeners.keyboardWillShow(); h.render();
-    assert.equal(h.all().some(n => n.props.testID === 'shell-bottom-overlay'), false);
-    assert.equal(clearance(), 0);
+    assert.equal(nav(), undefined);
     h.listeners.keyboardWillHide(); h.render();
-    assert.ok(clearance() > 0);
+    assert.ok(nav());
     h.dispose();
   }
 });

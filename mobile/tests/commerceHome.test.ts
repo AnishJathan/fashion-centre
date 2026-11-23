@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { homeCategories, homePrice, homeRecommendations, homeSuggestions, homeValueCollections, priceMinima } from '../src/commerceHome.ts';
+import { homeCategories, homePrice, homeSuggestions, homeValueCollections, priceMinima } from '../src/commerceHome.ts';
 import type { Product } from '../src/core/domain.ts';
 const product = (id: string, category: string, prices: [number, string, boolean][] = []): Product => ({
   id, name: `Style ${id}`, category, brandId: 'sample', brandName: 'Sample Store', image: `/images/${id}.jpg`, moreVariants: false,
@@ -29,13 +29,6 @@ test('value collections report only available variants in their currency', () =>
   assert.deepEqual(groups.map(c => [c.category, c.currency, c.amount, c.count]), [['Dresses', 'USD', 20, 2], ['Dresses', 'EUR', 15, 1], ['Tops', 'USD', 10, 1]]);
 });
 
-test('recommendations use generic catalogue order and stay bounded', () => {
-  assert.deepEqual(homeRecommendations(products), products);
-  const catalogue = Array.from({ length: 20 }, (_, i) => product(String(i), 'Tops'));
-  assert.deepEqual(homeRecommendations(catalogue), catalogue.slice(0, 10));
-  assert.notEqual(homeRecommendations(products), products);
-});
-
 test('search handles whitespace, casing, store and category matches and limits suggestions', () => {
   assert.deepEqual(homeSuggestions(products, '  DRESS '), products.slice(0, 2));
   assert.deepEqual(homeSuggestions(products, 'sample'), products);
@@ -48,10 +41,9 @@ test('search handles whitespace, casing, store and category matches and limits s
 test('empty and repeated derivation is stable and does not mutate catalogue data', () => {
   const before = JSON.stringify(products);
   for (let n = 0; n < 3; n++) {
-    homeCategories(products); homeRecommendations(products); homeSuggestions(products, 'dresses'); homeValueCollections(products);
+    homeCategories(products); homeSuggestions(products, 'dresses'); homeValueCollections(products);
   }
   assert.equal(JSON.stringify(products), before);
   assert.deepEqual(homeCategories([]), []);
   assert.deepEqual(homeValueCollections([]), []);
-  assert.deepEqual(homeRecommendations([]), []);
 });

@@ -34,6 +34,7 @@ export interface StoreRegistration {
   onboardedAt: string;
 }
 export interface Source {
+  preview?: true;
   key: string;
   name: string;
 }
@@ -120,15 +121,6 @@ export function money(amount: number, currency: string) {
     }).format(amount)
   );
 }
-export const productPath = (id: string) =>
-  "#/product/" + encodeURIComponent(id);
-export function decodeRoute(value: string) {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return null;
-  }
-}
 const record = (v: unknown): v is Record<string, unknown> =>
   !!v && typeof v === "object" && !Array.isArray(v);
 const text = (v: unknown): v is string =>
@@ -163,7 +155,7 @@ export function parseSources(data: unknown): Source[] {
     )
       throw Error("Demo store directory response is invalid.");
     seen.add(s.key);
-    return { key: s.key, name: s.name };
+    return { key: s.key, name: s.name, ...(s.preview === true ? {preview:true as const} : {}) };
   });
 }
 export function parseCatalogue(id: string, data: unknown): Brand {

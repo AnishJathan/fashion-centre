@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Pressable, Text, View, useWindowDimensions } from "react-native";
+import { Text } from "./Typography";
+import { Pressable, View, useWindowDimensions } from "react-native";
 import {
   Badge,
   Body,
@@ -39,7 +40,7 @@ export function ShoppingHeader({
 /** Buy surfaces keep compact visual rhythm without shrinking their touch targets. */
 export function ShoppingCard({ children }: React.PropsWithChildren) {
   const palette = usePalette();
-  return <View testID="shopping-compact-card" style={{ padding: 10, gap: 6, borderRadius: 12, borderWidth: 1, borderColor: palette.line, backgroundColor: palette.surface }}>{children}</View>;
+  return <View testID="shopping-compact-card" style={{ padding: 10, gap: 6, borderRadius: 24, borderWidth: 1, borderColor: palette.line, backgroundColor: palette.surface }}>{children}</View>;
 }
 
 export function ShoppingEmpty({
@@ -64,7 +65,7 @@ export function ShoppingEmpty({
           style={{
             width: 36,
             height: 36,
-            borderRadius: 16,
+            borderRadius: 24,
             backgroundColor: palette.tint,
             alignItems: "center",
             justifyContent: "center",
@@ -90,7 +91,7 @@ export function ShoppingNotice({
     <View
       style={{
         padding: compact ? 8 : 12,
-        borderRadius: compact ? 10 : 16,
+        borderRadius: 24,
         gap: compact ? 4 : 6,
         backgroundColor: palette.tint,
       }}
@@ -121,9 +122,9 @@ export function ProductGrid({ products, onView, onTryOn }: {
     {products.map((product) => {
       const available = product.variants.some((variant) => variant.available);
       return <View key={product.id} style={{ width: layout.cardWidth, minWidth: 0, gap: 4 }}>
-        <View style={{ overflow: "hidden", borderRadius: 4, backgroundColor: palette.tint }}>
+        <View style={{ overflow: "hidden", borderRadius: 24, backgroundColor: palette.tint }}>
           <Pressable accessibilityRole="button" accessibilityLabel={`View ${product.name}, ${product.brandName}`} onPress={() => onView(product)} style={({ pressed }) => ({ opacity: pressed ? .78 : 1 })}>
-            <Photo key={product.image} allowRetry={false} uri={product.image} label={product.name} height={Math.min(160, Math.max(116, layout.cardWidth * .88))} />
+            <Photo embedded key={product.image} allowRetry={false} uri={product.image} label={product.name} height={Math.min(160, Math.max(116, layout.cardWidth * .88))} />
           </Pressable>
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel={`View ${product.name}`} onPress={() => onView(product)} style={({ pressed }) => ({ gap: 1, minHeight: 48, opacity: pressed ? .65 : 1 })}>
@@ -132,7 +133,7 @@ export function ProductGrid({ products, onView, onTryOn }: {
           <Text style={{ color: palette.muted, fontSize: 12, lineHeight: 18 }}>{homePrice(product)}</Text>
           {!available && <Text style={{ color: palette.error, fontSize: 12, lineHeight: 18 }}>Unavailable</Text>}
         </Pressable>
-        {onTryOn && <Pressable accessibilityRole="button" accessibilityLabel={`Try on ${product.name}`} accessibilityState={{ disabled: !product.image }} disabled={!product.image} onPress={() => onTryOn(product)} style={{ minHeight: 48, minWidth: 84, alignSelf: "flex-start", justifyContent: "center", opacity: product.image ? 1 : .5 }}><View style={{ minHeight: 28, paddingHorizontal: 10, borderRadius: 14, backgroundColor: palette.tint, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4 }}><Icon name="camera" size={13} color={palette.accent} /><Text style={{ color: palette.accent, fontSize: 11, lineHeight: 16, fontWeight: "600" }}>Try on</Text></View></Pressable>}
+        {onTryOn && <Pressable accessibilityRole="button" accessibilityLabel={`Try on ${product.name}`} accessibilityState={{ disabled: !product.image }} disabled={!product.image} onPress={() => onTryOn(product)} style={{ minHeight: 48, minWidth: 84, alignSelf: "flex-start", justifyContent: "center", opacity: product.image ? 1 : .5 }}><View style={{ minHeight: 28, paddingHorizontal: 10, borderRadius: 24, backgroundColor: palette.tint, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4 }}><Icon name="camera" size={13} color={palette.accent} /><Text style={{ color: palette.accent, fontSize: 11, lineHeight: 16, fontWeight: "600" }}>Try on</Text></View></Pressable>}
       </View>;
     })}
   </View>;

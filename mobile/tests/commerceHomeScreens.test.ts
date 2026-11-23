@@ -35,8 +35,9 @@ function harness(catalogue = products, dimensions = { width: 390, height: 844, f
   const frames = new Map<number, () => void>(); let nextFrame = 0;
   const state = {
     catalogueLoading: false, catalogueError: '', theme: palette === palettes.dark ? 'dark' : 'light',
+    registrations: catalogue.map(p => ({ id: p.brandId, enabled: true })),
     products: catalogue, saved: [] as string[], followed: [] as string[],
-    brands: catalogue.map(p => ({ id: p.brandId, name: p.brandName, image: '', products: [p], more: false })),
+    brands: catalogue.filter((p,i) => catalogue.findIndex(item => item.brandId === p.brandId) === i).map(p => ({ id: p.brandId, name: p.brandName, image: '', products: [p], more: false })),
     commerce: { cart: [{ productId: 'retained', quantity: 2 }] },
     toggleSaved: () => assert.fail('Home must not change retained saved data'),
     toggleFollowed: (id: string) => { actions.push(['follow', id]); state.followed = state.followed.includes(id) ? state.followed.filter(x => x !== id) : [...state.followed, id]; },
@@ -62,6 +63,7 @@ function harness(catalogue = products, dimensions = { width: 390, height: 844, f
   };
   const imports: Record<string, any> = {
     react: { __esModule: true, default: React, ...React },
+    './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
     'react-native': { ...Object.fromEntries(['Pressable', 'ScrollView', 'Text', 'TextInput', 'View', 'FlatList', 'KeyboardAvoidingView', 'ActivityIndicator'].map(n => [n, n])),
       Platform: { OS: platform },
       Keyboard: { dismiss: () => { keyboardDismissals++; } },
@@ -75,9 +77,11 @@ function harness(catalogue = products, dimensions = { width: 390, height: 844, f
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 44, bottom: 34, left: 8, right: 8 }) },
     './homeFeed': feed, './design': design, './shoppingLayout': shoppingLayout,
     './state': { useApp: () => state }, './commerceHome': home, './core/domain': domain,
+    './EditorialCover': { EditorialCover: 'EditorialCover' },
     './FollowedBrandRail': { FollowedBrandRail: 'FollowedBrandRail' },
+    './storeThumbnail': { storeThumbnail: (uri: string) => uri },
     './BrandMark': { BrandMark: 'BrandMark' },
-    './ui': { Button: 'Button', Icon: 'Icon', Photo: 'Photo', useBottomOverlay: () => 64, usePalette: () => palette },
+    './ui': { useDockInset: () => 0, Button: 'Button', Icon: 'Icon', Photo: 'Photo', usePalette: () => palette },
   };
   const module = { exports: {} as any };
   new Function('require', 'module', 'exports', 'fetch', 'requestAnimationFrame', 'cancelAnimationFrame', source)((name: string) => {
@@ -159,13 +163,13 @@ test('Shop all follows each theme and energetic Home colours retain readable tex
     assert.ok(contrast(icon.props.color, style(tile).backgroundColor) >= 4.5);
     const cards = h.all().filter(node => /^Shop .* in USD, from /.test(node.props.accessibilityLabel || ''));
     assert.equal(cards.length, 4);
-    cards.forEach((card, index) => {
-      assert.equal(style(card).backgroundColor, ['#FFEA52', '#83D6FF', '#FF998A', '#A5F0D1'][index]);
+    cards.forEach(card => {
+      assert.equal(style(card).backgroundColor, palette.tint);
       for (const label of descendants(card).filter(node => node.type === 'Text')) {
         assert.ok(contrast(style(label).color, style(card).backgroundColor) >= 4.5);
       }
     });
-    const chip = h.all().find(node => style(node).backgroundColor === '#FFEA52' && style(node).flexDirection === 'row');
+    const chip = h.all().find(node => style(node).backgroundColor === palette.accent && style(node).flexDirection === 'row');
     assert.ok(chip);
     for (const label of descendants(chip).filter(node => node.type === 'Text')) {
       assert.ok(contrast(style(label).color, style(chip).backgroundColor) >= 4.5);
@@ -176,7 +180,7 @@ test('Shop all follows each theme and energetic Home colours retain readable tex
     const photoLabels = h.all().filter(node => node.props.testID === 'home-product-category');
     assert.ok(photoLabels.length, 'product category labels stay separated from garment imagery');
     for (const label of photoLabels) {
-      assert.equal(style(label).backgroundColor, '#FFFFFF', 'opaque photo badge prevents clothing-dependent contrast');
+      assert.equal(style(label).backgroundColor, palette.surface, 'opaque photo badge prevents clothing-dependent contrast');
       for (const text of descendants(label).filter(node => node.type === 'Text')) {
         assert.ok(contrast(style(text).color, style(label).backgroundColor) >= 4.5);
       }
@@ -216,7 +220,7 @@ test('follow and product/store navigation preserve exact identities without wish
 
 test('empty home has a store recovery action without carousel or unsolicited state changes', () => {
   const h = harness([]); assert.equal(h.controls('Next collection').length, 0);
-  h.press('Manage demo stores'); assert.deepEqual(h.routes, [{ name: 'stores' }]);
+  h.all().find(node => node.type === 'EditorialCover')!.props.openCollection(); assert.deepEqual(h.routes, [{ name: 'stores' }]);
   assert.deepEqual(h.actions, []); assert.deepEqual(h.browses, []);
 });
 
@@ -241,11 +245,11 @@ test('product rails retain a separate Try On route with the exact selected produ
   h.dispose();
 });
 
-test('followed-brand discovery remains first without a duplicate search-row Try On', () => {
+test('catalogue search precedes followed-brand discovery without a duplicate search-row Try On', () => {
   const h = harness();
   const all = h.all();
   const rail = all.find(node => node.type === 'FollowedBrandRail')!;
-  assert.ok(all.indexOf(rail) < all.findIndex(node => node.props.testID === 'home-discovery-controls'));
+  assert.ok(all.indexOf(rail) > all.findIndex(node => node.props.testID === 'home-discovery-controls'));
   assert.equal(typeof rail.props.navigate, 'function');
   assert.equal(h.controls('Prepare your try-on photo').length, 0);
   assert.deepEqual(h.routes, []);
@@ -272,14 +276,14 @@ const style = (value: any): Record<string, any> => Array.isArray(value)
 test('home configures compact collections, categories, brand marks and product cards at narrow and wide widths', () => {
   for (const width of [320, 390, 1024]) {
     for (const fontScale of [1, 1.6]) {
-      const h = harness(products, { width, height: 844, fontScale });
+      const h = harness(products.map(p => ({ ...p, image: 'local-' + p.id })), { width, height: 844, fontScale });
       const categoryPhoto = h.all().find(n => n.type === 'Photo' && n.props.label === 'Tops')!;
       assert.ok(categoryPhoto.props.height <= 32);
       const marks = h.all().filter(n => n.type === 'BrandMark');
       assert.deepEqual(marks.map(n => [n.props.id, n.props.name, n.props.size]), products.map(p => [p.brandId, p.brandName, 26]));
       const cards = h.all().filter(n => n.props.testID === 'home-product-card');
       assert.ok(cards.length >= products.length);
-      const expected = shoppingLayout.shoppingGridLayout(Math.min(width - 40, 984), fontScale).cardWidth;
+      const expected = shoppingLayout.shoppingGridLayout(design.pageLayout(width, fontScale).contentWidth, fontScale).cardWidth;
       assert.ok(cards.every(n => style(n.props.style).width === expected));
       const productPhotos = h.all().filter(n => n.type === 'Photo' && products.some(p => p.name === n.props.label));
       assert.ok(productPhotos.every(n => n.props.height <= 220));
@@ -289,18 +293,18 @@ test('home configures compact collections, categories, brand marks and product c
   }
 });
 
-test('home reaches actual products before value promotions and its compact brand directory', () => {
+test('home shows the store directory before products and value promotions', () => {
   const h = harness();
   const nodes = h.all();
   const firstProduct = nodes.findIndex(n => n.props.accessibilityLabel === 'View Demo Tops');
   const valueHeader = nodes.findIndex(n => n.type === 'Text' && content(n) === 'Value picks');
-  const directoryHeader = nodes.findIndex(n => n.type === 'Text' && content(n) === 'Discover brands');
+  const directoryHeader = nodes.findIndex(n => n.type === 'Text' && content(n) === 'Shop by stores');
   assert.ok(nodes.findIndex(n => n.type === 'FollowedBrandRail') < firstProduct);
-  assert.ok(firstProduct > 0 && firstProduct < valueHeader && valueHeader < directoryHeader);
+  assert.ok(directoryHeader >= 0 && directoryHeader < firstProduct && firstProduct < valueHeader);
   assert.equal(h.controls('Explore the full catalogue').length, 0, 'No oversized duplicate footer CTA');
   for (const product of products) {
     const browse = h.controls(`Browse ${product.brandName}`)[0];
-    assert.ok(style(browse.props.style).minHeight <= 48);
+    assert.equal(browse.props.accessibilityRole, 'button');
     assert.ok(!content(browse).includes('Follow'));
   }
   h.dispose();
@@ -340,21 +344,24 @@ test('compact search and small Try On pills retain touch areas in a narrow safe-
 });
 
 
-test('one compact discovery row contains a pinned search icon and all category shortcuts by default', () => {
+test('category shortcuts occupy a dedicated row below search and filters', () => {
   const h = harness();
   const row = h.all().find(n => n.props.testID === 'home-discovery-row')!;
   const children = row.props.children.flat().filter(Boolean);
-  assert.deepEqual(children.map(n => n.props.testID), ['home-search-toggle', 'home-category-shortcuts', 'home-filter-toggle']);
+  assert.deepEqual(children.map(n => n.props.testID), ['home-search-toggle', 'home-filter-toggle']);
   assert.equal(h.input(), undefined, 'No always-visible search field');
   const toggle = h.controls('Search catalogue')[0];
   assert.deepEqual(toggle.props.accessibilityState, { expanded: false });
   assert.equal(style(toggle.props.style).minWidth, 48);
   assert.equal(style(toggle.props.style).minHeight, 48);
-  const rail = children[1];
+  const controls = h.all().find(n => n.props.testID === 'home-discovery-controls')!;
+  const rail = controls.props.children.flat().find((n: any) => n?.props?.testID === 'home-category-shortcuts');
+  assert.ok(rail && style(controls.props.style).gap >= 8);
+  assert.ok(style(h.all().find(n => n.props.testID === 'home-browse-controls')!.props.style).gap >= 16);
   assert.equal(rail.props.horizontal, true);
   assert.equal(rail.props.keyboardShouldPersistTaps, 'handled');
   assert.equal(style(rail.props.style).minWidth, 0);
-  assert.equal(style(rail.props.style).flex, 1);
+  assert.equal(style(rail.props.style).flexGrow, 0);
   assert.ok(h.controls('Shop all').length);
   for (const product of products) assert.ok(h.controls(product.category).length);
   assert.deepEqual(h.routes, []); assert.deepEqual(h.browses, []);
@@ -429,7 +436,7 @@ test('search submission and suggestion navigation dismiss the keyboard without c
   assert.deepEqual(h.actions, []); h.dispose();
 });
 
-test('merged controls keep touch targets and uncapped long labels in narrow panes and large text without motion', () => {
+test('independent rows keep touch targets and wrapping category labels in narrow panes and large text', () => {
   const label = 'Very long special occasion dresses and matching accessories';
   for (const width of [320, 390, 884]) for (const fontScale of [1, 1.6, 2.5]) {
     const h = harness([{ ...products[0], category: label }], { width, height: 844, fontScale });
@@ -440,7 +447,9 @@ test('merged controls keep touch targets and uncapped long labels in narrow pane
       const toggle = h.all().find(n => n.props.testID === 'home-search-toggle')!;
       const category = h.all().find(n => n.type === 'Pressable' && n.props.accessibilityLabel === label)!, categoryStyle = style(category.props.style);
       assert.ok(categoryStyle.minHeight >= 48 && categoryStyle.minWidth >= 48);
-      assert.ok(categoryStyle.width <= pageWidth - style(toggle.props.style).maxWidth - 48 - 12 + .001, JSON.stringify({ width, fontScale, query, pageWidth, categoryStyle, toggle: style(toggle.props.style) }));
+      assert.equal(categoryStyle.maxWidth, pageWidth);
+      assert.equal(categoryStyle.position, undefined);
+      assert.equal(style(toggle.props.style).flex, 1);
       const text = category.props.children.flat().find(n => n.type === 'Text');
       assert.equal(text.props.numberOfLines, undefined);
       assert.equal(text.props.maxFontSizeMultiplier, undefined);
@@ -495,7 +504,7 @@ test('home automatically appends one unique batch per frame and stops honestly a
   const catalogue = manyProducts();
   const h = harness([...catalogue, catalogue[2], catalogue[0]]);
   assert.equal(shown(h).length, 6);
-  assert.equal(h.controls('Follow Demo store 1').length, 0, 'Discovery modules cannot push the paging threshold below the product feed');
+  assert.equal(h.controls('Follow Demo store 1').length, 1, 'Stores remain reachable before paging');
   listIn(h).props.onEndReached(); listIn(h).props.onEndReached(); h.render();
   assert.equal(h.frames.size, 1);
   assert.equal(h.controls('Showing more pieces…')[0].props.disabled, true);
@@ -542,26 +551,26 @@ test('loading, empty, partial failure, retry and bounded API end states stay tru
   assert.match(h.text(), /does not provide further pages/);
   assert.doesNotMatch(h.text(), /all caught up/);
   listIn(h).props.onRefresh(); assert.deepEqual(h.actions, [['reload'], ['reload']]);
-  h.state.products = []; h.render(); h.press('Manage demo stores');
+  h.state.products = []; h.render(); h.all().find(node => node.type === 'EditorialCover')!.props.openCollection();
   assert.deepEqual(h.routes, [{ name: 'stores' }]); h.dispose();
 });
 
-test('search and filter controls are compact fixed siblings of the scrollable feed', () => {
+test('editorial cover and compact filters scroll with the product feed', () => {
   for (const width of [320, 390, 720, 884]) for (const fontScale of [1, 1.6]) {
     const h = harness(manyProducts(), { width, height: 844, fontScale });
     const root = h.all()[0], children = root.props.children.flat().filter(Boolean);
-    assert.deepEqual(children.map((node: any) => node.props.testID), ['home-pinned-controls', 'home-product-feed']);
+    assert.deepEqual(children.map((node: any) => node.props.testID), ['home-product-feed']);
     const list = listIn(h);
+    const header = h.all().findIndex(node => node.type === 'EditorialCover');
+    assert.ok(header > h.all().findIndex(node => node.props.testID === 'home-browse-controls'));
     assert.equal(style(list.props.style).flex, 1);
-    assert.ok(style(list.props.contentContainerStyle).paddingBottom >= 76);
+    assert.ok(style(list.props.contentContainerStyle).paddingBottom >= 24);
     assert.ok(style(list.props.contentContainerStyle).paddingLeft >= 8);
     assert.equal(h.all().filter(node => node.type === 'FlatList').length, 1);
     for (const id of ['home-search-toggle', 'home-filter-toggle']) {
       const control = h.all().find(node => node.props.testID === id)!;
       assert.ok(style(control.props.style).minHeight >= 48);
-      const disc = control.props.children.flat().find((node: any) => node?.type === 'View');
-      assert.equal(style(disc.props.style).width, 32);
-      assert.equal(style(disc.props.style).height, 32);
+      assert.ok(control.props.children.flat().some((node: any) => node?.type === 'Icon'));
     }
     h.press('Filters & sort'); assert.deepEqual(h.browses, [{ showFilters: true }]);
     h.press('Search catalogue'); h.type('Feed');
@@ -581,9 +590,9 @@ test('reference-inspired cards are image-led and retain real details without rat
   const tryOn = h.controls(`Try on ${products[0].name}`)[0];
   assert.equal(style(tryOn.props.style).position, 'absolute');
   assert.ok(style(tryOn.props.style).minHeight >= 48);
-  assert.ok(h.all().find(node => node.props.testID === 'home-category-indicator'));
+  const shopAll = h.controls('Shop all')[0];
+  assert.equal(style(shopAll.props.style).flexDirection, 'row');
   assert.doesNotMatch(h.text(), /lowest price|bank offer|% off|reviews|\d\.\d ★/i);
-  assert.equal(h.all().filter(node => node.type === 'LinearGradient').length, 1);
-  assert.equal(h.all().find(node => node.type === 'Stop').props.stopColor, '#C5E8FF');
+  assert.ok(h.all().some(node => node.type === 'EditorialCover'));
   h.dispose();
 });

@@ -96,7 +96,7 @@ export class NativeStorage {
       "fc.commerce.v1",
       "fc.commerce.v2",
       "fc.stores.v1",
-      "fc.saved",
+      "fc.saved", // Keep legacy wishlists in backups even though the UI no longer edits them.
       "fc.followed",
     ]);
     const keys = (await this.adapter.getAllKeys()).filter(

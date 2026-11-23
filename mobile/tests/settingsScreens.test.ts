@@ -104,9 +104,12 @@ function harness(
     Object.fromEntries(names.map((key) => [key, key]));
   const modules: Record<string, unknown> = {
     react: { ...react, default: react },
+    './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
     "react-native": components(["ActivityIndicator", "Text", "View"]),
     "./state": { useApp: () => app },
     "./PersonalProfile": { PersonalProfile: (props: any) => ({ type: "PersonalProfile", props, children: [] }) },
+    "./core/browserSignIn": {browserSignIn: async () => {}},
+    "./core/providerSignIn": {merchantSession: async () => ""},
     "./core/api": {
       apiFetch: async (path: string) => {
         reads.push(path);
@@ -346,7 +349,7 @@ test("Instagram-inspired settings keep account and merchant entry points promine
     "Account", "For brand owners", "Your shopping",
   ]);
   const merchant = find(screen, "SettingsRow", "Brand-owner dashboard");
-  assert.equal(merchant.props.detail, "Shopify setup · not connected");
+  assert.equal(merchant.props.detail, "Shopify sign-in and store setup");
   assert.equal(merchant.props.icon, "grid");
   merchant.props.onPress();
   assert.deepEqual(h.routes, [{ name: "owner" }]);

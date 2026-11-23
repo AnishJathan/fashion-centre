@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useIsFocused } from "@react-navigation/native";
-import { ActivityIndicator, AppState, Image, Text, View, useWindowDimensions } from "react-native";
+import { Text } from "./Typography";
+import { ActivityIndicator, AppState, Image, View, useWindowDimensions } from "react-native";
+import { ProfileOptions } from "./ProfileOptions";
 import type { Route } from "./navigation";
 import { apiFetch, apiUrl } from "./core/api";
 import { Body, Button, Icon, Screen, usePalette } from "./ui";
@@ -71,8 +73,8 @@ function ActivePersonalProfile({ navigate }: Props) {
   const cardWidth = columns === 1 ? "100%" : Math.max(0, (gridWidth - (columns - 1) * 10) / columns);
   return (
     <Screen contentContainerStyle={{ maxWidth: 704, gap: 12 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 10, padding: 10, backgroundColor: p.tint, borderRadius: 12 }}>
-        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: p.accent }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10, padding: 10, backgroundColor: p.tint, borderRadius: 24 }}>
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 40, height: 40, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: p.accent }}>
           <Icon name="user" size={20} color={p.onAccent} />
         </View>
         <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
@@ -80,16 +82,18 @@ function ActivePersonalProfile({ navigate }: Props) {
             {account?.firstName || "Your profile"}
           </Text>
           <Text style={{ color: p.muted, fontSize: 12, lineHeight: 18 }}>
-            {account ? account.phone || "Signed in" : "Your looks, in one place."}
+            {account ? account.phone || "Signed in" : "Your shopping, preferences and try-ons."}
           </Text>
         </View>
       </View>
+      {phase === "signed-out" && <Button label="Sign in" onPress={() => navigate({name:"login"})}/>}
+      <ProfileOptions key={account?.id || 'guest'} account={account} navigate={navigate} refresh={() => setRetry(value => value + 1)} />
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         <Text accessibilityRole="header" style={{ flex: 1, color: p.text, fontSize: 16, lineHeight: 22, fontWeight: "700" }}>Your try-ons</Text>
-        {ready && <Text accessibilityLabel={`${looks.length} completed try-ons in this app session`} style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: p.tint, color: p.accent, borderRadius: 12, fontSize: 12, fontWeight: "700" }}>{looks.length}</Text>}
+        {ready && <Text accessibilityLabel={`${looks.length} completed try-ons in this app session`} style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: p.tint, color: p.accent, borderRadius: 24, fontSize: 12, fontWeight: "700" }}>{looks.length}</Text>}
       </View>
       {(phase === "loading" || !foreground) ? (
-        <View accessibilityLiveRegion="polite" style={{ padding: 12, gap: 8, alignItems: "center", backgroundColor: p.surface, borderRadius: 12 }}>
+        <View accessibilityLiveRegion="polite" style={{ padding: 12, gap: 8, alignItems: "center", backgroundColor: p.surface, borderRadius: 24 }}>
           <ActivityIndicator color={p.accent} accessibilityLabel="Checking your account" />
           <Body>Checking your account before showing your results…</Body>
         </View>
@@ -100,7 +104,6 @@ function ActivePersonalProfile({ navigate }: Props) {
         </ProfileNotice>
       ) : phase === "signed-out" ? (
         <ProfileNotice title="A space for your looks" description="Sign in to see try-ons completed during this app session." icon="image">
-          <Button label="Sign in" onPress={() => navigate({ name: "login" })} />
           <Button label="Explore Try On" secondary icon="camera" onPress={() => navigate({ name: "prepare" })} />
         </ProfileNotice>
       ) : looks.length === 0 ? (
@@ -130,9 +133,9 @@ function ActivePersonalProfile({ navigate }: Props) {
 
 function ProfileNotice({ title, description, icon, children }: React.PropsWithChildren<{ title: string; description: string; icon: "image" | "camera" | "info" }>) {
   const p = usePalette();
-  return <View style={{ padding: 12, gap: 10, borderRadius: 12, backgroundColor: p.surface, borderWidth: 1, borderColor: p.line }}>
+  return <View style={{ padding: 12, gap: 10, borderRadius: 24, backgroundColor: p.surface, borderWidth: 1, borderColor: p.line }}>
     <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
-      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 10, backgroundColor: p.tint, alignItems: "center", justifyContent: "center" }}><Icon name={icon} size={18} color={p.accent} /></View>
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 24, backgroundColor: p.tint, alignItems: "center", justifyContent: "center" }}><Icon name={icon} size={18} color={p.accent} /></View>
       <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
         <Text accessibilityRole="header" style={{ color: p.text, fontSize: 16, lineHeight: 22, fontWeight: "700" }}>{title}</Text>
         <Text style={{ color: p.muted, fontSize: 14, lineHeight: 20 }}>{description}</Text>
@@ -151,7 +154,7 @@ function CompletedLook({ look }: { look: SessionLook }) {
   // Client account scoping does not fix the legacy server's missing ownership enforcement.
   let uri = "";
   try { uri = apiUrl(sessionResultPath(look.jobId)); } catch {}
-  return <View style={{ borderRadius: 12, borderWidth: 1, borderColor: p.line, backgroundColor: p.surface, overflow: "hidden" }}>
+  return <View style={{ borderRadius: 24, borderWidth: 1, borderColor: p.line, backgroundColor: p.surface, overflow: "hidden" }}>
     <View style={{ aspectRatio: 3 / 4, backgroundColor: p.tint }}>
       {!failed && !!uri && <Image
         key={retry}

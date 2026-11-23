@@ -1,11 +1,7 @@
-/* Theme surfaces are explicit: photographic content is never inverted or dimmed. */
-:root {
-  color-scheme: light;
-  --surface: #fff;
-  --text: #1d1929;
-  --muted: #62566f;
-  --line: #d7c8e9;
-  --tint: #f1ebfe;
+.image-fallback { display: grid; place-content: center; gap: var(--compactGap); min-height: 96px; padding: var(--gap); text-align: center; background: var(--tint); color: var(--muted); }
+.product-photo .image-fallback { display: grid; }
+@media (forced-colors: active) {
+  .bottom-nav a[aria-current=page], .look-selector button[aria-pressed=true] { outline: 2px solid Highlight; outline-offset: -3px; }
 }
 .theme-settings { margin-top:20px; }
 .theme-settings h2 { margin-bottom:12px; }

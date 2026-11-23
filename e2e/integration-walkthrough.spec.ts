@@ -8,7 +8,7 @@ for (const width of [390, 1440]) test(`complete shopper and merchant handover th
     await page.route('**/api/integrations/shopify/status', r => r.fulfill({ json: { shops: [{ key: 'mock', name: 'Mock Shop' }] } }));
     await page.route('**/api/integrations/shopify/catalogue/*', r => r.fulfill({ json: {
         shopKey: 'mock', shopName: 'Walkthrough fixture store', hasNextPage: false,
-        products: [{ key: 'mock:gid://shopify/Product/1', title: 'Walkthrough fixture shirt', category: 'Shirts', image: '/images/campaign.png', moreVariants: false,
+        products: [{ key: 'mock:gid://shopify/Product/1', title: 'Walkthrough fixture shirt', category: 'Shirts', image: '/images/demo-bag.png', moreVariants: false,
             variants: [{ id: 'gid://shopify/ProductVariant/1', key: 'mock:gid://shopify/ProductVariant/1', title: 'M / Violet', available: true, amount: '25.50', currency: 'CAD', options: { Size: 'M', Color: 'Violet' } }] }]
     } }));
     await page.route('**/api/merchant/shopify/readiness', r => r.fulfill({ json: { ready: false, connected: false, blockers: ['Live merchant authentication and Shopify authorization are not configured.'] } }));
@@ -20,7 +20,7 @@ for (const width of [390, 1440]) test(`complete shopper and merchant handover th
     await page.getByRole('button', { name: 'Onboard Mock Shop', exact: true }).click();
     await page.getByRole('link', { name: 'Browse onboarded stores' }).click();
     await expect(page.locator('.product')).toHaveCount(1);
-    await page.locator('.bottom-nav').getByRole('link', { name: 'Brands', exact: true }).click();
+    await page.locator('footer').getByRole('link', { name: 'Brands', exact: true }).click();
     await page.locator('.brand-grid a').click();
     await page.getByRole('button', { name: 'Follow store', exact: true }).click();
     await page.locator('.product-title').click();
@@ -44,14 +44,14 @@ for (const width of [390, 1440]) test(`complete shopper and merchant handover th
     await page.getByRole('link', { name: /Your demo orders/ }).click();
     await expect(page.locator('.order-card')).toHaveCount(1);
     await page.goBack();
-    await expect(page.getByRole('heading', { name: 'Your local space.', exact: true })).toBeVisible();
-    await page.locator('.bottom-nav').getByRole('link', { name: 'Saved', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Your profile', exact: true })).toBeVisible();
+    await page.locator('footer').getByRole('link', { name: 'Saved', exact: true }).click();
     await expect(page.locator('.product')).toHaveCount(1);
     await page.locator('.product-title').click();
     await page.getByRole('link', { name: 'Prepare a try-on photo' }).click();
-    await expect(page.getByRole('button', { name: /Generate try-on.*not connected/ })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Continue to try-on' })).toBeEnabled();
     await page.getByRole('button', { name: 'Cancel preparation' }).click();
-    await expect(page.getByRole('heading', { name: 'No try-on results yet.' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Recently viewed pieces' })).toBeVisible();
     await page.locator('.bottom-nav').getByRole('link', { name: 'Profile', exact: true }).click();
     await page.getByRole('link', { name: 'Brand-owner dashboard', exact: true }).click();
     await page.getByLabel('Shopify store domain').focus();

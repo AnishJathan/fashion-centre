@@ -38,7 +38,7 @@ test("mobile layouts retain padding, bounded tablet width and large-text compact
   assert.equal(pageLayout(320).compact, true);
   assert.equal(pageLayout(1024).tablet, true);
   assert.equal(metrics.touch >= 48, true);
-  assert.equal(pageLayout(Number.NaN).contentWidth, 366);
+  assert.equal(pageLayout(Number.NaN).contentWidth, 390 - 2 * metrics.gap);
 });
 test("body, muted, accent and feedback text meet normal-size contrast in both themes", () => {
   for (const p of Object.values(palettes)) {
@@ -54,17 +54,13 @@ test("body, muted, accent and feedback text meet normal-size contrast in both th
     assert.ok(contrast(p.error, p.errorSurface) >= 4.5);
   }
 });
-test("Fashion Centre uses electric ocean blue, cool surfaces and deep ink without the rejected purple palette", () => {
-  assert.equal(palettes.light.accent, "#0057D9");
-  assert.equal(palettes.dark.accent, "#72B6FF");
-  assert.equal(palettes.light.background, "#F5F9FF");
-  assert.equal(palettes.light.text, "#101B2D");
-  assert.equal(palettes.dark.background, "#0B1424");
-  assert.equal(palettes.dark.surface, "#142137");
-  const retired = ["#5D35F2", "#C6A5FF", "#EDE5FC", "#342342", "#A5442D", "#F1A88B", "#FBF8F3"];
-  for (const palette of Object.values(palettes)) {
-    for (const color of Object.values(palette)) assert.ok(!retired.includes(color));
+test("both covers retain readable editorial text and controls inside rounded frames", () => {
+  for (const p of Object.values(palettes)) {
+    for (const ink of [p.coverInk, p.coverMuted, p.accent]) assert.ok(contrast(ink, p.cover) >= 4.5);
   }
+  assert.equal(metrics.cardRadius, 24);
+  assert.ok(metrics.controlRadius < metrics.touch / 2);
+  assert.ok(metrics.pillRadius >= metrics.touch / 2);
 });
 test("native tabs identify nested destinations and retain only intended store scope", () => {
   assert.equal(activeTab("product"), "home");

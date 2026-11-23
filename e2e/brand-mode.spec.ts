@@ -1,12 +1,12 @@
 import {test,expect} from '@playwright/test';
-for(const width of [390,1440]) test(`brand identity persists across shopping, history, switching and disabled stores ${width}`,async({page})=>{
+for(const width of [390,1440]) test(`brand identity persists across shopping, history, switching and disabled stores ${width}`,async({page}, testInfo)=>{
  await page.setViewportSize({width,height:900});
  await page.route('**/api/integrations/shopify/status',r=>r.fulfill({json:{shops:[{key:'mock',name:'Demo North'},{key:'apparel',name:'Demo South'}]}}));
- await page.route('**/api/integrations/shopify/catalogue/*',r=>{const id=new URL(r.request().url()).pathname.split('/').pop()!;return r.fulfill({json:{shopKey:id,shopName:id==='mock'?'Demo North':'Demo South',hasNextPage:false,products:[{key:id+':gid://shopify/Product/1',title:id==='mock'?'North shirt':'South trousers',category:'Clothing',image:'/images/campaign.png',moreVariants:false,variants:[{id:'gid://shopify/ProductVariant/1',key:id+':gid://shopify/ProductVariant/1',title:'M',available:true,amount:'25.50',currency:id==='mock'?'CAD':'USD',options:{Size:'M'}}]}]}})});
+ await page.route('**/api/integrations/shopify/catalogue/*',r=>{const id=new URL(r.request().url()).pathname.split('/').pop()!;return r.fulfill({json:{shopKey:id,shopName:id==='mock'?'Demo North':'Demo South',hasNextPage:false,products:[{key:id+':gid://shopify/Product/1',title:id==='mock'?'North shirt':'South trousers',category:'Clothing',image:'/images/demo-bag.png',moreVariants:false,variants:[{id:'gid://shopify/ProductVariant/1',key:id+':gid://shopify/ProductVariant/1',title:'M',available:true,amount:'25.50',currency:id==='mock'?'CAD':'USD',options:{Size:'M'}}]}]}})});
  await page.addInitScript(()=>{if(!localStorage.getItem('fc.stores.v1'))localStorage.setItem('fc.stores.v1',JSON.stringify(['mock','apparel'].map(id=>({id,enabled:true,onboardedAt:'2026-10-18'}))))});
  await page.goto('/'); await expect(page.locator('.product')).toHaveCount(2);
  await page.locator('.brand-grid a').filter({hasText:'Demo North'}).click();
- const north=async()=>{await expect(page.locator('header .logo')).toHaveText('Demo North');await expect(page.locator('.brand-mode')).toContainText('Back to Fashion Centre')};
+ const north=async()=>{await expect(page.locator('header .logo')).toHaveAccessibleName('Demo North');await expect(page.locator('.brand-mode')).toContainText('Back to Fashion Centre')};
  await north(); await expect(page.locator('.product-title')).toHaveText('North shirt');
  await page.locator('.product-title').click(); await north();
  await page.getByRole('button',{name:'Add to demo cart'}).click(); await page.getByRole('button',{name:'Dismiss notification'}).click();
@@ -18,14 +18,14 @@ for(const width of [390,1440]) test(`brand identity persists across shopping, hi
  await page.getByLabel('Catalogue garment').selectOption('mock:gid://shopify/Product/1'); await north();
  await page.getByRole('button',{name:'Cancel preparation'}).click();await expect(page).toHaveURL(/try\?brand=mock$/);
  await page.locator('.bottom-nav').getByRole('link',{name:'Discover'}).click(); await expect(page.locator('.product-title')).toHaveText('North shirt');
- await page.getByRole('link',{name:'Switch brand',exact:true}).click();await expect(page.locator('header .logo')).toHaveText('Fashion Centre');
- await page.locator('.brand-grid a').filter({hasText:'Demo South'}).click(); await expect(page.locator('header .logo')).toHaveText('Demo South');
- await page.goBack(); await expect(page.locator('header .logo')).toHaveText('Fashion Centre'); await page.goForward();await expect(page.locator('header .logo')).toHaveText('Demo South');
+ await page.getByRole('link',{name:'Switch brand',exact:true}).click();await expect(page.locator('header .logo')).toHaveAccessibleName('Fashion Centre');
+ await page.locator('.brand-grid a').filter({hasText:'Demo South'}).click(); await expect(page.locator('header .logo')).toHaveAccessibleName('Demo South');
+ await page.goBack(); await expect(page.locator('header .logo')).toHaveAccessibleName('Fashion Centre'); await page.goForward();await expect(page.locator('header .logo')).toHaveAccessibleName('Demo South');
  await page.locator('.product-title').click();await page.getByRole('button',{name:'Add to demo cart'}).click();await page.getByRole('button',{name:'Dismiss notification'}).click();
  await page.getByRole('link',{name:/View your cart/}).click(); await expect(page.locator('.cart-line')).toHaveCount(1);await expect(page.locator('.cart-line')).toContainText('USD 25.50');
  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('fc.commerce.v2')!).cart.length)).toBe(2);
  await page.getByRole('link',{name:/Demo checkout/}).click();await page.getByRole('button',{name:'Place demo order'}).click();
- await expect(page.getByRole('heading',{name:'Demo order placed',exact:true})).toBeVisible();await expect(page.locator('header .logo')).toHaveText('Demo South');
+ await expect(page.getByRole('heading',{name:'Demo order placed',exact:true})).toBeVisible();await expect(page.locator('header .logo')).toHaveAccessibleName('Demo South');
  await expect(page.getByText(/All-store order history/)).toBeVisible();
  await page.getByRole('link',{name:'Back to Fashion Centre',exact:true}).click();await expect(page.locator('.product')).toHaveCount(2);
  await page.goto('/#/product/'+encodeURIComponent('mock:gid://shopify/Product/1'));await north();
@@ -35,7 +35,7 @@ for(const width of [390,1440]) test(`brand identity persists across shopping, hi
   await page.locator('.bottom-nav').getByRole('link',{name:'Discover'}).click();await north();
   await page.locator('img').evaluateAll(images=>Promise.all(images.map(i=>i.decode().catch(()=>{}))));
   await page.evaluate(()=>{if(document.activeElement instanceof HTMLElement)document.activeElement.blur()});
-  await page.screenshot({path:`screenshots/brand-mode-${theme.toLowerCase()}-${width}.png`,fullPage:true});
+  await page.screenshot({path:testInfo.outputPath(`brand-mode-${theme.toLowerCase()}-${width}.png`),fullPage:true});
  }
  await page.goto('/#/merchant?brand=mock');await page.getByRole('button',{name:'Disable Demo North',exact:true}).click();
  await page.locator('.bottom-nav').getByRole('link',{name:'Discover'}).click();await expect(page.getByRole('heading',{name:'This store is unavailable.'})).toBeVisible();await expect(page.locator('.product')).toHaveCount(0);

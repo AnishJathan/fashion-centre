@@ -34,7 +34,6 @@ import {
   selectProducts,
   toggleId,
   money,
-  productPath,
 } from "../src/core/domain.ts";
 test("filter uses only supplied catalogue and respects merchant category and search", () => {
   const p = product(),
@@ -43,17 +42,12 @@ test("filter uses only supplied catalogue and respects merchant category and sea
   assert.deepEqual(selectProducts([p, other], "mock", "shirt", "Shirts"), [p]);
   assert.deepEqual(selectProducts([p], "", "unknown"), []);
 });
-test("saved ids remain independent of catalogue refresh", () => {
+test("followed store ids remain independent of catalogue refresh", () => {
   assert.deepEqual(toggleId(["legacy"], "new"), ["legacy", "new"]);
   assert.deepEqual(toggleId(["legacy"], "legacy"), []);
 });
-test("source currency and encoded shop scoped routes remain explicit", () => {
+test("money displays the source currency", () => {
   assert.equal(money(79.95, "CAD"), "CAD 79.95");
-  assert.notEqual(
-    productPath(product().id),
-    productPath(product("apparel").id),
-  );
-  assert.ok(productPath(product().id).includes("%2F"));
 });
 
 test("catalogue and source directory reject malformed or mismatched identities", async () => {

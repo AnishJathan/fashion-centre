@@ -25,6 +25,7 @@ function harness(products = catalogue, brandId = 'atelier', width = 390, fontSca
   const react = { createElement: (type: any, props: any, ...children: any[]) => ({ type, props: { ...props, children } }), useState: (initial: any) => { const i = index++; if (!(i in states)) states[i] = initial; return [states[i], (value: any) => { states[i] = typeof value === 'function' ? value(states[i]) : value; }]; } };
   const imports: Record<string, any> = {
     react: { __esModule: true, default: react, ...react },
+    './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
     'react-native': { ...Object.fromEntries(['Pressable', 'ScrollView', 'Text', 'TextInput', 'View'].map(x => [x, x])), Platform: { OS: 'ios' }, useWindowDimensions: () => ({ width, height: 844, fontScale }) },
     './state': { useApp: () => app }, './brandExperience': experience,
     './ui': { Button: 'Button', Icon: 'Icon', Photo: 'Photo', usePalette: () => experience.brandExperience(brandId, 'light').palette },

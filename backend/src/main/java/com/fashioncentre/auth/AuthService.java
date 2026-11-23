@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -20,11 +21,11 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class AuthService {
     private static final Pattern E164 = Pattern.compile("^\\+[1-9]\\d{7,14}$");
-    private static final Duration CODE_TTL = Duration.ofMinutes(2);
-    private static final Duration RESEND_WAIT = Duration.ofSeconds(30);
+    static final Duration CODE_TTL = Duration.ofMinutes(2);
+    static final Duration RESEND_WAIT = Duration.ofSeconds(30);
     private static final int MAX_SENDS_PER_HOUR = 5;
     private static final int MAX_ATTEMPTS = 5;
-    private static final Duration SESSION_TTL = Duration.ofDays(30);
+    static final Duration SESSION_TTL = Duration.ofDays(30);
 
     private final SecureRandom random = new SecureRandom();
     private final UserRepository users;
@@ -60,7 +61,7 @@ public class AuthService {
             throw tooMany("Too many codes requested. Try again later.");
         }
 
-        String code = String.format("%06d", random.nextInt(1_000_000));
+        String code = String.format(Locale.ROOT, "%06d", random.nextInt(1_000_000));
         LoginCode lc = new LoginCode();
         lc.setPhoneNumber(phone);
         lc.setCodeHash(codeHash(phone, code));
@@ -80,12 +81,9 @@ public class AuthService {
         requireE164(phone);
         Instant now = Instant.now();
 
-        LoginCode lc = codes.findFirstByPhoneNumberAndUsedFalseOrderByCreatedAtDesc(phone)
+        LoginCode lc = codes.findTopByPhoneNumberOrderByCreatedAtDescIdDesc(phone)
+                .filter(latest -> !latest.isUsed() && latest.getExpiresAt().isAfter(now))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.GONE, "This code has expired. Request a new one."));
-
-        if (lc.getExpiresAt().isBefore(now)) {
-            throw new ResponseStatusException(HttpStatus.GONE, "This code has expired. Request a new one.");
-        }
         if (lc.getAttempts() >= MAX_ATTEMPTS) {
             throw tooMany("Too many attempts. Request a new code.");
         }
@@ -105,6 +103,17 @@ public class AuthService {
             return users.save(u);
         });
 
+        return createSession(user, now);
+    }
+
+    @Transactional
+    public String googleSession(String subject, String firstName) {
+        String hash = sha256(subject);
+        users.ensureGoogleUser(java.util.UUID.randomUUID().toString(), hash, firstName);
+        return createSession(users.findByGoogleSubjectHash(hash).orElseThrow(), Instant.now());
+    }
+
+    private String createSession(User user, Instant now) {
         String token = newToken();
         AuthSession session = new AuthSession();
         session.setUser(user);
@@ -113,6 +122,17 @@ public class AuthService {
         session.setExpiresAt(now.plus(SESSION_TTL));
         sessions.save(session);
         return token;
+    }
+
+    @Transactional
+    public String updateProfileName(String token, String expectedAccountId, String firstName) {
+        User user = currentUser(token).orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        if (!user.getId().equals(expectedAccountId)) throw new ResponseStatusException(HttpStatus.CONFLICT, "Your account changed.");
+        String name = firstName == null ? "" : firstName.strip();
+        if (name.isEmpty() || name.length() > 80 || name.chars().anyMatch(Character::isISOControl))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enter a valid name.");
+        users.updateProfileName(user.getId(), name, java.time.Instant.now());
+        return name;
     }
 
     @Transactional(readOnly = true)
@@ -149,7 +169,7 @@ public class AuthService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    private static String sha256(String input) {
+    static String sha256(String input) {
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256").digest(input.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(digest);

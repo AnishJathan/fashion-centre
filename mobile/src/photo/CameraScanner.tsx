@@ -1,8 +1,10 @@
 import { runCaptureStep, shouldStopScanner } from "./scanSession";
 import React, { useEffect, useRef, useState } from "react";
-import { AppState, View, Text, useWindowDimensions } from "react-native";
+import { Text } from "../Typography";
+import { AppState, View, useWindowDimensions } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as FS from "expo-file-system/legacy";
+import { metrics, pageLayout } from "../design";
 import { Button, usePalette } from "../ui";
 import { AccountNotice, AccountSection } from "../AccountUI";
 import { cameraStageHeight } from "./layout";
@@ -31,7 +33,8 @@ export function CameraScanner({
       permission?.granted ? "granted" : "requesting",
     ),
     [stageWidth, setStageWidth] = useState(0);
-  const { width, height } = useWindowDimensions();
+  const { width, height, fontScale } = useWindowDimensions();
+  const estimatedStageWidth = pageLayout(width, fontScale).contentWidth - metrics.gap * 2;
   const camera = useRef<CameraView>(null),
     accepted = useRef(onAccepted),
     cancel = useRef(onCancel);
@@ -125,7 +128,7 @@ export function CameraScanner({
     };
   }, [ready, permission?.granted, failed]);
   return (
-    <View style={{ gap: 12 }}>
+    <View style={{ gap: metrics.gap }}>
       <AccountSection
         title="Full-body scan"
         description="Stand 2–3 steps back. Keep your head and feet visible, then hold still."
@@ -139,8 +142,8 @@ export function CameraScanner({
         <View
           onLayout={(event) => setStageWidth(event.nativeEvent.layout.width)}
           style={{
-            height: cameraStageHeight(stageWidth || width - 76, height),
-            borderRadius: 20,
+            height: cameraStageHeight(stageWidth || estimatedStageWidth, height),
+            borderRadius: metrics.cardRadius,
             overflow: "hidden",
             backgroundColor: "#17131E",
           }}
@@ -179,9 +182,9 @@ export function CameraScanner({
             pointerEvents="none"
             style={{
               position: "absolute",
-              top: 12,
-              left: 12,
-              right: 12,
+              top: metrics.compactGap,
+              left: metrics.compactGap,
+              right: metrics.compactGap,
               alignItems: "center",
             }}
           >

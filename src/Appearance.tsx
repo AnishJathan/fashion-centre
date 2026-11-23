@@ -13,7 +13,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [systemDark, setSystemDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
   const [message, setMessage] = useState('');
   const resolved = resolveTheme(preference, systemDark);
-  useLayoutEffect(() => { document.documentElement.dataset.theme = resolved; }, [resolved]);
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.dataset.theme = resolved;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', getComputedStyle(root).getPropertyValue('--background').trim());
+  }, [resolved]);
   useEffect(() => {
     const media = matchMedia('(prefers-color-scheme: dark)');
     const syncSystem = () => setSystemDark(media.matches);

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import ts from 'typescript';
+import * as design from '../src/design.ts';
 import * as experience from '../src/experience.ts';
 import type { Product } from '../src/core/domain.ts';
 
@@ -52,6 +53,7 @@ function harness(initialMood = 'all', catalogue = products) {
   };
   const imports: Record<string, any> = {
     react: { __esModule: true, default: React, ...React },
+    './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
     'react-native': {
       ...Object.fromEntries(['Image', 'Modal', 'Pressable', 'ScrollView', 'Text', 'View'].map(name => [name, name])),
       Platform: { OS: 'ios' }, useWindowDimensions: () => ({ width: 390, height: 844, fontScale: 1 }),
@@ -59,7 +61,7 @@ function harness(initialMood = 'all', catalogue = products) {
       Animated: { View: 'Animated.View', Value: class { stopAnimation() {} setValue(_value: number) {} }, timing: () => ({ start() {} }) },
     },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) },
-    './state': { useApp: () => state }, './experience': experience,
+    './design': design, './state': { useApp: () => state }, './experience': experience,
     './ui': { ...Object.fromEntries(['Body', 'Button', 'Heading', 'Icon', 'IconButton'].map(name => [name, name])), usePalette: () => ({}) },
     './ShoppingComponents': { ProductGrid: 'ProductGrid' },
   };

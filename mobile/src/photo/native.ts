@@ -1,3 +1,4 @@
+import { File } from "expo-file-system";
 import * as FS from "expo-file-system/legacy";
 import * as Picker from "expo-image-picker";
 import * as Manipulator from "expo-image-manipulator";
@@ -65,14 +66,17 @@ export async function inspectFile(uri: string, type: string) {
   if (type === "image/png") validateStillPng(bytes);
   return dimensions;
 }
-export async function choosePhoto(camera: boolean): Promise<LocalPhoto | null> {
-  const permission = camera
-    ? await Picker.requestCameraPermissionsAsync()
-    : await Picker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted)
-    throw new Error(
-      "Permission was not granted. You can change access in your device settings.",
-    );
+let pickerOpen = false;
+export function isPickingLibraryPhoto() { return pickerOpen; }
+async function chooseLibraryPhoto(options: Picker.ImagePickerOptions) {
+  pickerOpen = true;
+  try { return await Picker.launchImageLibraryAsync(options); }
+  finally { pickerOpen = false; }
+}
+export async function takePhoto(source: "camera" | "library" = "camera"): Promise<LocalPhoto | null> {
+  if (source === "camera" && !(await Picker.requestCameraPermissionsAsync()).granted) {
+    throw new Error("Camera access was not granted. You can change access in your device settings.");
+  }
   const options: Picker.ImagePickerOptions = {
     mediaTypes: ["images"],
     allowsEditing: false,
@@ -80,9 +84,7 @@ export async function choosePhoto(camera: boolean): Promise<LocalPhoto | null> {
     base64: false,
     exif: false,
   };
-  const result = camera
-    ? await Picker.launchCameraAsync(options)
-    : await Picker.launchImageLibraryAsync(options);
+  const result = source === "library" ? await chooseLibraryPhoto(options) : await Picker.launchCameraAsync(options);
   if (result.canceled) return null;
   const asset = result.assets[0];
   const type =
@@ -131,5 +133,5 @@ export function appendPhoto(
   key: string,
   photo: Pick<LocalPhoto, "uri" | "name" | "type">,
 ) {
-  form.append(key, photo as unknown as Blob);
+  form.append(key, new File(photo.uri), photo.name);
 }

@@ -4,7 +4,7 @@ import {
   validatePhotoHeader,
   resolutionWarning,
   MAX_PHOTO_BYTES,
-} from "../src/core/photoPreparation.ts";
+} from "../src/photo/validation.ts";
 test("photo type and actual signature must agree", () => {
   const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
   assert.doesNotThrow(() => validatePhotoHeader("image/png", 100, png));

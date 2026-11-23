@@ -37,14 +37,18 @@ import {
   type ThemePreference,
 } from "./core/themePreference.ts";
 
+import { emptyHistory, readHistory, recordVisit, HISTORY_KEY, type BrowsingHistory } from "./core/browsingHistory";
+
 interface Snapshot {
+  browsing: BrowsingHistory;
   commerce: CommerceState;
-  saved: string[];
   followed: string[];
   registrations: StoreRegistration[];
   themePreference: ThemePreference;
 }
 export interface AppState extends Snapshot {
+  clearBrowsingHistory(): Promise<void>;
+  visit(store: string, product?: string): Promise<void>;
   ready: boolean;
   error: string;
   notice: string;
@@ -52,13 +56,13 @@ export interface AppState extends Snapshot {
   sources: Source[];
   brands: Brand[];
   products: Product[];
+  directoryLoading: boolean;
   catalogueLoading: boolean;
   catalogueError: string;
   theme: "light" | "dark";
   reload(): Promise<void>;
   onboard(id: string): Promise<void>;
   toggleStore(id: string): Promise<void>;
-  toggleSaved(id: string): Promise<void>;
   toggleFollowed(id: string): Promise<void>;
   dispatch(action: CommerceAction): Promise<boolean>;
   setTheme(value: ThemePreference): Promise<void>;
@@ -67,8 +71,8 @@ export interface AppState extends Snapshot {
 const Context = createContext<AppState | null>(null);
 const repository = new NativeStorage(AsyncStorage);
 const empty = (): Snapshot => ({
+  browsing: emptyHistory(),
   commerce: initialCommerce(),
-  saved: [],
   followed: [],
   registrations: [],
   themePreference: "system",
@@ -85,8 +89,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const mounted = useRef(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [publishedIds,setPublishedIds]=useState<string[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
+  const [directoryLoading, setDirectoryLoading] = useState(true);
   const [catalogueLoading, setCatalogueLoading] = useState(false);
   const [catalogueError, setCatalogueError] = useState("");
   const [retry, setRetry] = useState(0);
@@ -102,7 +108,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     generation.current++;
     catalogueAbort.current?.abort();
     liveProducts.current = [];
-    if (mounted.current) setBrands([]);
+    if (mounted.current) {
+      setDirectoryLoading(true);
+      setBrands([]);
+    }
   }
   async function reload() {
     await repository.run(async () => {
@@ -114,13 +123,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       invalidateCatalogue();
       try {
         const next: Snapshot = {
+          browsing: await repository.read(HISTORY_KEY, readHistory, emptyHistory()),
           commerce: await repository.read(
             COMMERCE_KEY,
             parseCommerce,
             initialCommerce(),
           ),
           registrations: await repository.read(STORES_KEY, parseStores, []),
-          saved: await repository.read("fc.saved", parseIds, []),
           followed: await repository.read("fc.followed", parseIds, []),
           themePreference: await repository.read(
             THEME_KEY,
@@ -161,11 +170,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       mounted.current &&
       !abort.signal.aborted &&
       version === generation.current;
+    setDirectoryLoading(true);
     setCatalogueLoading(true);
     setCatalogueError("");
     setBrands([]);
     liveProducts.current = [];
-    const enabled = current.current.registrations.filter((s) => s.enabled);
+    const saved=current.current.registrations;
+    const enabled = [...saved.filter(s=>s.enabled), ...publishedIds.filter(id=>!saved.some(s=>s.id===id)).map(id=>({id}))];
     let directoryError = "",
       storeErrors: string[] = [];
     const publishErrors = () =>
@@ -178,6 +189,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       (result) => {
         if (!valid()) return;
         setSources(result.status === "fulfilled" ? result.value : []);
+        if(result.status==="fulfilled"){
+          const ids=result.value.filter(s=>s.preview || s.key.startsWith("shop-")).map(s=>s.key).sort();
+          setPublishedIds(previous=>previous.join(",")===ids.join(",")?previous:ids);
+        }
+        setDirectoryLoading(false);
         directoryError =
           result.status === "rejected" ? message(result.reason) : "";
         publishErrors();
@@ -199,7 +215,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
     );
     return () => abort.abort();
-  }, [ready, snapshot.registrations, retry]);
+  }, [ready, snapshot.registrations, retry, publishedIds]);
   async function mutate(operation: () => Promise<void>): Promise<void> {
     await repository.run(async () => {
       try {
@@ -243,12 +259,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       old.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s)),
     );
   }
-  async function toggle(key: "saved" | "followed", id: string) {
+  async function toggleFollowed(id: string) {
     await mutate(async () => {
-      if (!id) throw new Error("A saved reference is required.");
-      const next = toggleId(current.current[key], id);
-      await repository.write("fc." + key, next);
-      publish({ ...current.current, [key]: next });
+      if (!id) throw new Error("A store reference is required.");
+      const followed = toggleId(current.current.followed, id);
+      await repository.write("fc.followed", followed);
+      publish({ ...current.current, followed });
     });
   }
   async function dispatch(action: CommerceAction): Promise<boolean> {
@@ -260,7 +276,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const id =
           action.type === "add" ? action.product.brandId : action.brandId;
         if (
-          !current.current.registrations.some((s) => s.id === id && s.enabled)
+          !(current.current.registrations.find(s=>s.id===id)?.enabled ?? publishedIds.includes(id))
         )
           throw new Error(
             "Enable this store before adding items or checking out.",
@@ -328,6 +344,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
   const value: AppState = {
     ...snapshot,
+    clearBrowsingHistory: () => mutate(async () => {
+      const browsing = emptyHistory();
+      await repository.write(HISTORY_KEY, browsing);
+      publish({ ...current.current, browsing });
+      if (mounted.current) setNotice("Browsing history cleared.");
+    }),
+    visit: (store, product) => mutate(async () => {
+      const previous = current.current.browsing;
+      const browsing = recordVisit(previous, store, product);
+      if (browsing === previous) return;
+      await repository.write(HISTORY_KEY, browsing);
+      publish({ ...current.current, browsing });
+    }),
     ready,
     error,
     notice,
@@ -335,14 +364,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     sources,
     brands,
     products: brands.flatMap((b) => b.products),
+    directoryLoading,
     catalogueLoading,
     catalogueError,
     theme: resolveTheme(snapshot.themePreference, scheme === "dark"),
     reload,
     onboard,
     toggleStore,
-    toggleSaved: (id) => toggle("saved", id),
-    toggleFollowed: (id) => toggle("followed", id),
+    toggleFollowed,
     dispatch,
     setTheme,
     exportBackup,

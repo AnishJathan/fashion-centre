@@ -81,6 +81,7 @@ function harness(
     registrations: [{ id: "a", enabled: true }],
     saved: [],
     followed: [],
+    directoryLoading: false,
     catalogueLoading: false,
     catalogueError: "",
     commerce: { cart: [], orders: [], legacySamples: [] },
@@ -143,6 +144,7 @@ function harness(
   );
   const imports: Record<string, any> = {
     react: { __esModule: true, default: React, ...React },
+    './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
     "react-native": {
       ActivityIndicator: "ActivityIndicator",
       FlatList: "FlatList",
@@ -161,14 +163,16 @@ function harness(
     "react-native-safe-area-context": {
       useSafeAreaInsets: () => insets,
     },
-    "./Experience": { ExperienceIntro: "ExperienceIntro" },
-    "./CommerceHome": { CommerceHome: "CommerceHome" },
+    "./Experience.tsx": { ExperienceIntro: "ExperienceIntro" },
+    "./CommerceHome.tsx": { CommerceHome: "CommerceHome" },
     "./BrandStorefront": { BrandStorefront: "BrandStorefront" },
     "./BrandMark": { BrandMark: "BrandMark" },
     "./experience": experience,
     "./core/shopper": shopper,
     "./core/commerce": commerce,
     "./core/domain": domain,
+    "./core/storeCheckout": {isLiveStore: (id:string) => id?.startsWith("shop-"),storeCheckout: async () => {throw Error("No checkout configured");}},
+    "./core/api": {apiFetch: async () => {throw Error("No API configured");}},
     "./state": { useApp: () => a },
     "./ui": { ...ui, usePalette: () => ({}) },
     "./ShoppingComponents": Object.fromEntries(
@@ -345,6 +349,15 @@ test("duplicate checkout taps submit once and leaving blocks late completion nav
   await pending;
   await Promise.resolve();
   assert.deepEqual(h.navigation, []);
+});
+test("the store directory has a loading state independent of enabled catalogues", () => {
+  const pending = harness({ name: "stores" }, { directoryLoading: true });
+  assert.equal(pending.find("ActivityIndicator").props.accessibilityLabel, "Loading store directory");
+  assert.equal(pending.find("ShoppingEmpty"), undefined);
+
+  const empty = harness({ name: "stores" }, { catalogueLoading: true });
+  assert.equal(empty.find("ActivityIndicator"), undefined);
+  assert.equal(empty.find("ShoppingEmpty").props.title, "No demo stores loaded");
 });
 test("unavailable store and empty order states are explicit and recoverable", () => {
   const store = harness({ name: "brand", brandId: "missing" });

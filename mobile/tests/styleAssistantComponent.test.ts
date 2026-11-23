@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import test from 'node:test';
 import ts from 'typescript';
 import * as helper from '../src/styleAssistant.ts';
-import { palettes } from '../src/design.ts';
+import { metrics, palettes } from '../src/design.ts';
 import type { Product } from '../src/core/domain.ts';
 
 const file = fs.readFileSync(new URL('../src/StyleAssistant.tsx', import.meta.url), 'utf8');
@@ -54,10 +54,11 @@ function harness(initial: any = {}, os = 'ios', palette: typeof palettes[keyof t
   const native = Object.fromEntries(['KeyboardAvoidingView', 'Modal', 'Pressable', 'ScrollView', 'Text', 'TextInput', 'View'].map(name => [name, name]));
   const imports: Record<string, any> = {
     react: { __esModule: true, default: React, ...React },
+    './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
     'react-native': { ...native, useWindowDimensions: () => dimensions, Platform: { OS: os }, Keyboard: { dismiss() { keyboardDismissals++; } }, AccessibilityInfo: { announceForAccessibility: (value: string) => announcements.push(value), setAccessibilityFocus: (id: string) => focused.push(id) }, findNodeHandle: (element: any) => element?.id },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 24, bottom: 34, left: 0, right: 0 }) },
     'react-native-svg': { __esModule: true, default: 'Svg', ...Object.fromEntries(['Circle', 'Defs', 'Path', 'RadialGradient', 'Stop'].map(name => [name, name])) },
-    './ui': { Icon: 'Icon', usePalette: () => palette }, './styleAssistant': helper,
+    './Motion': { useReducedMotion: () => false }, './design': { metrics }, './ui': { Icon: 'Icon', usePalette: () => palette }, './styleAssistant': helper,
   };
   const module = { exports: {} as any };
   new Function('require', 'module', 'exports', 'setTimeout', 'clearTimeout', 'document', source)(
@@ -117,13 +118,13 @@ test('separately mounted helpers retain unique SVG gradient references across na
   assert.equal(mark(brand), brandId);
 });
 
-test('helper orb uses ocean blue and teal with readable white marks across the full gradient in both themes', () => {
+test('helper orb uses the russet brand palette with readable white marks across the full gradient in both themes', () => {
   for (const palette of Object.values(palettes)) {
     const h = harness({}, 'ios', palette);
     const component = h.all().find(node => typeof node.type === 'function' && node.type.name === 'AssistantMark');
     const svg = nodes(component.type(component.props));
     const stops = svg.filter(node => node.type === 'Stop');
-    assert.deepEqual(stops.map(node => node.props.stopColor), ['#0083BF', '#006ADF', '#0057D9', '#007B91', '#0A8A83']);
+    assert.deepEqual(stops.map(node => node.props.stopColor), ['#B47853', '#934124', '#55301F']);
     const channels = (hex: string) => hex.slice(1).match(/../g)!.map(channel => parseInt(channel, 16) / 255);
     for (let index = 1; index < stops.length; index++) {
       const from = channels(stops[index - 1].props.stopColor), to = channels(stops[index].props.stopColor);
@@ -137,7 +138,7 @@ test('helper orb uses ocean blue and teal with readable white marks across the f
     assert.equal(svg.find(node => node.type === 'Path').props.fill, '#FFFFFF');
     assert.equal(svg.filter(node => node.type === 'Circle')[1].props.fill, '#FFFFFF');
     assert.equal(h.byId('style-assistant-orb').props.style.backgroundColor, palette.surface);
-    assert.equal(h.byId('style-assistant-orb').props.style.shadowColor, '#101B2D');
+    assert.equal(h.byId('style-assistant-orb').props.style.shadowColor, palette.text);
     h.open();
     assert.equal(h.byId('style-assistant-panel').props.style.backgroundColor, palette.surface);
     assert.equal(h.byId('style-assistant-input').props.style.color, palette.text);
