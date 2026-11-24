@@ -57,8 +57,6 @@ import {
   type Route,
   type RouteName,
 } from "./src/navigation";
-import { MotionProvider } from "./src/Motion";
-import { LaunchReveal } from "./src/LaunchReveal";
 
 type Params = Omit<Route, "name">;
 type Routes = { [K in RouteName]: Params | undefined };
@@ -129,39 +127,40 @@ function ShellContent({
           ? navigation.replace("profile", route.brandId ? { brandId: route.brandId } : {})
           : navigation.replace("home");
   const brand = app.brands.find((b) => b.id === route.brandId);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
-  useEffect(() => {
-    const show = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
-      () => setKeyboardVisible(true),
-    );
-    const hide = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
-      () => setKeyboardVisible(false),
-    );
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
-  function switchTab(name: BottomTabName) {
-    const { name: destination, ...params } = tabDestination(name, route);
-    Keyboard.dismiss();
-    if (
-      destination === route.name &&
-      JSON.stringify(params) === JSON.stringify(nativeRoute.params || {})
-    )
-      return;
-    navigation.reset({ index: 0, routes: [{ name: destination, params }] });
-  }
-  const openTryOn = () => {
-    Keyboard.dismiss();
-    const { name, ...params } = tryOnDestination(route, app.products, app.brands);
-    // This is an action, not a root-tab switch: Back returns to this screen.
-    // Use the validated destination directly instead of inheriting stale scope.
-    navigation.navigate(name, params);
-  };
+  // const [keyboardVisible, setKeyboardVisible] = useState(false);
+  // useEffect(() => {
+  //   const show = Keyboard.addListener(
+  //     Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+  //     () => setKeyboardVisible(true),
+  //   );
+  //   const hide = Keyboard.addListener(
+  //     Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+  //     () => setKeyboardVisible(false),
+  //   );
+  //   return () => {
+  //     show.remove();
+  //     hide.remove();
+  //   };
+  // }, []);
+  // function switchTab(name: BottomTabName) {
+  //   const { name: destination, ...params } = tabDestination(name, route);
+  //   Keyboard.dismiss();
+  //   if (
+  //     destination === route.name &&
+  //     JSON.stringify(params) === JSON.stringify(nativeRoute.params || {})
+  //   )
+  //     return;
+  //   navigation.reset({ index: 0, routes: [{ name: destination, params }] });
+  // }
+  // const openTryOn = () => {
+  //   Keyboard.dismiss();
+  //   const { name, ...params } = tryOnDestination(route, app.products, app.brands);
+  //   // This is an action, not a root-tab switch: Back returns to this screen.
+  //   // Use the validated destination directly instead of inheriting stale scope.
+  //   navigation.navigate(name, params);
+  // };
   const exitStore = () => navigation.reset({ index: 0, routes: [{ name: "home" }] });
+  const showTabs = showsDock(route);
   const brandRoot = route.name === "brand" || route.name === "home";
   useEffect(() => {
     const identity = brand ? brandExperience(brand.id, app.theme) : undefined;
