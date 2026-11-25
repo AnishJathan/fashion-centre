@@ -72,6 +72,18 @@ public class MerchantController {
         this.allowPrincipalForTests = true;
     }
 
+    MerchantController(
+            ShopifyOAuth flow,
+            JdbcConnections jdbcConnections) {
+
+        this.flow = flow;
+        this.authService = null;
+        this.productService = null;
+        this.jdbcConnections = jdbcConnections;
+        this.publicCatalogue = null;
+        this.allowPrincipalForTests = true;
+    }
+
     private Optional<User> authenticatedUser(HttpServletRequest request) {
 
         if (authService == null || request.getCookies() == null) {

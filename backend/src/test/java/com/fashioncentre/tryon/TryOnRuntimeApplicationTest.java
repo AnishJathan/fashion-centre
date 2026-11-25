@@ -44,7 +44,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 // Isolated in-memory auth schema. No production datasource, credentials or provider calls.
 @SpringBootTest(properties={
-    "spring.datasource.url=jdbc:h2:mem:combined-runtime;DB_CLOSE_DELAY=-1",
+    "spring.datasource.url=jdbc:h2:mem:combined-runtime;DB_CLOSE_DELAY=-1;INIT=RUNSCRIPT FROM 'classpath:/db/manual/merchant-test-schema.sql'",
+    "SHOPIFY_ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
     "spring.datasource.driver-class-name=org.h2.Driver",
     "spring.datasource.username=sa", "spring.datasource.password=",
     "spring.jpa.hibernate.ddl-auto=create-drop", "spring.flyway.enabled=false",

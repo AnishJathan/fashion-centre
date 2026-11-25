@@ -25,12 +25,22 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(properties = {
-    "spring.datasource.url=jdbc:h2:mem:provider-sign-in;MODE=MySQL;DB_CLOSE_DELAY=-1", "spring.datasource.driver-class-name=org.h2.Driver",
-    "spring.datasource.username=sa", "spring.datasource.password=", "spring.jpa.hibernate.ddl-auto=none", "spring.flyway.enabled=true",
-    "auth.code-pepper=fixture", "r2.bucket=fixture", "auth.public-origin=https://fashion.example",
-    "auth.google-client-id=fixture-google", "auth.google-client-secret=fixture-google-secret",
-    "auth.shopify-client-id=fixture-shopify", "auth.shopify-client-secret=fixture-shopify-secret"
+    "spring.datasource.url=jdbc:h2:mem:provider-sign-in;MODE=MySQL;DB_CLOSE_DELAY=-1",
+    "spring.datasource.driver-class-name=org.h2.Driver",
+    "spring.datasource.username=sa",
+    "spring.datasource.password=",
+    "spring.jpa.hibernate.ddl-auto=none",
+    "spring.flyway.enabled=true",
+    "auth.code-pepper=fixture",
+    "r2.bucket=fixture",
+    "auth.public-origin=https://fashion.example",
+    "auth.google-client-id=fixture-google",
+    "auth.google-client-secret=fixture-google-secret",
+    "SHOPIFY_ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    "auth.shopify-client-id=fixture-shopify",
+    "auth.shopify-client-secret=fixture-shopify-secret"
 })
+
 @AutoConfigureMockMvc
 class ProviderSignInTest {
     @Autowired MockMvc mvc;

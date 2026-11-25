@@ -60,6 +60,7 @@ export default defineConfig({
     allowedHosts: [
       'presidential-dropped-gone-soc.trycloudflare.com',
       'regulation-assignment-partnerships-visited.trycloudflare.com',
+      'operation-mailman-programmer-chair.trycloudflare.com',
     ],
 
     watch: {

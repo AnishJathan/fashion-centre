@@ -1,3 +1,4 @@
+
 package com.fashioncentre.merchant;
 
 import java.io.ByteArrayInputStream;
@@ -63,6 +64,17 @@ public final class EncryptedConnections
 
         default Optional<Stored> read(String brand) {
             return Optional.empty();
+        }
+
+        /**
+         * Replace an existing encrypted connection only if it
+         * still matches the previously read record.
+         */
+        default boolean replaceIfUnchanged(
+                Stored expected,
+                Stored replacement
+        ) {
+            return false;
         }
     }
 
@@ -296,6 +308,94 @@ public final class EncryptedConnections
     }
 
     /**
+     * Encrypt a Shopify token bundle without saving it.
+     * Used when preparing a replacement encrypted connection.
+     */
+    private Stored encrypt(
+            String owner,
+            String brand,
+            String shop,
+            ShopifyOAuth.Grant grant
+    ) throws Exception {
+
+        byte[] plaintext = null;
+
+        try {
+            plaintext = serializeGrant(grant);
+
+            byte[] nonce = new byte[12];
+            random.nextBytes(nonce);
+
+            Cipher cipher =
+                    Cipher.getInstance("AES/GCM/NoPadding");
+
+            cipher.init(
+                    Cipher.ENCRYPT_MODE,
+                    key,
+                    new GCMParameterSpec(128, nonce)
+            );
+
+            cipher.updateAAD(
+                    aad(owner, brand, shop, grant.scopes())
+            );
+
+            byte[] ciphertext = cipher.doFinal(plaintext);
+
+            return new Stored(
+                    owner,
+                    brand,
+                    shop,
+                    grant.scopes(),
+                    nonce,
+                    ciphertext
+            );
+
+        } finally {
+            if (plaintext != null) {
+                Arrays.fill(plaintext, (byte) 0);
+            }
+        }
+    }
+
+
+    /**
+     * Securely replace an existing connection with refreshed tokens.
+     */
+    private void rotate(
+            Stored previous,
+            ShopifyOAuth.Grant refreshed
+    ) {
+
+        try {
+            Stored replacement = encrypt(
+                    previous.owner(),
+                    previous.brand(),
+                    previous.shop(),
+                    refreshed
+            );
+
+            boolean updated = repository.replaceIfUnchanged(
+                    previous,
+                    replacement
+            );
+
+            if (!updated) {
+                throw new ShopifyOAuth.Rejected(
+                        "SHOPIFY_TOKEN_REFRESH_CONFLICT"
+                );
+            }
+
+        } catch (ShopifyOAuth.Rejected ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new ShopifyOAuth.Rejected(
+                    "CONNECTION_STORAGE_UNAVAILABLE"
+            );
+        }
+    }
+
+
+    /**
      * Load and decrypt a Shopify connection for an authorized brand.
      */
     public Optional<Connection> load(String brand) {
@@ -403,11 +503,9 @@ public final class EncryptedConnections
                         grant
                 );
 
-        // Persist the rotated access + refresh tokens encrypted.
-        save(
-                stored.owner(),
-                stored.brand(),
-                stored.shop(),
+       // Persist the rotated access + refresh tokens encrypted.
+        rotate(
+                stored,
                 refreshed
         );
 

@@ -20,13 +20,145 @@ class JdbcConnectionsTest {
  void save(JdbcConnections repo,String owner,String brand,String shop){new EncryptedConnections(key,repo).save(owner,brand,shop,new ShopifyOAuth.Grant("synthetic-test-token-very-distinct-not-real",Set.of("read_products")));}
  long count(DataSource source)throws Exception{try(var c=source.getConnection();var q=c.createStatement();var r=q.executeQuery("SELECT COUNT(*) FROM fc_merchant_connection")){r.next();return r.getLong(1);}}
 
- @Test void fileDatabaseSurvivesNewRepositoryAndStoresNoPlaintextToken()throws Exception{
-  var source=source();migrate(source);membership(source,"brand","owner");save(repository(source,"owner"),"owner","brand","brand.myshopify.com");
-  // Every JDBC connection is closed. A fresh datasource reopens the file database.
-  var reopened=repository(source(),"owner");var stored=reopened.read("brand").orElseThrow();assertEquals("brand.myshopify.com",stored.shop());
-  var cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.DECRYPT_MODE,key,new GCMParameterSpec(128,stored.nonce()));cipher.updateAAD(EncryptedConnections.aad(stored.owner(),stored.brand(),stored.shop(),stored.scopes()));assertEquals("synthetic-test-token-very-distinct-not-real",new String(cipher.doFinal(stored.ciphertext()),StandardCharsets.UTF_8));
-  try(var files=Files.list(temp)){for(Path file:files.toList())if(Files.isRegularFile(file))assertFalse(new String(Files.readAllBytes(file),StandardCharsets.ISO_8859_1).contains("synthetic-test-token-very-distinct-not-real"));}
- }
+ @Test
+void fileDatabaseSurvivesNewRepositoryAndStoresNoPlaintextToken() throws Exception {
+    var source = source();
+    migrate(source);
+    membership(source, "brand", "owner");
+
+    save(
+        repository(source, "owner"),
+        "owner",
+        "brand",
+        "brand.myshopify.com"
+    );
+
+    // Reopen the file database using a fresh datasource.
+    var reopened = repository(source(), "owner");
+
+    var stored = reopened.read("brand").orElseThrow();
+
+    assertEquals("brand.myshopify.com", stored.shop());
+
+    // Verify the decrypted token bundle through the application API.
+    var restored = new EncryptedConnections(key, reopened)
+        .load("brand")
+        .orElseThrow();
+
+    assertEquals(
+        "synthetic-test-token-very-distinct-not-real",
+        restored.grant().token()
+    );
+
+    assertEquals(
+        Set.of("read_products"),
+        restored.grant().scopes()
+    );
+
+    // Confirm the plaintext token is not stored in database files.
+    try (var files = Files.list(temp)) {
+        for (Path file : files.toList()) {
+            if (Files.isRegularFile(file)) {
+                assertFalse(
+                    new String(
+                        Files.readAllBytes(file),
+                        StandardCharsets.ISO_8859_1
+                    ).contains("synthetic-test-token-very-distinct-not-real")
+                );
+            }
+        }
+    }
+}
+
+
+@Test
+void refreshReplacesExistingConnectionButCannotOverwriteNewerTokens()
+        throws Exception {
+
+    var source = source();
+    migrate(source);
+    membership(source, "brand", "owner");
+
+    var repo = repository(source, "owner");
+
+    // Prepare the original encrypted connection.
+    List<EncryptedConnections.Stored> originalValues =
+            new ArrayList<>();
+
+    new EncryptedConnections(key, originalValues::add)
+            .save(
+                    "owner",
+                    "brand",
+                    "brand.myshopify.com",
+                    new ShopifyOAuth.Grant(
+                            "synthetic-original-token",
+                            Set.of("read_products")
+                    )
+            );
+
+    var original = originalValues.get(0);
+
+    // Insert the original connection.
+    repo.saveExclusive(original);
+
+    assertEquals(1, count(source));
+
+    // Prepare refreshed encrypted tokens.
+    List<EncryptedConnections.Stored> refreshedValues =
+            new ArrayList<>();
+
+    new EncryptedConnections(key, refreshedValues::add)
+            .save(
+                    "owner",
+                    "brand",
+                    "brand.myshopify.com",
+                    new ShopifyOAuth.Grant(
+                            "synthetic-refreshed-token",
+                            Set.of("read_products")
+                    )
+            );
+
+    var refreshed = refreshedValues.get(0);
+
+    // The existing connection should be replaced successfully.
+    assertTrue(
+            repo.replaceIfUnchanged(original, refreshed)
+    );
+
+    var updated = repo.read("brand").orElseThrow();
+
+    assertArrayEquals(
+            refreshed.ciphertext(),
+            updated.ciphertext()
+    );
+
+    assertEquals(
+            "synthetic-refreshed-token",
+            new EncryptedConnections(key, repo)
+                    .load("brand")
+                    .orElseThrow()
+                    .grant()
+                    .token()
+    );
+
+    assertEquals(1, count(source));
+
+    // A stale refresh must not overwrite the newer connection.
+    assertFalse(
+            repo.replaceIfUnchanged(original, refreshed)
+    );
+
+    var finalStored = repo.read("brand").orElseThrow();
+
+    assertArrayEquals(
+            refreshed.ciphertext(),
+            finalStored.ciphertext()
+    );
+
+    assertEquals(1, count(source));
+}
+
+
  @Test void committedCiphertextSurvivesAbruptWriterJvmHalt()throws Exception{
   var source=source();migrate(source);membership(source,"brand","owner");
   String java=Path.of(System.getProperty("java.home"),"bin",System.getProperty("os.name").toLowerCase(Locale.ROOT).startsWith("windows")?"java.exe":"java").toString();
