@@ -15,15 +15,21 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.context.annotation.Bean;
 
 // Import the demo controllers explicitly to exclude account, storage and provider components.
 @Configuration(proxyBeanMethods = false)
 @EnableAutoConfiguration(exclude = DataSourceAutoConfiguration.class)
-@Import({CatalogueController.class, ShopifyController.class, MerchantController.class,
+@Import({CatalogueController.class, ShopifyController.class,
         TryOnController.class, DemoApi.PreviewSession.class})
 public class DemoApi {
     public static void main(String[] args) {
         SpringApplication.run(DemoApi.class, args);
+    }
+
+    @Bean
+    MerchantController demoMerchantController() {
+        return new MerchantController();
     }
 
     @RestController
