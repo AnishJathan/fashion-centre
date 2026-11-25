@@ -123,7 +123,7 @@ export function ProductGrid({ products, onView, onTryOn }: {
       const available = product.variants.some((variant) => variant.available);
       return <View key={product.id} style={{ width: layout.cardWidth, minWidth: 0, gap: 4 }}>
         <View style={{ overflow: "hidden", borderRadius: 24, backgroundColor: palette.tint }}>
-          <Pressable accessibilityRole="button" accessibilityLabel={`View ${product.name}, ${product.brandName}`} onPress={() => onView(product)} style={({ pressed }) => ({ opacity: pressed ? .78 : 1 })}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`View ${product.name}, ${product.brandName}`} onPress={() => onView(product)} style={({ pressed }) => ({ opacity: pressed ? .78 : 1, minHeight: 48, })}>
             <Photo embedded key={product.image} allowRetry={false} uri={product.image} label={product.name} height={Math.min(160, Math.max(116, layout.cardWidth * .88))} />
           </Pressable>
         </View>

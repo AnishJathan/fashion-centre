@@ -27,7 +27,7 @@ function harness() {
     "react-native": { Pressable: "Pressable", Text: "Text", View: "View", useWindowDimensions: () => window },
     "./ui": { ...Object.fromEntries(["Badge", "Body", "Button", "Card", "Heading", "Icon", "Photo", "Title"].map(name => [name, name])), usePalette: () => ({}) },
     "./core/domain": domain,
-    "./commerceHome": home,
+    "./commerceHome.ts": home,
     "./shoppingLayout": layout,
   };
   const module = { exports: {} as Record<string, any> };
