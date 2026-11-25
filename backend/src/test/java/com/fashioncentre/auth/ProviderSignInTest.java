@@ -38,7 +38,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     "auth.google-client-secret=fixture-google-secret",
     "SHOPIFY_ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
     "auth.shopify-client-id=fixture-shopify",
-    "auth.shopify-client-secret=fixture-shopify-secret"
+    "auth.shopify-client-secret=fixture-shopify-secret",
+    "shopify.client-id=fixture-shopify",
+    "shopify.client-secret=fixture-shopify-secret",
+    "shopify.redirect-uri=https://fashion.example/api/merchant/shopify/callback"
 })
 
 @AutoConfigureMockMvc

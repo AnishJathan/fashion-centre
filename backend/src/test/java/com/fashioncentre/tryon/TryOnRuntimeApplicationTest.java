@@ -49,6 +49,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     "spring.datasource.driver-class-name=org.h2.Driver",
     "spring.datasource.username=sa", "spring.datasource.password=",
     "spring.jpa.hibernate.ddl-auto=create-drop", "spring.flyway.enabled=false",
+    "shopify.client-id=fixture-shopify",
+    "shopify.client-secret=fixture-shopify-secret",
+    "shopify.redirect-uri=https://fashion.example/api/merchant/shopify/callback",
     "auth.code-pepper=test-only-not-a-secret", "r2.bucket=test-only"
 })
 @AutoConfigureMockMvc
