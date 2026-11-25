@@ -25,12 +25,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(properties = {
-    "spring.datasource.url=jdbc:h2:mem:provider-sign-in;MODE=MySQL;DB_CLOSE_DELAY=-1",
+    "spring.datasource.url=jdbc:h2:mem:provider-sign-in;MODE=MySQL;DB_CLOSE_DELAY=-1;INIT=RUNSCRIPT FROM 'classpath:/db/provider-sign-in-schema.sql'",
     "spring.datasource.driver-class-name=org.h2.Driver",
     "spring.datasource.username=sa",
     "spring.datasource.password=",
-    "spring.jpa.hibernate.ddl-auto=none",
-    "spring.flyway.enabled=true",
+    "spring.jpa.hibernate.ddl-auto=create-drop",
+    "spring.flyway.enabled=false",
     "auth.code-pepper=fixture",
     "r2.bucket=fixture",
     "auth.public-origin=https://fashion.example",

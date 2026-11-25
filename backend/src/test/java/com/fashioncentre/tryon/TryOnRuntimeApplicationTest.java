@@ -147,7 +147,7 @@ class TryOnRuntimeApplicationTest {
 
     @Test void manualSchemasCannotBeDiscoveredByFlywayDefaultLocation() {
         assertThat(getClass().getResource("/db/migration/V1__auth_tables.sql")).isNotNull();
-        assertThat(getClass().getResource("/db/migration/V2__saved_photo_predictions.sql")).isNotNull();
+        assertThat(getClass().getResource("/db/migration/V5__saved_photo_predictions.sql")).isNotNull();
         assertThat(getClass().getResource("/db/migration/V1__merchant_connections.sql")).isNull();
         assertThat(getClass().getResource("/db/migration/V2__private_jobs.sql")).isNull();
         assertThat(getClass().getResource("/db/manual/V1__merchant_connections.sql")).isNotNull();
