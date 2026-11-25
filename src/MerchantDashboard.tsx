@@ -357,59 +357,76 @@ export function MerchantDashboard() {
           )}
         </article>
 
-        <article className="owner-card">
-          <h2>Connection readiness</h2>
+      <article className="owner-card">
+        <h2>Connection readiness</h2>
 
-          {!data && !error && (
-            <p role="status">Checking server readiness…</p>
+        {!data && !error && (
+          <p role="status">Checking server readiness…</p>
+        )}
+
+        {(error || storesError) && (
+          <div role="alert">
+            {error && <p>{error}</p>}
+            {storesError && <p>{storesError}</p>}
+          </div>
+        )}
+
+        {data && (
+          <>
+            <p>
+              {data.ready
+                ? 'The server reports that the installation prerequisites are ready.'
+                : 'Installation is blocked until these prerequisites are completed:'}
+            </p>
+
+            {data.blockers.length > 0 && (
+              <ul>
+                {data.blockers.map(item => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+
+        <button
+          className="secondary"
+          onClick={() => setRetry(value => value + 1)}
+        >
+          Refresh readiness
+        </button>
+
+        {(!data || !data.ready) && (
+            <button
+              className="primary"
+              type="button"
+              disabled
+            >
+              Connect Shopify — setup required
+            </button>
           )}
+        <h3>Connected stores</h3>
 
-          {error && <p role="alert">{error}</p>}
+        {!stores && !storesError && (
+          <p role="status">Loading stores…</p>
+        )}
 
-          {data && (
-            <>
-              <p>
-                {data.ready
-                  ? 'The server reports that the installation prerequisites are ready.'
-                  : 'Installation prerequisites:'}
-              </p>
-              {data.blockers.length > 0 && (
-                <ul>
-                  {data.blockers.map(item => <li key={item}>{item}</li>)}
-                </ul>
-              )}
-            </>
-          )}
+        {stores?.length === 0 && <p>No stores connected yet.</p>}
 
-          <button
-            className="secondary"
-            onClick={() => setRetry(value => value + 1)}
-          >
-            Refresh readiness
-          </button>
-
-          <h3>Connected stores</h3>
-
-          {storesError && <p role="alert">{storesError}</p>}
-          {!stores && !storesError && (
-            <p role="status">Loading stores…</p>
-          )}
-          {stores?.length === 0 && <p>No stores connected yet.</p>}
-
-          <ul>
-            {stores?.map(store => (
-              <li key={store.shop}>
-                <button
-                  className={store.shop === activeShop ? 'primary' : 'secondary'}
-                  type="button"
-                  onClick={() => setActiveShop(store.shop)}
-                >
-                  {store.shop}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </article>
+        <ul>
+          {stores?.map(store => (
+            <li key={store.shop}>
+              <button
+                className={store.shop === activeShop ? 'primary' : 'secondary'}
+                type="button"
+                onClick={() => setActiveShop(store.shop)}
+              >
+                {store.shop}
+              </button>
+            </li>
+          ))}
+        </ul>
+       </article>
       </div>
 
       {activeShop && (
