@@ -18,7 +18,9 @@ function harness(width = 320, fontScale = 1) {
     './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
     'react-native': { Pressable: 'Pressable', Text: 'Text', View: 'View', useWindowDimensions: () => ({ width, fontScale }) },
     './ui': { ...Object.fromEntries(['Badge', 'Body', 'Button', 'Card', 'Heading', 'Icon', 'Photo', 'Title'].map(x => [x, x])), usePalette: () => ({ text: '#111111', accent: '#5500aa' }) },
-    './commerceHome': home, './shoppingLayout': layout,
+    './commerceHome': home,
+    './commerceHome.ts': home,
+    './shoppingLayout': layout,
   };
   const module = { exports: {} as any };
   new Function('require', 'module', 'exports', source)((name: string) => { assert.ok(name in imports, `Unexpected import: ${name}`); return imports[name]; }, module, module.exports);

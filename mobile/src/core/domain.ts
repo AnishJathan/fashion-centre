@@ -10,6 +10,7 @@ export interface Variant {
   options: Record<string, string>;
 }
 export interface Product {
+   url?: string;
   description?: string;
   createdAt?: string;
   id: string;
@@ -141,6 +142,15 @@ export function safeImage(value: unknown): string {
     return "";
   }
 }
+
+export function safeLink(value: unknown): string {
+  if (typeof value !== 'string' || !value) return '';
+  try {
+    const u = new URL(value);
+    return u.protocol === 'https:' && !u.username && !u.password ? u.toString() : '';
+  } catch { return ''; }
+}
+
 export function parseSources(data: unknown): Source[] {
   if (!record(data) || !Array.isArray(data.shops))
     throw Error("Demo store directory response is invalid.");

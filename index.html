@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
   <head>
@@ -10,11 +11,21 @@
     <title>Fashion Centre · Discover</title>
     <style>html{background:var(--background);color-scheme:light}html[data-theme="dark"]{color-scheme:dark}</style>
     <link rel="stylesheet" href="/src/launch.css">
+
+    <!-- Shopify App Bridge: enable only if required by the embedded Shopify app -->
+    <!-- <meta name="shopify-api-key" content="YOUR_SHOPIFY_API_KEY" /> -->
+    <!-- <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script> -->
+
     <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="launch-reveal" aria-hidden="true">
-      <div class="launch-seal"><i></i><i></i><img src="/favicon.svg" width="76" height="76" alt=""></div>
+      <div class="launch-seal">
+        <i></i><i></i>
+        <img src="/favicon.svg" width="76" height="76" alt="">
+      </div>
     </div>
-    <div id="app"></div><script type="module" src="/src/main.tsx"></script></body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>

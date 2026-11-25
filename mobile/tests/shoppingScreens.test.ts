@@ -168,6 +168,7 @@ function harness(
     "./BrandStorefront": { BrandStorefront: "BrandStorefront" },
     "./BrandMark": { BrandMark: "BrandMark" },
     "./experience": experience,
+    "./experience.ts": experience,
     "./core/shopper": shopper,
     "./core/commerce": commerce,
     "./core/domain": domain,

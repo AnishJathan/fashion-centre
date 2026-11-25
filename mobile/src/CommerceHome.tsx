@@ -15,7 +15,7 @@ import { FollowedBrandRail } from './FollowedBrandRail';
 import { Button, Icon, Photo, useDockInset, usePalette } from './ui';
 import { money, type Product } from './core/domain';
 import type { Route } from './navigation';
-import { homeCategories, homePrice, homeSuggestions, homeValueCollections, type BrowseSelection } from './commerceHome';
+import { homeCategories, homePrice, homeSuggestions, homeValueCollections, type BrowseSelection } from './commerceHome.ts';
 
 export function CommerceHome({ navigate, onBrowse, children }: {
   navigate: (route: Route) => void; onBrowse: (selection?: BrowseSelection) => void; children?: React.ReactNode;

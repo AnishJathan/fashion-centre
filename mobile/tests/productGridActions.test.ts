@@ -13,7 +13,10 @@ const imports: Record<string, any> = {
   './Typography': { Text: 'Text', TextInput: 'TextInput', displayFont: 'DMSerifText' },
   'react-native': { Pressable: 'Pressable', Text: 'Text', View: 'View', useWindowDimensions: () => ({ width: 320, fontScale: 1 }) },
   './ui': { ...Object.fromEntries(['Badge', 'Body', 'Button', 'Card', 'Heading', 'Icon', 'Photo', 'Title'].map(x => [x, x])), usePalette: () => ({}) },
-  './core/domain': domain, './commerceHome': home, './shoppingLayout': layout,
+  './core/domain': domain,
+  './commerceHome': home,
+  './commerceHome.ts': home,
+  './shoppingLayout': layout,
 };
 const module = { exports: {} as any };
 new Function('require', 'module', 'exports', source)((name: string) => { assert.ok(name in imports, `Unexpected import: ${name}`); return imports[name]; }, module, module.exports);

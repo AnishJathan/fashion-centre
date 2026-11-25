@@ -1,3 +1,4 @@
+
 # Dependencies and build output
 node_modules/
 dist/
@@ -59,3 +60,9 @@ xcuserdata/
 .dev.vars
 .dev.vars.*
 /cloudflare/shopify.app.toml
+
+# Android build cache
+mobile/modules/fashion-vision/android/.gradle/
+
+# Local database backup
+backend/fashion_centre_backup.sql

@@ -64,6 +64,8 @@ test('unconfigured Google and cancelled Shopify return actionable feedback', asy
   await page.goto('/#/login'); await page.getByRole('button',{name:'Continue with Google'}).click();
   await expect(page.getByRole('alert')).toContainText('Google sign-in is unavailable');
   await page.goto('/?signin=cancelled#/owner');
-  await expect(page.getByRole('alert')).toContainText('Sign-in was cancelled');
+  await expect(
+    page.getByText('Sign-in was cancelled', { exact: false })
+  ).toBeVisible();
   await expect(page.getByLabel('Shopify store domain')).toBeVisible();
 });

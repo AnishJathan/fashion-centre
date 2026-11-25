@@ -22,7 +22,7 @@ import { ExperienceIntro } from "./Experience.tsx";
 import { BrandMark } from "./BrandMark";
 import { CommerceHome } from "./CommerceHome.tsx";
 import { BrandStorefront } from "./BrandStorefront";
-import { moods, moodProducts, type MoodId } from "./experience";
+import { moods, moodProducts, type MoodId } from "./experience.ts";
 import type { Route } from "./navigation";
 import { money, selectProducts, type Product } from "./core/domain";
 import {

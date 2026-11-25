@@ -44,10 +44,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 // Isolated in-memory auth schema. No production datasource, credentials or provider calls.
 @SpringBootTest(properties={
-    "spring.datasource.url=jdbc:h2:mem:combined-runtime;DB_CLOSE_DELAY=-1",
+    "spring.datasource.url=jdbc:h2:mem:combined-runtime;DB_CLOSE_DELAY=-1;INIT=RUNSCRIPT FROM 'classpath:/db/manual/merchant-test-schema.sql'",
+    "SHOPIFY_ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
     "spring.datasource.driver-class-name=org.h2.Driver",
     "spring.datasource.username=sa", "spring.datasource.password=",
     "spring.jpa.hibernate.ddl-auto=create-drop", "spring.flyway.enabled=false",
+    "shopify.client-id=fixture-shopify",
+    "shopify.client-secret=fixture-shopify-secret",
+    "shopify.redirect-uri=https://fashion.example/api/merchant/shopify/callback",
     "auth.code-pepper=test-only-not-a-secret", "r2.bucket=test-only"
 })
 @AutoConfigureMockMvc
@@ -146,7 +150,7 @@ class TryOnRuntimeApplicationTest {
 
     @Test void manualSchemasCannotBeDiscoveredByFlywayDefaultLocation() {
         assertThat(getClass().getResource("/db/migration/V1__auth_tables.sql")).isNotNull();
-        assertThat(getClass().getResource("/db/migration/V2__saved_photo_predictions.sql")).isNotNull();
+        assertThat(getClass().getResource("/db/migration/V5__saved_photo_predictions.sql")).isNotNull();
         assertThat(getClass().getResource("/db/migration/V1__merchant_connections.sql")).isNull();
         assertThat(getClass().getResource("/db/migration/V2__private_jobs.sql")).isNull();
         assertThat(getClass().getResource("/db/manual/V1__merchant_connections.sql")).isNotNull();
