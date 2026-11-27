@@ -196,6 +196,8 @@ async function loadConnectedShopify(): Promise<Brand[]> {
     const readiness =
       (await readinessResponse.json()) as ShopifyReadinessResponse;
 
+    if ("marketplace" in readiness && readiness.marketplace === true) return [];
+
     const brandId = getShopifyBrandId(readiness);
 
     if (!brandId) return [];

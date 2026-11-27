@@ -128,6 +128,12 @@ jobs:
         run: |
           npx --no-install expo prebuild --platform android --no-install
           cd android
+          # Warm dependency resolution and retry transient Gradle Plugin Portal failures.
+          for attempt in 1 2 3; do
+            if ./gradlew help --max-workers=2; then break; fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep "$((attempt * 10))"
+          done
           NODE_ENV=production ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a --max-workers=2
           apk=app/build/outputs/apk/release/app-release.apk
           unzip -tq "$apk" assets/index.android.bundle

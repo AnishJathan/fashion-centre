@@ -58,7 +58,15 @@ export async function marketplace(req,env,path){
   if(path==='/api/merchant/shopify/readiness'&&req.method==='GET'){
     let shop;try{shop=await identity(req,env,'shopify');}catch(e){if(!(e instanceof Response)||e.status!==401)throw e;}
     const store=shop&&await env.DB.prepare('SELECT published FROM stores WHERE shop=?').bind(shop).first();
-    return json({ready:!!(env.SHOPIFY_CLIENT_SECRET && env.SHOPIFY_CLIENT_ID),connected:!!store?.published,blockers:[],marketplace:true,published:!!store?.published});
+    const ready = Boolean(env.SHOPIFY_CLIENT_SECRET && env.SHOPIFY_CLIENT_ID && env.AUTH_PUBLIC_ORIGIN === new URL(req.url).origin);
+    return json({
+      ready, connected:Boolean(store), marketplace:true, published:Boolean(store?.published),
+      blockers:ready ? [] : ['Configure Shopify client credentials and the public OAuth origin on the backend.'],
+    });
+  }
+  if(path==='/api/merchant/shopify/products'&&req.method==='GET'){
+    const shop=await identity(req,env,'shopify');
+    return json(await catalogue(shop));
   }
   if(path==='/api/merchant/shopify/publish'&&req.method==='POST'){
     const shop=await identity(req,env,'shopify'),{published}=await input(req);

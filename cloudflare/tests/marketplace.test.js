@@ -22,6 +22,13 @@ test('checkout contains exactly the selected merchant’s variants and quantitie
   assert.throws(()=>checkoutLink(shop,[{variantKey:'shop-other:gid://shopify/ProductVariant/1',quantity:1}]));
   assert.throws(()=>checkoutLink(shop,[line(1,0)]));
 });
+test('merchant readiness explains missing setup and product previews require a shop session', async () => {
+  const readiness = await (await route('/api/merchant/shopify/readiness')).json();
+  assert.equal(readiness.ready, false);
+  assert.equal(readiness.connected, false);
+  assert.ok(readiness.blockers.length);
+  assert.equal((await route('/api/merchant/shopify/products')).status, 401);
+});
 test('published directory and checkout depend on merchant publication, unrelated sessions cannot publish',async()=>{
   await env.DB.prepare('INSERT INTO stores VALUES(?,?,1)').bind(shop,'Fixture').run();
   const directory=await (await route('/api/integrations/shopify/status')).json();
@@ -71,6 +78,12 @@ test('two mocked Shopify owners install, publish, check out separately and unins
     assert.match(finish.headers.get('Location'), /signin=success/);
     assert.equal((await call(path, {headers})).status, 400);
     const owner = finish.headers.getSetCookie().find(cookie => cookie.startsWith('fc_merchant=')).split(';')[0];
+    const readiness = await (await call('/api/merchant/shopify/readiness', {headers:{Cookie:owner}})).json();
+    assert.equal(readiness.connected, true);
+    assert.equal(readiness.published, false);
+    const preview = await call('/api/merchant/shopify/products', {headers:{Cookie:owner}});
+    assert.equal(preview.status, 200);
+    assert.equal((await preview.json()).shopKey, 'shop-' + handle);
     const publish = await call('/api/merchant/shopify/publish', {method:'POST', headers:{Cookie:owner}, body:JSON.stringify({published:true})});
     assert.equal(publish.status, 200);
     const response = await call('/api/integrations/shopify/checkout/shop-' + handle, {method:'POST', body:JSON.stringify({lines:[
