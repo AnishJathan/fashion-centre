@@ -45,7 +45,7 @@ html[data-theme="dark"] .order-metadata { background:var(--tint); color:var(--te
 html[data-theme="dark"] .order-metadata :is(dt,dd) { color:var(--text); }
 html[data-theme="dark"] .pill { background:var(--tint); color:var(--accent); border-color:var(--line); }
 html[data-theme="dark"] :is(.eyebrow,.section-title>span,.section-title>a) { color:var(--muted); }
-html[data-theme="dark"] :is(.owner-entry,.text-action,.login-actions button,.login-card h1 em,.profile-links strong,.remove-line,.cart-detail-link,.categories button[aria-pressed=true],.photo-picker,.save.selected) { color:var(--accent); }
+html[data-theme="dark"] :is(.owner-entry,.text-action,.login-actions button,.login-card h1 em,.profile-links strong,.remove-line,.cart-detail-link,.photo-picker,.save.selected) { color:var(--accent); }
 html[data-theme="dark"] :is(input,select,textarea) { color:var(--text); background:var(--surface); border-color:var(--line); }
 html[data-theme="dark"] .search input { background:transparent; }
 html[data-theme="dark"] input::placeholder { color:var(--muted); opacity:1; }

@@ -13,11 +13,11 @@ async function assertScreen(page: Page, dark: boolean) {
   await expect(page.locator('html')).toHaveAttribute('data-theme', dark ? 'dark' : 'light');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   if (dark) {
-    await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(26, 24, 21)');
+    await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(20, 17, 28)');
     const panels = await page.locator('.commerce-panel,.owner-card,.login-card,.preparation-panel').evaluateAll(
       nodes => nodes.flatMap(node => {
         const {backgroundColor, color} = getComputedStyle(node);
-        return backgroundColor === 'rgb(36, 33, 29)' && color === 'rgb(248, 241, 230)'
+        return backgroundColor === 'rgb(32, 26, 43)' && color === 'rgb(244, 239, 251)'
           ? []
           : [{className: node.className, backgroundColor, color}];
       }),
