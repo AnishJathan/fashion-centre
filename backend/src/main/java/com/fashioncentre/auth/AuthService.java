@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,16 +39,17 @@ public class AuthService {
     public AuthService(UserRepository users, LoginCodeRepository codes, SessionRepository sessions,
                        CodeSender sender,
                        @Value("${auth.code-pepper}") String pepper,
-                       @Value("${auth.expose-dev-code:false}") boolean exposeDevCode) {
+                       @Value("${auth.expose-dev-code:false}") boolean exposeDevCode,
+                       Environment environment) {
         this.users = users;
         this.codes = codes;
         this.sessions = sessions;
         this.sender = sender;
         this.pepper = pepper;
-        this.exposeDevCode = exposeDevCode;
+        this.exposeDevCode = exposeDevCode && environment.matchesProfiles("local-auth & !prod");
     }
 
-    /** Returns the code only when auth.expose-dev-code is true (local development). Otherwise null. */
+    /** Returns the code only for an explicitly enabled local development profile. */
     @Transactional
     public String requestCode(String phone) {
         requireE164(phone);

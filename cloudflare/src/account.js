@@ -22,17 +22,36 @@ export async function account(req,env,path){
   }
   if(req.method!=='POST'||!['/api/auth/request-code','/api/auth/verify-code'].includes(path))fail(404,'Unknown account action.');
   if(!env.OTP_SECRET||!env.WHATSAPP_TOKEN||!env.WHATSAPP_PHONE_ID||!env.WHATSAPP_TEMPLATE)fail(503,'WhatsApp delivery is unavailable.');
-  const {phone,code}=await input(req);if(!validPhone.test(phone))fail(400,'Invalid phone.');
+  const {phone,code}=await input(req)||{};
+  if(typeof phone!=='string'||!validPhone.test(phone))fail(400,'Invalid phone.');
   const t=now();
   if(path.endsWith('/request-code')){
     const pin=String(crypto.getRandomValues(new Uint32Array(1))[0]%1000000).padStart(6,'0'),hash=await otpDigest(env,phone,pin);
     const row=await env.DB.prepare(`INSERT INTO codes VALUES(?,?,?,0,?,?,1) ON CONFLICT(phone) DO UPDATE SET digest=excluded.digest,expires=excluded.expires,attempts=0,sent=excluded.sent,window_start=CASE WHEN window_start<=?-3600 THEN excluded.sent ELSE window_start END,sends=CASE WHEN window_start<=?-3600 THEN 1 ELSE sends+1 END WHERE sent<=?-30 AND (sends<5 OR window_start<=?-3600) RETURNING phone`).bind(phone,hash,t+120,t,t,t,t,t,t).first();
     if(!row)fail(429,'Please wait before requesting another code.');
-    const r=await fetch('https://graph.facebook.com/v24.0/'+env.WHATSAPP_PHONE_ID+'/messages',{method:'POST',headers:{Authorization:'Bearer '+env.WHATSAPP_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({messaging_product:'whatsapp',to:phone.slice(1),type:'template',template:{name:env.WHATSAPP_TEMPLATE,language:{code:env.WHATSAPP_LANGUAGE||'en_US'},components:[{type:'body',parameters:[{type:'text',text:pin}]},{type:'button',sub_type:'url',index:'0',parameters:[{type:'text',text:pin}]}]}})});
-    if(!r.ok)fail(503,'WhatsApp delivery is unavailable.');
-    return json({expiresInSeconds:120,resendInSeconds:30});
+    try {
+      const delivery=await fetch('https://graph.facebook.com/v24.0/'+env.WHATSAPP_PHONE_ID+'/messages',{
+        method:'POST',redirect:'manual',signal:AbortSignal.timeout(10000),
+        headers:{Authorization:'Bearer '+env.WHATSAPP_TOKEN,'Content-Type':'application/json'},
+        body:JSON.stringify({
+          messaging_product:'whatsapp',to:phone.slice(1),type:'template',
+          template:{
+            name:env.WHATSAPP_TEMPLATE,language:{code:env.WHATSAPP_LANGUAGE||'en_US'},
+            components:[
+              {type:'body',parameters:[{type:'text',text:pin}]},
+              {type:'button',sub_type:'url',index:'0',parameters:[{type:'text',text:pin}]},
+            ],
+          },
+        }),
+      });
+      if(delivery.ok)return json({expiresInSeconds:120,resendInSeconds:30});
+    } catch {
+      // Preserve the cooldown and quota if delivery failed or timed out.
+    }
+    await env.DB.prepare('UPDATE codes SET expires=0 WHERE phone=? AND digest=? AND sent=?').bind(phone,hash,t).run();
+    fail(503,'WhatsApp delivery is unavailable.');
   }
-  if(!/^\d{6}$/.test(code))fail(400,'Enter six digits.');
+  if(typeof code!=='string'||!/^\d{6}$/.test(code))fail(400,'Enter six digits.');
   const attempt=await env.DB.prepare('UPDATE codes SET attempts=attempts+1 WHERE phone=? AND expires>? AND attempts<5 RETURNING digest').bind(phone,t).first();
   if(!attempt)fail(410,'Request a new code.');
   const hash=await otpDigest(env,phone,code);

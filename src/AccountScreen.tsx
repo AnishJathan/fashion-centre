@@ -94,7 +94,9 @@ export default function AccountScreen({close,studio=false}:{close:()=>void;studi
       if(!r.ok){
         setError(r.status===429
           ?'Too many requests. Please wait a few minutes.'
-          :'We could not send the code. Check the number and try again.');
+          :r.status===503
+            ?'WhatsApp sign-in is temporarily unavailable. Please try again later.'
+            :'We could not send the code. Check the number and try again.');
         return;
       }
       setDevCode(r.data?.devCode ?? '');

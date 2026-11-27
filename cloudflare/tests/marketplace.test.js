@@ -304,12 +304,15 @@ test('Apple form callback verifies the signed identity and reuses the same shopp
   const account = cookie => call('/api/auth/me', {headers:{Cookie:cookie}});
   const shopper = await (await account(finish.headers.getSetCookie()[0].split(';')[0])).json();
   assert.equal(shopper.firstName, 'Taylor');
+  await env.DB.prepare('UPDATE users SET photo_key=? WHERE id=?').bind('legacy-photo', shopper.id).run();
 
   const web = await begin('web');
   nonce = web.nonce;
   const returning = await submit(web, {code:'returning-fixture-code'});
   const cookie = returning.headers.getSetCookie()[1].split(';')[0];
-  assert.equal((await (await account(cookie)).json()).id, shopper.id);
+  const reused = await (await account(cookie)).json();
+  assert.equal(reused.id, shopper.id);
+  assert.equal(reused.hasPhoto, true);
   assert.equal((await call('/api/auth/logout', {method:'POST', headers:{Cookie:cookie}})).status, 204);
   assert.equal((await account(cookie)).status, 401);
 
@@ -326,4 +329,39 @@ test('Apple form callback verifies the signed identity and reuses the same shopp
 
   // Only the Apple callback accepts a cross-origin POST.
   assert.equal((await call('/api/auth/logout', {method:'POST', headers:{Origin:appleOrigin}})).status, 403);
+});
+
+test('WhatsApp responses keep the code private and a failed delivery expires its challenge', async t => {
+  const bindings = {...env, OTP_SECRET:'test-only-digest-secret', WHATSAPP_TOKEN:'test-only-token',
+    WHATSAPP_PHONE_ID:'test-phone-id', WHATSAPP_TEMPLATE:'test-template'};
+  const request = (action, value) => worker.fetch(new Request('https://fashion.example/api/auth/' + action, {
+    method:'POST', body:JSON.stringify(value),
+  }), bindings);
+  const codes = new Map();
+  const phone = '+12025550198';
+  const failedPhone = '+12025550196';
+
+  t.mock.method(globalThis, 'fetch', async (address, options) => {
+    assert.match(String(address), /^https:\/\/graph\.facebook\.com\/v\d+\.\d+\/test-phone-id\/messages$/);
+    assert.equal(options.redirect, 'manual');
+    const payload = JSON.parse(options.body);
+    const value = payload.template.components[0].parameters[0].text;
+    assert.match(value, /^\d{6}$/);
+    codes.set('+' + payload.to, value);
+    if ('+' + payload.to === failedPhone) throw new TypeError('Mock delivery timeout.');
+    return Response.json({messages:[{id:'test-delivery'}]});
+  });
+  const start = await request('request-code', {phone});
+  assert.equal(start.status, 200);
+  assert.deepEqual(await start.json(), {expiresInSeconds:120, resendInSeconds:30});
+  assert.equal((await request('request-code', {phone})).status, 429);
+  const verify = () => request('verify-code', {phone, code:codes.get(phone)});
+  const authorized = await verify();
+  assert.equal(authorized.status, 200);
+  assert.match(authorized.headers.get('Set-Cookie'), /^fc_session=.*; Secure; HttpOnly;/);
+  assert.equal((await verify()).status, 410);
+
+  assert.equal((await request('request-code', {phone:failedPhone})).status, 503);
+  assert.equal((await request('verify-code', {phone:failedPhone, code:codes.get(failedPhone)})).status, 410);
+  assert.equal((await request('request-code', {phone:failedPhone})).status, 429);
 });

@@ -183,9 +183,11 @@ function Login({ simulation, browse, openMerchant, studio = false }: { studio?: 
                 ? verify
                   ? "Too many attempts. Request a new code."
                   : "Too many requests. Wait before trying again."
-                : verify
-                  ? "Code not accepted."
-                  : "Could not send the code. Check your number and connection.",
+                : r.status === 503
+                  ? "WhatsApp sign-in is temporarily unavailable. Please try again later."
+                  : verify
+                    ? "Code not accepted."
+                    : "Could not send the code. Check your number and connection.",
           );
         data = await r.json();
         if (verify) tryOnSession.clear();
