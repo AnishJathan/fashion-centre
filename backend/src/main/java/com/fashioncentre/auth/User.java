@@ -14,10 +14,10 @@ public class User {
     @Column(length = 36)
     private String id = UUID.randomUUID().toString();
 
-    @Column(unique = true, length = 20)
+    @Column(name = "phone_number", length = 20, nullable = true)
     private String phoneNumber;
-    @Column(unique = true, length = 64)
-    private String googleSubjectHash;
+//    @Column(unique = true, length = 64)
+//    private String googleSubjectHash;
     private String firstName;
     private String lastName;
     private String photoPublicId;

@@ -1,12 +1,14 @@
-import { beginSignIn, signInMessage, type Provider } from '../mobile/src/core/providerSignIn';
+import{ signInMessage, type Provider } from '../mobile/src/core/providerSignIn';
 
-export async function browserSignIn(provider: Provider, shop?: string, studio = false) {
-  const start = await beginSignIn(fetch, location.origin, 'web', provider, shop);
+// Web only. A top-level navigation: the server sets the flow cookie and redirects to the provider.
+// No start call, so the origin check in beginSignIn does not apply here.
+export function browserSignIn(provider: Provider, shop?: string, studio = false) {
   try {
     if (studio) sessionStorage.setItem('fc.signin.try', location.hash);
     else sessionStorage.removeItem('fc.signin.try');
   } catch { /* Sign-in still works without session storage. */ }
-  location.assign(start.url);
+  const query = shop ? `?shop=${encodeURIComponent(shop)}` : '';
+  location.assign(`/api/auth/web/sign-in/${provider}/browser${query}`);
 }
 
 // Only the server cookie establishes identity. The URL marker supplies feedback after the redirect.

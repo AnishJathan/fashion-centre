@@ -19,6 +19,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
+import java.util.Optional;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.jdbc.core.JdbcTemplate;
+
 @Service
 public class AuthService {
     private static final Pattern E164 = Pattern.compile("^\\+[1-9]\\d{7,14}$");
@@ -37,8 +42,9 @@ public class AuthService {
     private final boolean exposeDevCode;
 
     private final SocialAccountService social;
+    private final JdbcTemplate db ;
 
-    public AuthService(UserRepository users, LoginCodeRepository codes, SessionRepository sessions,
+    public AuthService(UserRepository users, LoginCodeRepository codes, SessionRepository sessions, JdbcTemplate db,
                        CodeSender sender, SocialAccountService social,
                        @Value("${auth.code-pepper}") String pepper,
                        @Value("${auth.expose-dev-code:false}") boolean exposeDevCode) {
@@ -49,6 +55,7 @@ public class AuthService {
         this.social = social;
         this.pepper = pepper;
         this.exposeDevCode = exposeDevCode;
+        this.db = db;
     }
 
     /**
@@ -113,12 +120,42 @@ public class AuthService {
 
         return createSession(user, now);
     }
-
+//
+//    @Transactional
+//    public String googleSession(String subject, String firstName) {
+//        String hash = sha256(subject);
+//        users.ensureGoogleUser(java.util.UUID.randomUUID().toString(), hash, firstName);
+//        return createSession(users.findByGoogleSubjectHash(hash).orElseThrow(), Instant.now());
+//    }
     @Transactional
-    public String googleSession(String subject, String firstName) {
-        String hash = sha256(subject);
-        users.ensureGoogleUser(java.util.UUID.randomUUID().toString(), hash, firstName);
-        return createSession(users.findByGoogleSubjectHash(hash).orElseThrow(), Instant.now());
+    public String loginWithSocial(String provider, VerifiedIdentity identity) {
+    String subjectHash = sha256(identity.subject());
+    User user = findSocialUser(provider, subjectHash)
+            .orElseGet(() -> createSocialUser(provider, subjectHash, identity.firstName()));
+    return createSession(user, Instant.now());
+}
+
+    private Optional<User> findSocialUser(String provider, String subjectHash) {
+        List<String> ids = db.queryForList(
+                "SELECT user_id FROM social_identities WHERE provider = ? AND subject_hash = ?",
+                String.class, provider, subjectHash);
+        return ids.isEmpty() ? Optional.empty() : users.findById(ids.get(0));
+    }
+
+    private User createSocialUser(String provider, String subjectHash, String firstName) {
+        User user = new User();
+        user.setFirstName(firstName);
+        // saveAndFlush: the link row below references users(id), so the user must exist in the database first.
+        users.saveAndFlush(user);
+        try {
+            db.update("INSERT INTO social_identities (provider, subject_hash, user_id) VALUES (?,?,?)",
+                    provider, subjectHash, user.getId());
+            return user;
+        } catch (DuplicateKeyException race) {
+            // A concurrent request linked this identity first. Use that account and discard ours.
+            users.delete(user);
+            return findSocialUser(provider, subjectHash).orElseThrow();
+        }
     }
 
     private String createSession(User user, Instant now) {
@@ -140,7 +177,7 @@ public class AuthService {
         String name = firstName == null ? "" : firstName.strip();
         if (name.isEmpty() || name.length() > 80 || name.chars().anyMatch(Character::isISOControl))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enter a valid name.");
-        users.updateProfileName(user.getId(), name, java.time.Instant.now());
+        users.updateProfileName(user.getId(), name, Instant.now());
         return name;
     }
 
@@ -187,10 +224,10 @@ public class AuthService {
         }
     }
 
-    public String loginWithSocial(String provider, VerifiedIdentity id) {
-        User user = findOrCreateSocialUser(provider, id);
-        return createSession(user, Instant.now());
-    }
+//    public String loginWithSocial(String provider, VerifiedIdentity id) {
+//        User user = findOrCreateSocialUser(provider, id);
+//        return createSession(user, Instant.now());
+//    }
 
     private User findOrCreateSocialUser(String provider, VerifiedIdentity id) {
         try {

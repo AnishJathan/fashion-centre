@@ -18,7 +18,14 @@ export default defineConfig({
     fs: { deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**', '**/secrets.properties', '**/client_secret*.json'] },
     host: '127.0.0.1', port: 5173, strictPort: true,
     watch: { ignored: ['**/mobile/android/**', '**/mobile/ios/**', '**/mobile/dist/**', '**/backend/target/**', '**/test-results/**'] },
-    proxy: { '/api': process.env.API_PROXY_TARGET || 'http://localhost:8081' },
+    proxy: {
+      '/api': {
+        target: process.env.API_PROXY_TARGET || 'http://127.0.0.1:8082',
+        changeOrigin: true,
+      },
+    },
+      allowedHosts: ['unplanned-removed-cattle.ngrok-free.dev'],
+
   },
   preview: { host: '127.0.0.1', port: 4173, strictPort: true },
 });

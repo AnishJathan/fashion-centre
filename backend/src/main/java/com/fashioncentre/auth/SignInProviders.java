@@ -191,7 +191,7 @@ import org.springframework.web.server.ResponseStatusException;
 class SignInProviders {
     static final String BASE = "/api/auth/sign-in/";
     static final String APP_RETURN = "fashioncentre://auth/complete";
-    private static final String GOOGLE_KEYS = "https://www.googleapis.com/oauth2/v1/certs";
+    private static final String GOOGLE_KEYS = "https://www.googleapis.com/oauth2/v3/certs";
     private static final String APPLE_ISSUER = "https://appleid.apple.com";
     private static final String APPLE_AUTHORIZE = APPLE_ISSUER + "/auth/authorize";
     private static final String APPLE_TOKEN = APPLE_ISSUER + "/auth/token";
@@ -298,12 +298,19 @@ class SignInProviders {
 
     static String encode(String value) { return URLEncoder.encode(value, StandardCharsets.UTF_8); }
 
-    private String callback(String provider) { return origin + BASE + provider + "/callback"; }
+    // Replace the private callback(provider) with a version that takes the base path.
+    private String callback(String provider, String base) { return origin + base + provider + "/callback"; }
 
     private static String nonce(String key) { return AuthService.sha256("provider-nonce:" + key); }
 
+
+    // Existing signature kept, now delegating.
     URI authorization(String provider, String shop, String state, String browserKey) {
-        String redirect = "&state=" + state + "&redirect_uri=" + encode(callback(provider));
+        return authorization(provider, shop, state, browserKey, BASE);
+    }
+
+    URI authorization(String provider, String shop, String state, String browserKey, String base) {
+        String redirect = "&state=" + state + "&redirect_uri=" + encode(callback(provider, base));
         return switch (provider) {
             case "shopify" -> URI.create("https://" + shop + "/admin/oauth/authorize?client_id=" + encode(shopifyId)
                     + redirect + "&scope=read_products&grant_options%5B%5D=per-user");
@@ -316,15 +323,21 @@ class SignInProviders {
         };
     }
 
+
     record Identity(String subject, String firstName, Instant expires) {}
 
+    // Existing signature kept, now delegating.
     Identity exchange(String provider, String shop, Map<String, String> query, String browserKey) {
+        return exchange(provider, shop, query, browserKey, BASE);
+    }
+
+    Identity exchange(String provider, String shop, Map<String, String> query, String browserKey, String base) {
         String code = query.get("code");
         if (code == null || code.isBlank() || code.length() > 2048) throw new IllegalArgumentException("Missing code");
         return switch (provider) {
             case "shopify" -> exchangeShopify(shop, code, query);
-            case "apple" -> exchangeApple(code, query, browserKey);
-            default -> exchangeGoogle(code, browserKey);
+            case "apple" -> exchangeApple(code, query, browserKey, base);
+            default -> exchangeGoogle(code, browserKey, base);
         };
     }
 
@@ -348,13 +361,13 @@ class SignInProviders {
         return new Identity(actor.asText(), null, Instant.now().plusSeconds(ttl));
     }
 
-    private Identity exchangeGoogle(String code, String browserKey) {
+    private Identity exchangeGoogle(String code, String browserKey, String base) {
         var form = new LinkedMultiValueMap<String, String>();
         form.set("grant_type", "authorization_code");
         form.set("code", code);
         form.set("client_id", googleId);
         form.set("client_secret", googleSecret);
-        form.set("redirect_uri", callback("google"));
+        form.set("redirect_uri", callback("google", base));
         form.set("code_verifier", browserKey);
         JsonNode grant = http.post().uri("https://oauth2.googleapis.com/token")
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED).body(form)
@@ -373,13 +386,13 @@ class SignInProviders {
         return new Identity(sub, name == null ? null : name.substring(0, Math.min(80, name.length())), null);
     }
 
-    private Identity exchangeApple(String code, Map<String, String> query, String browserKey) {
+    private Identity exchangeApple(String code, Map<String, String> query, String browserKey, String base) {
         var form = new LinkedMultiValueMap<String, String>();
         form.set("grant_type", "authorization_code");
         form.set("code", code);
         form.set("client_id", appleServicesId);
         form.set("client_secret", appleClientSecret());
-        form.set("redirect_uri", callback("apple"));
+        form.set("redirect_uri", callback("apple", base));
         JsonNode grant = http.post().uri(APPLE_TOKEN)
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED).body(form)
                 .retrieve().body(JsonNode.class);

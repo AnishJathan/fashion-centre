@@ -23,3 +23,20 @@ CREATE TABLE merchant_sign_in_sessions (
   expires_at DATETIME(6) NOT NULL,
   INDEX idx_merchant_session_expiry (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE web_sign_ins (
+  state_hash   VARCHAR(64) NOT NULL PRIMARY KEY,
+  provider     VARCHAR(10) NOT NULL,
+  browser_hash VARCHAR(64),
+  shop         VARCHAR(80),
+  expires_at   DATETIME(6) NOT NULL,
+  INDEX idx_web_sign_ins_expiry (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE social_identities (
+  provider     VARCHAR(10)  NOT NULL,
+  subject_hash VARCHAR(64)  NOT NULL,
+  user_id      BIGINT       NOT NULL,  -- match users.id's type
+  PRIMARY KEY (provider, subject_hash),
+  CONSTRAINT fk_social_user FOREIGN KEY (user_id) REFERENCES users (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

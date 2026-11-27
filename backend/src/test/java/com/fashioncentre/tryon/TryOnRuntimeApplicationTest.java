@@ -27,9 +27,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.multipart.MultipartResolver;
 import software.amazon.awssdk.services.s3.S3Client;
-import com.fashioncentre.PrunaService;
-import com.fashioncentre.auth.AuthService;
-import com.fashioncentre.tryon.jobs.PrivateJobWorker;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
@@ -158,7 +155,7 @@ class TryOnRuntimeApplicationTest {
 
     @Test void manualSchemasCannotBeDiscoveredByFlywayDefaultLocation() {
         assertThat(getClass().getResource("/db/migration/V1__auth_tables.sql")).isNotNull();
-        assertThat(getClass().getResource("/db/migration/V2__saved_photo_predictions.sql")).isNotNull();
+        assertThat(getClass().getResource("/db/migration/V2__social_sign_in.sql")).isNotNull();
         assertThat(getClass().getResource("/db/migration/V1__merchant_connections.sql")).isNull();
         assertThat(getClass().getResource("/db/migration/V2__private_jobs.sql")).isNull();
         assertThat(getClass().getResource("/db/manual/V1__merchant_connections.sql")).isNotNull();
