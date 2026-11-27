@@ -26,8 +26,11 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.multipart.MultipartResolver;
-import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
+import com.fashioncentre.PrunaService;
+import com.fashioncentre.auth.AuthService;
+import com.fashioncentre.tryon.jobs.PrivateJobWorker;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
@@ -80,6 +83,14 @@ class TryOnRuntimeApplicationTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.ready").value(false));
     }
 
+    @Test void realShopperEndpointsRemainMappedAndAnonymousUploadsAreRejected() throws Exception {
+        mvc.perform(get("/api/auth/me")).andExpect(status().isUnauthorized());
+        mvc.perform(multipart("/api/try-on/me").file("garment", new byte[]{1,2,3}))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/try-on").contentType("application/json").content("{}"))
+                .andExpect(status().isNotFound());
+        org.mockito.Mockito.verifyNoInteractions(s3, pruna);
+    }
     @Test void legacyProviderRoutesAreGoneAndAnonymousShoppersCannotAccessSavedPhotosOrPredictions() throws Exception {
         mvc.perform(get("/api/auth/me")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/users/me/photo")).andExpect(status().isUnauthorized());

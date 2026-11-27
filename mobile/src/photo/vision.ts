@@ -1,4 +1,4 @@
-import { requireOptionalNativeModule } from "expo-modules-core";
+import { requireOptionalNativeModule } from "expo";
 import { assessAnalysis, type NativeAnalysis } from "./quality";
 interface VisionModule {
   analyze(uri: string, sampleSide: number): Promise<NativeAnalysis>;

@@ -31,7 +31,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": false,
+          "photosPermission": "Choose a photo for your private Fashion Centre preview or account photo.",
           "cameraPermission": "Take a full-body photo for Fashion Centre. You choose whether to upload it.",
           "microphonePermission": false
         }
