@@ -46,6 +46,21 @@ jobs:
   backend:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.4@sha256:8c233bad33d520a7aae1c1e619c3a9775f4a1ba2d463d692fada04ec7f40be00
+        env:
+          MYSQL_DATABASE: fashion_migration_test
+          MYSQL_USER: fashion_test
+          MYSQL_PASSWORD: fashion_test
+          MYSQL_ROOT_PASSWORD: mysql_test_root
+        ports:
+          - 33316:3306
+        options: >-
+          --health-cmd="mysql --protocol=TCP -h 127.0.0.1 -ufashion_test -pfashion_test -D fashion_migration_test -e 'SELECT 1'"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -57,6 +72,10 @@ jobs:
           cache: maven
           cache-dependency-path: backend/pom.xml
       - run: mvn -B --no-transfer-progress -s .github/maven-ci.xml -f backend/pom.xml package
+        env:
+          FASHION_TEST_MYSQL_URL: jdbc:mysql://127.0.0.1:33316/fashion_migration_test?sslMode=DISABLED&allowPublicKeyRetrieval=true
+          FASHION_TEST_MYSQL_USER: fashion_test
+          FASHION_TEST_MYSQL_PASSWORD: fashion_test
       - name: Check credential-free demo API
         run: |
           sh scripts/start-demo-api.sh &
@@ -64,6 +83,24 @@ jobs:
           trap 'kill "$demo_pid" 2>/dev/null || true' EXIT
           curl --fail --silent --show-error --retry 30 --retry-connrefused --retry-delay 1 \
             http://127.0.0.1:8082/api/health
+
+  cloudflare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: cloudflare
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: cloudflare/package-lock.json
+      - run: npm ci
+      - run: npm test
 
   mobile:
     runs-on: ubuntu-24.04
