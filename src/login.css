@@ -8,7 +8,9 @@
 .login-card form { display: grid; gap: var(--compactGap); }
 .google-signin { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 10px 16px; border: 1px solid #747775; border-radius: var(--controlRadius); background: #fff; color: #1f1f1f; font: 500 1rem/1.4 var(--body); }
 .google-signin img { object-fit: contain; }
-.google-signin:disabled { opacity: .65; }
+.apple-signin { display: grid; place-items: center; min-height: 48px; margin-top: var(--compactGap); border-radius: var(--controlRadius); background: #000; }
+.apple-signin img { display: block; width: min(240px, 100%); height: auto; }
+.apple-signin:disabled, .google-signin:disabled { opacity: .65; }
 .signin-divider { display: flex; align-items: center; gap: 12px; margin: var(--sectionGap) 0 0; font-size: .875rem; }
 .signin-divider::before, .signin-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .phone-entry { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: var(--compactGap); }

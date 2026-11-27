@@ -148,6 +148,7 @@ function loginHarness(simulation: boolean) {
       "Login",
       {
         tryOnSession: { clear: () => { cleared++; } },
+        appleSignInAvailable: async () => false,
         normalisePhone,
         otpFieldMetrics,
         useWindowDimensions: () => ({ width: 320, height: 568, fontScale: 1 }),

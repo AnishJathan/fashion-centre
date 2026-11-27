@@ -2,7 +2,9 @@ import {useEffect,useState,type FormEvent} from 'react';
 import {CountryPicker} from './CountryPicker';
 import {BrandLink} from './StoreNavigation';
 import {browserSignIn, takeSignInResult} from './providerSignIn';
+import {appleSignInAvailable} from '../mobile/src/core/providerSignIn';
 import {defaultCountry, normalisePhone, type PhoneCountry} from '../mobile/src/phoneCountries';
+import appleButton from '../mobile/assets/identity/apple-sign-in.png';
 import googleMark from '../mobile/assets/identity/google-g.png';
 import {PhotoCapture} from './PhotoCapture';
 
@@ -29,7 +31,8 @@ export default function AccountScreen({close,studio=false}:{close:()=>void;studi
   const [error,setError]=useState('');
   const [uploadError,setUploadError]=useState('');
   const [busy,setBusy]=useState(false);
-  const [openingGoogle,setOpeningGoogle]=useState(false);
+  const [openingProvider,setOpeningProvider]=useState<'apple'|'google'|null>(null);
+  const [appleAvailable,setAppleAvailable]=useState(false);
   const [expiresAt,setExpiresAt]=useState(0);
   const [resendAt,setResendAt]=useState(0);
   const [now,setNow]=useState(Date.now());
@@ -42,6 +45,9 @@ export default function AccountScreen({close,studio=false}:{close:()=>void;studi
     const abort=new AbortController();
     const result=takeSignInResult();
     setError(result.message);
+    void appleSignInAvailable(fetch, abort.signal).then(available=>{
+      if(!abort.signal.aborted)setAppleAvailable(available);
+    });
     void (async()=>{
       try {
         const response=await fetch(API+'/me',{credentials:'include',cache:'no-store',signal:abort.signal});
@@ -56,10 +62,13 @@ export default function AccountScreen({close,studio=false}:{close:()=>void;studi
     return ()=>abort.abort();
   },[]);
 
-  async function google(){
-    setBusy(true);setOpeningGoogle(true);setError('');
-    try { await browserSignIn('google', undefined, studio); }
-    catch (cause) {setError(cause instanceof Error?cause.message:'Couldn’t start Google sign-in.');setBusy(false);setOpeningGoogle(false);}
+  async function signInWith(provider:'apple'|'google'){
+    setBusy(true);setOpeningProvider(provider);setError('');
+    try { await browserSignIn(provider, undefined, studio); }
+    catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Couldn’t start sign-in.');
+      setBusy(false);setOpeningProvider(null);
+    }
   }
 
   async function logout(){
@@ -157,9 +166,15 @@ export default function AccountScreen({close,studio=false}:{close:()=>void;studi
         {step==='phone'&&(
           <>
             <h1>Sign in to <em>Fashion Centre</em></h1>
-            <button className="google-signin wide" type="button" aria-busy={openingGoogle} disabled={busy} onClick={google}>
-              <img src={googleMark} width="20" height="20" alt=""/>{openingGoogle?'Opening Google…':'Continue with Google'}
+            <button className="google-signin wide" type="button" aria-busy={openingProvider==='google'} disabled={busy} onClick={()=>void signInWith('google')}>
+              <img src={googleMark} width="20" height="20" alt=""/>{openingProvider==='google'?'Opening Google…':'Continue with Google'}
             </button>
+            {appleAvailable&&(
+              <button className="apple-signin wide" type="button" aria-label="Sign in with Apple"
+                aria-busy={openingProvider==='apple'} disabled={busy} onClick={()=>void signInWith('apple')}>
+                <img src={appleButton} alt="" width="240" height="48"/>
+              </button>
+            )}
             <p className="signin-divider">or use WhatsApp</p>
             <form onSubmit={e=>{e.preventDefault();void requestCode();}}>
               <label htmlFor="phone">WhatsApp number</label>
@@ -169,7 +184,7 @@ export default function AccountScreen({close,studio=false}:{close:()=>void;studi
                   value={phone} onChange={e=>setPhone(e.target.value)} maxLength={22} disabled={busy}/>
               </div>
               <button type="submit" className="primary wide" disabled={busy}>
-                {busy&&!openingGoogle?'Sending code…':'Send code on WhatsApp →'}
+                {busy&&!openingProvider?'Sending code…':'Send code on WhatsApp →'}
               </button>
             </form>
             <BrandLink className="merchant-login-link" href="#/owner">For stores</BrandLink>

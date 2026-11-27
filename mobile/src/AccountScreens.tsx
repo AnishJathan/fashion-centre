@@ -3,6 +3,7 @@ import { CountryPicker } from "./CountryPicker";
 import { GoogleSignInButton } from "./GoogleSignInButton";
 import { defaultCountry, type PhoneCountry } from "./phoneCountries";
 import { browserSignIn } from "./core/browserSignIn";
+import { appleSignInAvailable } from "./core/providerSignIn";
 import { metrics } from "./design";
 import { phoneCoverAspect } from "./editorial";
 import { PhotoEditor } from "./photo/PhotoEditor";
@@ -82,7 +83,8 @@ function Login({ simulation, browse, openMerchant, studio = false }: { studio?: 
     [message, setMessage] = useState(""),
     [messageError, setMessageError] = useState(false),
     [busy, setBusy] = useState(false),
-    [openingGoogle, setOpeningGoogle] = useState(false),
+    [openingProvider, setOpeningProvider] = useState<"google" | "apple" | null>(null),
+    [appleAvailable, setAppleAvailable] = useState(false),
     [expires, setExpires] = useState(0),
     [resend, setResend] = useState(0),
     [now, setNow] = useState(Date.now()),
@@ -97,8 +99,12 @@ function Login({ simulation, browse, openMerchant, studio = false }: { studio?: 
   useEffect(() => {
     active.current = true;
     const timer = setInterval(() => setNow(Date.now()), 1000);
+    const providerCheck = new AbortController();
     if (!simulation) {
       abort.current = new AbortController();
+      void appleSignInAvailable(apiFetch, providerCheck.signal).then(available => {
+        if (!providerCheck.signal.aborted) setAppleAvailable(available);
+      });
       void Promise.resolve()
         .then(() => apiFetch("/api/auth/me", { signal: abort.current?.signal }))
         .then(async (r) => {
@@ -116,6 +122,7 @@ function Login({ simulation, browse, openMerchant, studio = false }: { studio?: 
     return () => {
       active.current = false;
       clearInterval(timer);
+      providerCheck.abort();
       abort.current?.abort();
     };
   }, [simulation]);
@@ -209,15 +216,16 @@ function Login({ simulation, browse, openMerchant, studio = false }: { studio?: 
       if (active.current) setBusy(false);
     }
   }
-  async function google() {
+  async function signInWith(provider: "google" | "apple") {
     if (inflight.current) return;
     inflight.current = true;
     abort.current?.abort();
     setBusy(true);
-    setOpeningGoogle(true);
+    setOpeningProvider(provider);
     setMessage("");
+    setMessageError(false);
     try {
-      await browserSignIn("google");
+      await browserSignIn(provider);
       if (!active.current) return;
       tryOnSession.clear();
       const verified = await verifyProfileAccount(() => apiFetch("/api/auth/me"), () => active.current);
@@ -230,7 +238,7 @@ function Login({ simulation, browse, openMerchant, studio = false }: { studio?: 
       if (active.current) { setMessage(errorText(cause)); setMessageError(true); }
     } finally {
       inflight.current = false;
-      if (active.current) { setBusy(false); setOpeningGoogle(false); }
+      if (active.current) { setBusy(false); setOpeningProvider(null); }
     }
   }
   async function logout() {
@@ -290,7 +298,7 @@ function Login({ simulation, browse, openMerchant, studio = false }: { studio?: 
             ? "Explore the sign-in flow with a sample number."
             : step === "account"
               ? "Manage your saved photo for your next look."
-              : step === "code" ? "Enter the six-digit code we sent." : "Use Google or your WhatsApp number to continue."}
+              : step === "code" ? "Enter the six-digit code we sent." : "Choose a sign-in option to continue."}
         </Body>
       </View>
       {simulation && (
@@ -302,7 +310,20 @@ function Login({ simulation, browse, openMerchant, studio = false }: { studio?: 
       {!!message && <AccountNotice message={message} error={messageError} />}
       {step === "phone" && (
         <Card>
-          {!simulation && <GoogleSignInButton onPress={google} disabled={busy} busy={openingGoogle}/>}
+          {!simulation && <GoogleSignInButton onPress={() => void signInWith("google")}
+            disabled={busy} busy={openingProvider === "google"} />}
+          {!simulation && appleAvailable && <Pressable
+            accessibilityRole="button" accessibilityLabel="Sign in with Apple"
+            accessibilityState={{ disabled: busy, busy: openingProvider === "apple" }}
+            disabled={busy} onPress={() => void signInWith("apple")}
+            style={({ pressed }) => ({
+              minHeight: metrics.touch, borderRadius: metrics.controlRadius,
+              backgroundColor: "#000", alignItems: "center", justifyContent: "center",
+              opacity: pressed || busy ? 0.65 : 1,
+            })}>
+            <Image source={require("../assets/identity/apple-sign-in.png")}
+              accessible={false} resizeMode="contain" style={{ width: "100%", maxWidth: 240, height: 48 }} />
+          </Pressable>}
           <AccountSection title={simulation ? "Your mobile number" : "Or use WhatsApp"}/>
           <Text style={{color: p.text, fontSize: 14, fontWeight: "600"}}>WhatsApp number</Text>
           <View style={{flexDirection: fontScale >= 1.4 || width < 340 ? "column" : "row", alignItems: "stretch", gap: 8}}>
@@ -335,14 +356,14 @@ function Login({ simulation, browse, openMerchant, studio = false }: { studio?: 
           </Text>
           <Button
             label={
-              busy && !openingGoogle
+              busy && !openingProvider
                 ? "Sending code…"
                 : simulation
                   ? "Start demo"
                   : "Send WhatsApp code"
             }
             disabled={busy || !phone.trim()}
-            busy={busy && !openingGoogle}
+            busy={busy && !openingProvider}
             onPress={() => void action(false)}
           />
           {simulation && (
