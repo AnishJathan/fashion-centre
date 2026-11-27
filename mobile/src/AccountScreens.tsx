@@ -633,7 +633,7 @@ function SavedTryOn({ route, navigate }: Props) {
       if (s !== "active" && !isPickingLibraryPhoto()) {
         active = false;
         abort.current.abort();
-        void download.current?.cancelAsync();
+        void download.current?.cancelAsync().catch(() => {});
         if (alive.current) {
           accountTicket.current = null;
           setReady(false);
@@ -654,7 +654,7 @@ function SavedTryOn({ route, navigate }: Props) {
       active = false;
       alive.current = false;
       abort.current.abort();
-      void download.current?.cancelAsync();
+      void download.current?.cancelAsync().catch(() => {});
       if (temporary.current)
         void FS.deleteAsync(temporary.current, { idempotent: true }).catch(
           () => {},
@@ -677,7 +677,7 @@ function SavedTryOn({ route, navigate }: Props) {
     setMessage("Preparing garment…");
     const totalTimeout = setTimeout(() => {
       abort.current.abort();
-      void download.current?.cancelAsync();
+      void download.current?.cancelAsync().catch(() => {});
     }, 120000);
     try {
       const verified = await verifyProfileAccount(
@@ -697,7 +697,7 @@ function SavedTryOn({ route, navigate }: Props) {
       download.current = FS.createDownloadResumable(
         uri,
         target,
-        {},
+        { sessionType: FS.FileSystemSessionType.FOREGROUND },
         (progress: {
           totalBytesWritten: number;
           totalBytesExpectedToWrite: number;
@@ -707,13 +707,14 @@ function SavedTryOn({ route, navigate }: Props) {
             progress.totalBytesExpectedToWrite > MAX_PHOTO_BYTES
           ) {
             exceeded = true;
-            void download.current?.cancelAsync();
+            void download.current?.cancelAsync().catch(() => {});
           }
         },
       );
-      const file = await download.current.downloadAsync();
-      if (exceeded || !file || file.status !== 200)
-        throw new Error("Could not load a bounded garment image.");
+      const file = await download.current.downloadAsync().catch(() => undefined);
+      if (exceeded) throw new Error("This garment image exceeds 10 MiB.");
+      if (!file || file.status !== 200)
+        throw new Error("Couldn’t load the garment image. Check your connection and try again.");
       const rawHeader = Object.entries(file.headers).find(
         ([k]) => k.toLowerCase() === "content-type",
       )?.[1];
@@ -721,6 +722,8 @@ function SavedTryOn({ route, navigate }: Props) {
         typeof rawHeader === "string" ? rawHeader.split(";")[0] : "";
       await inspectFile(target, header);
       if (!alive.current) return;
+      if (abort.current.signal.aborted)
+        throw new Error("The garment took too long to load. Try again.");
       if (!tryOnSession.current(ticket))
         throw new Error("Your account changed. Reopen try-on before sending images.");
       const form = new FormData();
@@ -925,10 +928,7 @@ function SavedTryOn({ route, navigate }: Props) {
             )}
           </Card>
           <Text style={{ color: p.muted, fontSize: 12, lineHeight: 18 }}>
-            Leaving stops progress checks, not a job already started. Try again only
-            after a confirmed result or failure. Uncertain submissions block this
-            garment for the app session. Live provider billing, privacy and native
-            cookie compatibility have not been verified by this port.
+            Leaving pauses progress checks. Wait for a confirmed result or failure before trying this garment again.
           </Text>
         </>
       )}

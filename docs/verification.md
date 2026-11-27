@@ -1,6 +1,6 @@
 # Verification
 
-The [GitHub workflow](../.github/workflows/verify.yml) runs independent web, backend, and mobile jobs on pushes to `main` and pull requests. The jobs use pinned lockfiles, Node.js 24, and JDK 17. They require no application credentials.
+The [GitHub workflow](../.github/workflows/verify.yml) runs independent web, Java, Cloudflare and mobile jobs on pushes to `main` and pull requests. The jobs use pinned lockfiles, Node.js 24, and JDK 17. They require no application credentials.
 
 Run from the repository root:
 
@@ -12,6 +12,8 @@ npm test
 npx playwright install chromium
 npm run test:ui
 mvn -B -f backend/pom.xml package
+npm ci --prefix cloudflare
+npm test --prefix cloudflare
 
 cd mobile
 npm ci
