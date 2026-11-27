@@ -35,6 +35,7 @@ export function MerchantDashboard() {
   const [syncMsg, setSyncMsg] = useState('');
 
   const domain = canonicalShop(shop);
+  const marketplaceSetupMissing = data?.marketplace === true && !data.ready;
 
   useEffect(() => {
     const abort = new AbortController();
@@ -338,7 +339,7 @@ export function MerchantDashboard() {
               <button
                 className="primary wide"
                 type="submit"
-                disabled={busy || !domain}
+                disabled={busy || !domain || marketplaceSetupMissing}
               >
                 {busy ? 'Opening Shopify…' : 'Sign in with Shopify'}
               </button>
