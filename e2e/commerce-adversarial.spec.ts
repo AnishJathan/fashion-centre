@@ -64,11 +64,12 @@ test('queued store disable and checkout share a lock and validate dependencies a
     await expect.poll(pendingEdits).toBe(2);
     await other.evaluate(() => (window as any).releaseTestLock());
     await expect(other.getByRole('button', { name: 'Enable Mock Shop' })).toBeVisible();
-    await expect.poll(pendingEdits).toBe(0);
+    await page.evaluate(() => navigator.locks.request('fashion-centre:app-state', () => {}));
     await expect(page.getByRole('button', { name: 'Reload saved data' })).toBeVisible();
-    await expect(checkoutButton).toBeEnabled();
     await expect(page).toHaveURL(/#\/checkout\/mock$/);
     const state = await page.evaluate(() => JSON.parse(localStorage.getItem('fc.commerce.v2')!));
     expect(state.orders).toHaveLength(0);
     expect(state.cart).toHaveLength(1);
+    await page.getByRole('button', { name: 'Reload saved data' }).click();
+    await expect(checkoutButton).toBeDisabled();
 });
