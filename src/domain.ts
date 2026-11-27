@@ -160,12 +160,13 @@ export async function loadMerchantStores(signal?: AbortSignal): Promise<Connecte
   });
 }
 
-export async function loadMerchantCatalogue(shop: string, signal?: AbortSignal): Promise<Brand> {
+export async function loadMerchantCatalogue(shop: string, signal?: AbortSignal, marketplace = false): Promise<Brand> {
   const r = await fetch('/api/merchant/shopify/products?limit=48', {
     signal, cache: 'no-store', credentials: 'same-origin'
   });
   if (!r.ok) throw Error('Store products unavailable.');
   const raw = await r.json();
+  if (marketplace) return parseCatalogue('shop-' + shop.split('.')[0], raw);
   if (!record(raw) || !Array.isArray(raw.products)) throw Error('Store products response is invalid.');
 
   const adapted = {

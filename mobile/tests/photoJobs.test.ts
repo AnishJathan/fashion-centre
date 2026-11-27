@@ -117,7 +117,7 @@ test("reservation is synchronous and blocks concurrent instances before prefligh
 import fs from "node:fs";
 import ts from "typescript";
 function submissionHarness(
-  outcome: "succeeded" | "failed" | "timeout" | "local-error" | "unauthorized",
+  outcome: "succeeded" | "failed" | "timeout" | "local-error" | "download-error" | "unauthorized",
 ) {
   const source = ts.createSourceFile(
     "AccountScreens.tsx",
@@ -148,6 +148,7 @@ function submissionHarness(
     brandName: "A real brand",
   };
   let posts = 0;
+  let message = "";
   const session = createTryOnSession();
   const ticket = session.bind("account-a");
   const env = {
@@ -168,7 +169,7 @@ function submissionHarness(
     MAX_PHOTO_BYTES: 10 * 1024 * 1024,
     setBusy: () => {},
     setResult: () => {},
-    setMessage: () => {},
+    setMessage: (text: string) => { message = text; },
     setStatusError: () => {},
     setPreviewError: () => {},
     errorText: (e: Error) => e.message,
@@ -176,13 +177,17 @@ function submissionHarness(
     apiUrl: (path: string) => "https://app.example" + path,
     FS: {
       cacheDirectory: "file:///test/",
-      createDownloadResumable: () => ({
-        downloadAsync: async () => ({
-          status: 200,
-          headers: { "content-type": "image/jpeg" },
-        }),
-        cancelAsync: async () => {},
-      }),
+      FileSystemSessionType: { FOREGROUND: 1 },
+      createDownloadResumable: (_uri: string, _target: string, options: { sessionType: number }) => {
+        assert.equal(options.sessionType, 1);
+        return {
+          downloadAsync: async () => {
+            if (outcome === "download-error") throw Error("Native download implementation details");
+            return { status: 200, headers: { "content-type": "image/jpeg" } };
+          },
+          cancelAsync: async () => {},
+        };
+      },
       deleteAsync: async () => {},
     },
     inspectFile: async () => {
@@ -203,8 +208,17 @@ function submissionHarness(
   const execute = new Function("env", `with(env){${code};return run;}`)(
     env,
   ) as () => Promise<void>;
-  return { env, execute, posts: () => posts };
+  return { env, execute, posts: () => posts, message: () => message };
 }
+test("a garment download error is recoverable without starting a job", async () => {
+  const h = submissionHarness("download-error");
+  await h.execute();
+  assert.equal(h.posts(), 0);
+  assert.equal(pendingSubmissions.has(h.env.product.id), false);
+  assert.equal(h.env.submitted.current, false);
+  assert.match(h.message(), /Check your connection and try again/);
+  assert.doesNotMatch(h.message(), /implementation details/);
+});
 test("screen enables explicit retry only after definite safe outcomes", async () => {
   for (const outcome of [
     "succeeded",

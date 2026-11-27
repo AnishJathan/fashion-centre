@@ -1,6 +1,6 @@
 import {test,before,after} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
+import {readFile, readdir} from 'node:fs/promises';
 import {getPlatformProxy} from 'wrangler';
 import worker from '../src/index.js';
 import {checkoutLink} from '../src/marketplace.js';
@@ -10,8 +10,11 @@ let platform,env;
 before(async()=>{
   platform=await getPlatformProxy({persist:false});
   env=platform.env;
-  const schema=await readFile(new URL('../migrations/0001_marketplace.sql',import.meta.url),'utf8');
-  for(const sql of schema.split(';').filter(s=>s.trim()))await env.DB.prepare(sql).run();
+  const migrations = new URL('../migrations/',import.meta.url);
+  for (const file of (await readdir(migrations)).filter(name => name.endsWith('.sql')).sort()) {
+    const schema = await readFile(new URL(file, migrations), 'utf8');
+    for (const sql of schema.split(';').filter(s => s.trim())) await env.DB.prepare(sql).run();
+  }
 });
 after(async()=>{await platform?.dispose();});
 function route(path,init={}) {return worker.fetch(new Request('https://fashion.example'+path,init),env);}
@@ -21,6 +24,13 @@ test('checkout contains exactly the selected merchant’s variants and quantitie
   assert.equal(checkoutLink(shop,[line(1),line(2,3),line(1)]),'https://fixture.myshopify.com/cart/1:2,2:3');
   assert.throws(()=>checkoutLink(shop,[{variantKey:'shop-other:gid://shopify/ProductVariant/1',quantity:1}]));
   assert.throws(()=>checkoutLink(shop,[line(1,0)]));
+});
+test('merchant readiness explains missing setup and product previews require a shop session', async () => {
+  const readiness = await (await route('/api/merchant/shopify/readiness')).json();
+  assert.equal(readiness.ready, false);
+  assert.equal(readiness.connected, false);
+  assert.ok(readiness.blockers.length);
+  assert.equal((await route('/api/merchant/shopify/products')).status, 401);
 });
 test('published directory and checkout depend on merchant publication, unrelated sessions cannot publish',async()=>{
   await env.DB.prepare('INSERT INTO stores VALUES(?,?,1)').bind(shop,'Fixture').run();
@@ -71,6 +81,12 @@ test('two mocked Shopify owners install, publish, check out separately and unins
     assert.match(finish.headers.get('Location'), /signin=success/);
     assert.equal((await call(path, {headers})).status, 400);
     const owner = finish.headers.getSetCookie().find(cookie => cookie.startsWith('fc_merchant=')).split(';')[0];
+    const readiness = await (await call('/api/merchant/shopify/readiness', {headers:{Cookie:owner}})).json();
+    assert.equal(readiness.connected, true);
+    assert.equal(readiness.published, false);
+    const preview = await call('/api/merchant/shopify/products', {headers:{Cookie:owner}});
+    assert.equal(preview.status, 200);
+    assert.equal((await preview.json()).shopKey, 'shop-' + handle);
     const publish = await call('/api/merchant/shopify/publish', {method:'POST', headers:{Cookie:owner}, body:JSON.stringify({published:true})});
     assert.equal(publish.status, 200);
     const response = await call('/api/integrations/shopify/checkout/shop-' + handle, {method:'POST', body:JSON.stringify({lines:[
@@ -99,7 +115,9 @@ test('Google native callback exchanges the code, verifies identity and creates a
   const bindings = {...env, AUTH_PUBLIC_ORIGIN:origin, GOOGLE_CLIENT_ID:client, GOOGLE_CLIENT_SECRET:'test-only'};
   const call = (path, init) => worker.fetch(new Request(origin + path, init), bindings);
   const post = value => ({method:'POST', body:JSON.stringify(value)});
-  const start = await (await call('/api/auth/sign-in/google/start', post({platform:'native'}))).json();
+  const appReturn = 'fashioncentre://auth/complete';
+  const start = await (await call('/api/auth/sign-in/google/start', post({platform:'native',returnTo:appReturn}))).json();
+  assert.equal(new URL(start.url).searchParams.get('return'), appReturn);
   const browser = await worker.fetch(new Request(start.url), bindings);
   const google = new URL(browser.headers.get('Location'));
   const binding = browser.headers.getSetCookie()[0].split(';')[0];
@@ -215,4 +233,135 @@ test('a shopper can update only their own profile name', async () => {
   assert.equal((await update('profile-owner','   ')).status,400);
   assert.equal((await update('profile-owner',' Alex ')).status,200);
   assert.equal((await (await route('/api/auth/me',{headers})).json()).firstName,'Alex');
+});
+
+test('Apple form callback verifies the signed identity and reuses the same shopper account', async t => {
+  const {generateKeyPair, exportJWK, exportPKCS8, jwtVerify, SignJWT} = await import('jose');
+  const signing = await generateKeyPair('ES256', {extractable:true});
+  const apple = await generateKeyPair('RS256');
+  const jwk = {...await exportJWK(apple.publicKey), kid:'apple-test-key', alg:'RS256'};
+  const origin = 'https://fashion.example';
+  const appleOrigin = 'https://appleid.apple.com';
+  const client = 'com.example.fashion.web';
+  const bindings = {...env, AUTH_PUBLIC_ORIGIN:origin, APPLE_SERVICES_ID:client,
+    APPLE_TEAM_ID:'fixture-team', APPLE_KEY_ID:'fixture-signing-key', APPLE_PRIVATE_KEY:await exportPKCS8(signing.privateKey)};
+  const call = (path, init) => worker.fetch(new Request(origin + path, init), bindings);
+  const post = value => ({method:'POST', body:JSON.stringify(value)});
+  const startPath = '/api/auth/sign-in/apple/start';
+  const callbackPath = '/api/auth/sign-in/apple/callback';
+  assert.deepEqual(await (await route('/api/auth/providers')).json(), {apple:false});
+  assert.equal((await route(startPath,post({platform:'native'}))).status, 503);
+  assert.deepEqual(await (await call('/api/auth/providers')).json(), {apple:true});
+  assert.equal((await call(startPath,post({platform:'native',returnTo:'https://other.example'}))).status, 400);
+
+  let nonce, codeExchanges = 0;
+  t.mock.method(globalThis, 'fetch', async (address, init) => {
+    assert.equal(init.redirect, 'manual');
+    if (String(address) === appleOrigin + '/auth/keys') return Response.json({keys:[jwk]});
+    assert.equal(String(address), appleOrigin + '/auth/token');
+    codeExchanges++;
+    const form = new URLSearchParams(init.body);
+    assert.equal(form.get('redirect_uri'), origin + callbackPath);
+    const {protectedHeader} = await jwtVerify(form.get('client_secret'), signing.publicKey, {
+      issuer:bindings.APPLE_TEAM_ID, audience:appleOrigin, subject:client, algorithms:['ES256'],
+    });
+    assert.equal(protectedHeader.kid, bindings.APPLE_KEY_ID);
+    const idToken = await new SignJWT({nonce})
+      .setProtectedHeader({alg:'RS256', kid:jwk.kid}).setIssuer(appleOrigin)
+      .setSubject('apple-fixture-subject').setAudience(client).setIssuedAt().setExpirationTime('5m').sign(apple.privateKey);
+    return Response.json({id_token:idToken});
+  });
+
+  async function begin(platform) {
+    const start = await (await call(startPath, post({platform}))).json();
+    const browser = await worker.fetch(new Request(start.url), bindings);
+    const url = new URL(browser.headers.get('Location'));
+    assert.equal(url.origin, appleOrigin);
+    assert.equal(url.searchParams.get('response_mode'), 'form_post');
+    assert.equal(url.searchParams.get('redirect_uri'), origin + callbackPath);
+    const [cookie] = browser.headers.getSetCookie();
+    assert.match(cookie, /HttpOnly; SameSite=None/);
+    return {verifier:start.verifier, state:url.searchParams.get('state'), nonce:url.searchParams.get('nonce'), cookie:cookie.split(';')[0]};
+  }
+
+  const submit = (flow, values={}, sendCookie=true) => call(callbackPath, {
+    method:'POST', headers:{Origin:appleOrigin, ...(sendCookie?{Cookie:flow.cookie}:{})},
+    body:new URLSearchParams({state:flow.state, ...values}),
+  });
+
+  const native = await begin('native');
+  assert.equal((await submit(native,{code:'fixture-code'},false)).status, 400);
+  assert.equal(codeExchanges, 0);
+  nonce = native.nonce;
+  const callback = await submit(native, {code:'fixture-code', user:JSON.stringify({name:{firstName:'Taylor'}})});
+  const returned = new URL(callback.headers.get('Location'));
+  assert.equal(returned.protocol + '//' + returned.host + returned.pathname, 'fashioncentre://auth/complete');
+  assert.equal((await submit(native, {code:'fixture-code'})).status, 400);
+  const proof = post({grant:returned.searchParams.get('grant'), verifier:native.verifier});
+  const finish = await call('/api/auth/sign-in/apple/finish', proof);
+  assert.equal(finish.status, 204);
+  assert.equal((await call('/api/auth/sign-in/apple/finish', proof)).status, 400);
+  const account = cookie => call('/api/auth/me', {headers:{Cookie:cookie}});
+  const shopper = await (await account(finish.headers.getSetCookie()[0].split(';')[0])).json();
+  assert.equal(shopper.firstName, 'Taylor');
+  await env.DB.prepare('UPDATE users SET photo_key=? WHERE id=?').bind('legacy-photo', shopper.id).run();
+
+  const web = await begin('web');
+  nonce = web.nonce;
+  const returning = await submit(web, {code:'returning-fixture-code'});
+  const cookie = returning.headers.getSetCookie()[1].split(';')[0];
+  const reused = await (await account(cookie)).json();
+  assert.equal(reused.id, shopper.id);
+  assert.equal(reused.hasPhoto, true);
+  assert.equal((await call('/api/auth/logout', {method:'POST', headers:{Cookie:cookie}})).status, 204);
+  assert.equal((await account(cookie)).status, 401);
+
+  const invalid = await begin('web');
+  nonce = 'wrong-nonce';
+  const rejected = await submit(invalid, {code:'invalid-nonce'});
+  assert.match(rejected.headers.get('Location'), /signin=failed/);
+  assert.equal(rejected.headers.getSetCookie().length, 1);
+
+  const cancel = await begin('native');
+  const cancelled = await submit(cancel, {error:'user_cancelled_authorize'});
+  assert.equal(cancelled.headers.get('Location'), 'fashioncentre://auth/complete?signin=cancelled');
+  assert.equal(codeExchanges, 3);
+
+  // Only the Apple callback accepts a cross-origin POST.
+  assert.equal((await call('/api/auth/logout', {method:'POST', headers:{Origin:appleOrigin}})).status, 403);
+});
+
+test('WhatsApp responses keep the code private and a failed delivery expires its challenge', async t => {
+  const bindings = {...env, OTP_SECRET:'test-only-digest-secret', WHATSAPP_TOKEN:'test-only-token',
+    WHATSAPP_PHONE_ID:'test-phone-id', WHATSAPP_TEMPLATE:'test-template'};
+  const request = (action, value) => worker.fetch(new Request('https://fashion.example/api/auth/' + action, {
+    method:'POST', body:JSON.stringify(value),
+  }), bindings);
+  const codes = new Map();
+  const phone = '+12025550198';
+  const failedPhone = '+12025550196';
+
+  t.mock.method(globalThis, 'fetch', async (address, options) => {
+    assert.match(String(address), /^https:\/\/graph\.facebook\.com\/v\d+\.\d+\/test-phone-id\/messages$/);
+    assert.equal(options.redirect, 'manual');
+    const payload = JSON.parse(options.body);
+    const value = payload.template.components[0].parameters[0].text;
+    assert.match(value, /^\d{6}$/);
+    codes.set('+' + payload.to, value);
+    if ('+' + payload.to === failedPhone) throw new TypeError('Mock delivery timeout.');
+    return Response.json({messages:[{id:'test-delivery'}]});
+  });
+  const start = await request('request-code', {phone});
+  assert.equal(start.status, 200);
+  assert.deepEqual(await start.json(), {expiresInSeconds:120, resendInSeconds:30});
+  assert.equal((await request('request-code', {phone})).status, 429);
+  const verify = () => request('verify-code', {phone, code:codes.get(phone)});
+  const authorized = await verify();
+  assert.equal(authorized.status, 200);
+  assert.match(authorized.headers.get('Set-Cookie'), /^fc_session=.*; Secure; HttpOnly;/);
+  assert.equal((await verify()).status, 410);
+
+  assert.equal((await request('request-code', {phone:failedPhone})).status, 503);
+  assert.equal((await request('verify-code', {phone:failedPhone, code:codes.get(failedPhone)})).status, 410);
+  assert.equal((await request('request-code', {phone:failedPhone})).status, 429);
 });

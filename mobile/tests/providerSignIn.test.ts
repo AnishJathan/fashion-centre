@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appReturn, beginSignIn, finishNativeSignIn } from "../src/core/providerSignIn.ts";
+import { appReturn, appleSignInAvailable, beginSignIn, finishNativeSignIn } from "../src/core/providerSignIn.ts";
 import { matchingCountries, normalisePhone } from "../src/phoneCountries.ts";
 
 test("picker distinguishes countries sharing a prefix and validates an international paste", () => {
@@ -34,4 +34,16 @@ test("unexpected addresses and cancellations never submit a grant", async () => 
   const never = async () => {throw Error("unexpected transport request");};
   await assert.rejects(finishNativeSignIn(never, "google", appReturn+"?signin=cancelled", ""), /cancelled/);
   await assert.rejects(finishNativeSignIn(never, "google", "fashioncentre://other/complete", ""), /Unexpected/);
+});
+
+
+test("Apple sign-in is offered only when the server reports that it is configured", async () => {
+  const { signal } = new AbortController();
+  assert.equal(await appleSignInAvailable(async (path, init) => {
+    assert.equal(path, "/api/auth/providers");
+    assert.equal(init.signal, signal);
+    return Response.json({ apple: true });
+  }, signal), true);
+  assert.equal(await appleSignInAvailable(async () => Response.json({ apple: "true" }), signal), false);
+  assert.equal(await appleSignInAvailable(async () => new Response(null, { status: 404 }), signal), false);
 });

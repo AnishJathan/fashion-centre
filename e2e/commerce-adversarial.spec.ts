@@ -33,14 +33,28 @@ test('another tab disabling a store blocks stale checkout and preserves its cart
     await expect(page.getByRole('button', { name: 'Place demo order' })).toBeDisabled();
 });
 
-test('queued store disable and checkout share a lock and validate dependencies after acquisition', async ({ page, context }) => {
+test('queued checkout rejects a disabled store even if this tab still reads the old storage value', async ({ page, context }) => {
     await setup(context);
     await page.goto('/#/product/' + encodeURIComponent(productId));
     await page.getByRole('button', { name: 'Add to demo cart' }).click();
     await page.getByRole('link', { name: /View your cart/ }).click();
     await page.getByRole('link', { name: /Demo checkout/ }).click();
+    const checkoutButton = page.getByRole('button', { name: 'Place demo order' });
+    await expect(checkoutButton).toBeEnabled();
+    await page.evaluate(() => {
+        const storesKey = 'fc.stores.v1';
+        const previousStores = localStorage.getItem(storesKey);
+        const getItem = Storage.prototype.getItem;
+        Storage.prototype.getItem = function (key) {
+            return this === localStorage && key === storesKey ? previousStores : getItem.call(this, key);
+        };
+    });
     const other = await context.newPage();
     await other.goto('/#/merchant');
+    const disableButton = other.getByRole('button', { name: 'Disable Mock Shop' });
+    await expect(disableButton).toBeEnabled();
+    // Drain the page's initial persistence before queuing the two competing actions.
+    await other.evaluate(() => navigator.locks.request('fashion-centre:app-state', () => {}));
     await other.evaluate(() => {
         const w = window as any;
         void navigator.locks.request('fashion-centre:app-state', async () => {
@@ -49,14 +63,48 @@ test('queued store disable and checkout share a lock and validate dependencies a
         });
     });
     await expect.poll(() => other.evaluate(() => (window as any).testLockHeld)).toBe(true);
-    await other.getByRole('button', { name: 'Disable Mock Shop' }).evaluate((button: HTMLButtonElement) => button.click());
-    await page.getByRole('button', { name: 'Place demo order' }).evaluate((button: HTMLButtonElement) => button.click());
-    await expect.poll(() => page.evaluate(async () => (await navigator.locks.query()).pending?.filter(l => l.name === 'fashion-centre:app-state').length)).toBe(2);
+    const pendingEdits = () => page.evaluate(async () => (await navigator.locks.query()).pending
+        ?.filter(lock => lock.name === 'fashion-centre:app-state').length);
+    await disableButton.evaluate((button: HTMLButtonElement) => button.click());
+    // Cross-page evaluation may return before React has queued its storage work.
+    await expect.poll(pendingEdits).toBe(1);
+    await checkoutButton.evaluate((button: HTMLButtonElement) => button.click());
+    await expect.poll(pendingEdits).toBe(2);
     await other.evaluate(() => (window as any).releaseTestLock());
     await expect(other.getByRole('button', { name: 'Enable Mock Shop' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Place demo order' })).toBeEnabled();
+    await page.evaluate(() => navigator.locks.request('fashion-centre:app-state', () => {}));
+    await expect(page.getByRole('button', { name: 'Reload saved data' })).toBeVisible();
     await expect(page).toHaveURL(/#\/checkout\/mock$/);
     const state = await page.evaluate(() => JSON.parse(localStorage.getItem('fc.commerce.v2')!));
     expect(state.orders).toHaveLength(0);
     expect(state.cart).toHaveLength(1);
+    await page.getByRole('button', { name: 'Reload saved data' }).click();
+    await expect(checkoutButton).toBeDisabled();
+});
+
+test('checkout keeps the previous basket when the shared save aborts', async ({ page, context }) => {
+    await setup(context);
+    await page.goto('/#/product/' + encodeURIComponent(productId));
+    await page.getByRole('button', { name: 'Add to demo cart' }).click();
+    await page.getByRole('link', { name: /View your cart/ }).click();
+    await page.getByRole('link', { name: /Demo checkout/ }).click();
+    const checkoutButton = page.getByRole('button', { name: 'Place demo order' });
+    await page.evaluate(() => {
+        const put = IDBObjectStore.prototype.put;
+        IDBObjectStore.prototype.put = function (value, key) {
+            const request = put.call(this, value, key);
+            if (this.name === 'shopping') this.transaction.abort();
+            return request;
+        };
+    });
+
+    await checkoutButton.click();
+    await expect(page.getByRole('button', { name: 'Reload saved data' })).toBeVisible();
+    const state = await page.evaluate(() => JSON.parse(localStorage.getItem('fc.commerce.v2')!));
+    expect(state.orders).toHaveLength(0);
+    expect(state.cart).toHaveLength(1);
+    await page.getByRole('button', { name: 'Reload saved data' }).click();
+    await checkoutButton.click();
+    await expect(page.getByRole('heading', { name: 'Demo order placed' })).toBeVisible();
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('fc.commerce.v2')!).orders.length)).toBe(1);
 });

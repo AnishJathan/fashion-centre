@@ -15,7 +15,7 @@ for(const width of [390,1440])test(`merchant shopping preserves real account and
  await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);
  await page.getByRole('button',{name:'Try on with my saved photo'}).click();await page.goto('/#/profile');await expect(page.getByRole('dialog')).toHaveCount(0);
  await page.getByRole('link',{name:'Sign in or manage account'}).click();await expect(page).toHaveURL(/#\/login/);
- await page.getByLabel('WhatsApp number').fill('400000000');await page.getByRole('button',{name:'Send code on WhatsApp'}).click();await expect(page.getByRole('alert')).toContainText('could not send');
+ await page.getByLabel('WhatsApp number').fill('400000000');await page.getByRole('button',{name:'Send code on WhatsApp'}).click();await expect(page.getByRole('alert')).toContainText('WhatsApp sign-in is temporarily unavailable');
  await page.route('**/api/auth/request-code',r=>r.fulfill({json:{expiresInSeconds:120,resendInSeconds:30}}));
  await page.route('**/api/auth/verify-code',r=>r.fulfill({json:{ok:true,hasPhoto:true}}));
  await page.getByRole('button',{name:'Send code on WhatsApp'}).click();await page.getByLabel('Enter 6-digit code').fill('123456');await page.getByRole('button',{name:'Verify code',exact:true}).click();

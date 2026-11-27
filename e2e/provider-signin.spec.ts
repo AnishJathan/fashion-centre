@@ -26,11 +26,13 @@ test('phone picker supports search and keyboard selection and sends the selected
   expect(phone).toBe('+919876501234');
 });
 
-for (const provider of ['google','shopify'] as const) {
+for (const provider of ['google','apple','shopify'] as const) {
   test(provider+' sign-in returns to the correct account and can sign out', async ({page}) => {
     const merchant = provider === 'shopify';
     const route = merchant ? 'owner' : 'login';
+    const providerButton = merchant ? 'Sign in with Shopify' : provider === 'apple' ? 'Sign in with Apple' : 'Continue with Google';
     let signedIn = false;
+    await page.route('**/api/auth/providers', request => request.fulfill({json:{apple:provider === 'apple'}}));
     const sessionPath = merchant ? '/api/auth/sign-in/shopify' : '/api/auth';
     await page.route('**'+sessionPath+'/me', request => request.fulfill(signedIn
       ? {json: merchant ? {shop:'fixture.myshopify.com'} : {id:'fixture-user',hasPhoto:false}}
@@ -50,18 +52,21 @@ for (const provider of ['google','shopify'] as const) {
       await page.getByRole('link',{name:'For stores'}).click();
       await page.getByLabel('Shopify store domain').fill('Fixture.myshopify.com');
     }
-    await page.getByRole('button',{name:merchant ? 'Sign in with Shopify' : 'Continue with Google'}).click();
+    await page.getByRole('button',{name:providerButton}).click();
     await expect(page.getByText(merchant ? /Signed in to fixture.myshopify.com/ : /You’re signed in/)).toBeVisible();
     await expect(page).not.toHaveURL(/signin=/);
     await page.getByRole('button',{name:merchant ? 'Sign out of merchant account' : 'Sign out',exact:true}).click();
-    await expect(page.getByRole('button',{name:merchant ? 'Sign in with Shopify' : 'Continue with Google'})).toBeVisible();
+    await expect(page.getByRole('button',{name:providerButton})).toBeVisible();
     expect(signedIn).toBe(false);
   });
 }
 
 test('unconfigured Google and cancelled Shopify return actionable feedback', async ({page}) => {
   await page.route('**/api/auth/sign-in/google/start', request => request.fulfill({status:503}));
-  await page.goto('/#/login'); await page.getByRole('button',{name:'Continue with Google'}).click();
+  await page.route('**/api/auth/providers', request => request.fulfill({json:{apple:false}}));
+  await page.goto('/#/login');
+  await expect(page.getByRole('button',{name:'Sign in with Apple'})).toHaveCount(0);
+  await page.getByRole('button',{name:'Continue with Google'}).click();
   await expect(page.getByRole('alert')).toContainText('Google sign-in is unavailable');
   await page.goto('/?signin=cancelled#/owner');
   await expect(

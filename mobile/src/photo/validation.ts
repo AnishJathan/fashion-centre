@@ -1,14 +1,10 @@
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 export const MAX_PHOTO_PIXELS = 40000000;
 export function validatePhotoHeader(
-  type: string,
+  declaredType: string | undefined,
   size: number,
   bytes: Uint8Array,
 ) {
-  if (!["image/jpeg", "image/png", "image/webp"].includes(type))
-    throw new Error(
-      "Choose a JPEG, PNG or WebP photo. HEIC, SVG and other formats are not supported in this local preview.",
-    );
   if (!Number.isSafeInteger(size) || size <= 0 || size > MAX_PHOTO_BYTES)
     throw new Error(
       "Choose a non-empty photo no larger than 10 MiB (local preview limit).",
@@ -18,14 +14,21 @@ export function validatePhotoHeader(
   const webp =
     String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
     String.fromCharCode(...bytes.slice(8, 12)) === "WEBP";
-  if (!(
-    (type === "image/png" && png) ||
-    (type === "image/jpeg" && jpeg) ||
-    (type === "image/webp" && webp)
-  ))
+  let detectedType: string | undefined;
+  if (png) detectedType = "image/png";
+  else if (jpeg) detectedType = "image/jpeg";
+  else if (webp) detectedType = "image/webp";
+
+  const type = declaredType ?? detectedType;
+  if (type === undefined || !["image/jpeg", "image/png", "image/webp"].includes(type))
+    throw new Error(
+      "Choose a JPEG, PNG or WebP photo. HEIC, SVG and other formats are not supported in this local preview.",
+    );
+  if (type !== detectedType)
     throw new Error(
       "The file contents do not match its image type. Choose an original photo file.",
     );
+  return type;
 }
 export function resolutionWarning(width: number, height: number) {
   return Math.min(width, height) < 768

@@ -111,6 +111,7 @@ interface ShopifyCatalogueResponse {
 }
 
 interface ShopifyReadinessResponse {
+  marketplace?: boolean;
   connected?: boolean;
   connections?: Array<{
     brandId?: string;
@@ -195,6 +196,8 @@ async function loadConnectedShopify(): Promise<Brand[]> {
 
     const readiness =
       (await readinessResponse.json()) as ShopifyReadinessResponse;
+
+    if (readiness.marketplace === true) return [];
 
     const brandId = getShopifyBrandId(readiness);
 

@@ -1,5 +1,5 @@
 import {account} from './account.js';
-import {oauth} from './oauth.js';
+import {appleCallback,appleReady,oauth} from './oauth.js';
 import {marketplace} from './marketplace.js';
 import {photos} from './photos.js';
 import {fail,json,now} from './http.js';
@@ -9,8 +9,9 @@ export default {
     const url=new URL(req.url),path=url.pathname;
     try{
       if(!path.startsWith('/api/'))return env.ASSETS.fetch(req);
-      if(req.method==='POST'&&req.headers.has('Origin')&&req.headers.get('Origin')!==url.origin)fail(403,'Origin mismatch.');
-      const auth=path.match(/^\/api\/auth\/sign-in\/(google|shopify)\/(start|browser|callback|finish|me|logout)$/);
+      if(req.method==='POST'&&path!==appleCallback&&req.headers.has('Origin')&&req.headers.get('Origin')!==url.origin)fail(403,'Origin mismatch.');
+      if(path==='/api/auth/providers'&&req.method==='GET')return json({apple:appleReady(req,env)});
+      const auth=path.match(/^\/api\/auth\/sign-in\/(google|apple|shopify)\/(start|browser|callback|finish|me|logout)$/);
       if(auth)return await oauth(req,env,auth[1],auth[2]);
       if(path==='/api/auth/logout')return await oauth(req,env,'google','logout');
       if(path.startsWith('/api/auth/'))return await account(req,env,path);

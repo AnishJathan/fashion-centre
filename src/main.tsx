@@ -5,6 +5,8 @@ import { createRoot } from 'react-dom/client';
 
 import { App } from './App';
 
+import { restoreShoppingStorage } from './browserStorage';
+
 import { ThemeProvider } from './Appearance';
 
 import './style.css';
@@ -64,9 +66,14 @@ function LaunchComplete() {
   return null;
 }
 
-createRoot(container).render(
-  <ThemeProvider>
-    <App />
-    <LaunchComplete />
-  </ThemeProvider>,
-);
+const root = createRoot(container);
+void restoreShoppingStorage().catch(() => {
+  // Browsing still works when the browser blocks persistent storage.
+}).then(() => {
+  root.render(
+    <ThemeProvider>
+      <App />
+      <LaunchComplete />
+    </ThemeProvider>,
+  );
+});

@@ -1,13 +1,13 @@
 import { shopifyDomain } from "../settingsPresentation.ts";
 
-export type Provider = "google" | "shopify";
+export type Provider = "google" | "apple" | "shopify";
 type Transport = (path: string, init: RequestInit) => Promise<Response>;
 const base = "/api/auth/sign-in/";
 const token = /^[A-Za-z0-9_-]{43}$/;
 export const appReturn = "fashioncentre://auth/complete";
 
 export async function beginSignIn(send: Transport, origin: string, platform: "web" | "native", provider: Provider, shop?: string) {
-  const name = provider === "google" ? "Google" : "Shopify";
+  const name = provider === "google" ? "Google" : provider === "apple" ? "Apple" : "Shopify";
   let response: Response;
   try {
     response = await send(base + provider + "/start", {method: "POST", headers: {"Content-Type":"application/json"},
@@ -24,6 +24,15 @@ export async function beginSignIn(send: Transport, origin: string, platform: "we
       target.searchParams.get("platform") !== platform || (platform === "native" && (typeof data.verifier !== "string" || !token.test(data.verifier))))
     throw new Error("The sign-in address doesn’t match this Fashion Centre server.");
   return {url: target.href, verifier: data.verifier as string | undefined};
+}
+
+export async function appleSignInAvailable(send: Transport, signal: AbortSignal): Promise<boolean> {
+  try {
+    const response = await send("/api/auth/providers", { signal, cache: "no-store" });
+    return response.ok && (await response.json())?.apple === true;
+  } catch {
+    return false;
+  }
 }
 
 export function signInMessage(status: string | null) {

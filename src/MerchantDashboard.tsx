@@ -35,6 +35,7 @@ export function MerchantDashboard() {
   const [syncMsg, setSyncMsg] = useState('');
 
   const domain = canonicalShop(shop);
+  const marketplaceSetupMissing = data?.marketplace === true && !data.ready;
 
   useEffect(() => {
     const abort = new AbortController();
@@ -101,6 +102,11 @@ export function MerchantDashboard() {
     const abort = new AbortController();
 
     setStoresError('');
+    if (!data) return;
+    if (data.marketplace) {
+      setStores(activeShop ? [{ shop: activeShop, status: 'connected' }] : []);
+      return;
+    }
 
     loadMerchantStores(abort.signal)
       .then(list => {
@@ -119,10 +125,10 @@ export function MerchantDashboard() {
       });
 
     return () => abort.abort();
-  }, [retry]);
+  }, [activeShop, data, retry]);
 
   useEffect(() => {
-    if (!activeShop) {
+    if (!activeShop || !data) {
       setCatalogue(null);
       return;
     }
@@ -132,7 +138,7 @@ export function MerchantDashboard() {
     setCatalogue(null);
     setCatalogueError('');
 
-    loadMerchantCatalogue(activeShop, abort.signal)
+    loadMerchantCatalogue(activeShop, abort.signal, data.marketplace)
       .then(value => {
         if (!abort.signal.aborted) setCatalogue(value);
       })
@@ -143,7 +149,7 @@ export function MerchantDashboard() {
       });
 
     return () => abort.abort();
-  }, [activeShop]);
+  }, [activeShop, data]);
 
   async function signIn() {
     setChecked(true);
@@ -239,23 +245,11 @@ export function MerchantDashboard() {
     setAuthError('');
 
     try {
-      const csrfResponse = await fetch('/api/auth/csrf', {
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
-
-      if (!csrfResponse.ok) throw new Error('Please sign in again.');
-
-      const { csrfToken } = await csrfResponse.json();
-
-      if (!csrfToken) throw new Error('Security token is missing.');
-
       const response = await fetch('/api/merchant/shopify/publish', {
         method: 'POST',
         credentials: 'same-origin',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken,
         },
         body: JSON.stringify({ published: !data.published }),
       });
@@ -345,7 +339,7 @@ export function MerchantDashboard() {
               <button
                 className="primary wide"
                 type="submit"
-                disabled={busy || !domain}
+                disabled={busy || !domain || marketplaceSetupMissing}
               >
                 {busy ? 'Opening Shopify…' : 'Sign in with Shopify'}
               </button>
@@ -433,16 +427,19 @@ export function MerchantDashboard() {
         <section className="owner-card">
           <h2>Products from {activeShop}</h2>
 
-          <button
-            className="primary"
-            type="button"
-            disabled={syncing}
-            onClick={() => void publishToBrands()}
-          >
-            {syncing ? 'Publishing…' : 'Publish to Brands'}
-          </button>
+          {data && !data.marketplace && <>
+            <button
+              className="primary"
+              type="button"
+              disabled={syncing}
+              onClick={() => void publishToBrands()}
+            >
+              {syncing ? 'Publishing…' : 'Publish to Brands'}
+            </button>
 
-          {syncMsg && <p role="status">{syncMsg}</p>}
+            {syncMsg && <p role="status">{syncMsg}</p>}
+
+          </>}
 
           {data?.marketplace && (
             <>
