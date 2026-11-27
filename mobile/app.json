@@ -32,8 +32,12 @@
           "cameraPermission": "Fashion Centre checks your pose and photo quality on this device before you choose whether to upload.",
           "recordAudioAndroid": false
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
-    "platforms": ["ios", "android"]
+    "platforms": [
+      "ios",
+      "android"
+    ]
   }
 }

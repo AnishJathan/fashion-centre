@@ -1,7 +1,8 @@
 import { CaptureGate, type PhotoFeedback } from "./quality.ts";
-/** iOS permission sheets temporarily mark the app inactive. Do not close the first scan for that sheet. */
+/** Ignore app-state changes while the camera permission prompt is open (Android sends the app to background, iOS to inactive). */
 export function shouldStopScanner(state: string, permissionPending: boolean) {
-  return state === 'background' || state === 'inactive' && !permissionPending;
+  if (permissionPending) return false;
+  return state === "background" || state === "inactive";
 }
 /** One serialized camera check. All temporary images remain caller-private and are cleaned,
  * including capture/analysis results arriving after the screen has closed. */

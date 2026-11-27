@@ -7,6 +7,7 @@ import java.util.Map;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import org.springframework.boot.web.server.Cookie;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -20,13 +21,12 @@ import org.springframework.web.server.ResponseStatusException;
 public class AuthController {
     public static final String SESSION_COOKIE = "fc_session";
     private final AuthService auth;
+//    private final SocialTokenVerifier verifier;
 
-    public AuthController(AuthService auth) {
-        this.auth = auth;
-    }
-
+    public AuthController(AuthService auth) { this.auth = auth; }
     public record PhoneRequest(@NotBlank String phone) {}
     public record VerifyRequest(@NotBlank String phone, @NotBlank @Pattern(regexp = "[0-9]{6}") String code) {}
+    public record SocialRequest(@NotBlank String idToken, String firstName) {}
 
     @PostMapping("/request-code")
     public ResponseEntity<Map<String, Object>> requestCode(@Valid @RequestBody PhoneRequest req) {
@@ -84,7 +84,19 @@ public class AuthController {
                 "firstName", user.getFirstName() == null ? "" : user.getFirstName()));
     }
 
-    private static ResponseCookie cookie(String value, Duration maxAge) {
+//
+//    @PostMapping("/google")
+//    public ResponseEntity<Map<String, Object>> google(@Valid @RequestBody SocialRequest req) {
+//        String token = auth.loginWithSocial("google", verifier.verifyGoogle(req.idToken()));
+//        return startSession(token);
+//    }
+//
+//    @PostMapping("/apple")
+//    public ResponseEntity<Map<String, Object>> apple(@Valid @RequestBody SocialRequest req) {
+//        String token = auth.loginWithSocial("apple", verifier.verifyApple(req.idToken(), req.firstName()));
+//        return startSession(token);
+//    }
+    private  ResponseCookie cookie(String value, Duration maxAge) {
         return sessionCookie(SESSION_COOKIE, value, maxAge, "/");
     }
 
@@ -98,7 +110,22 @@ public class AuthController {
                 .build();
     }
 
+//    static ResponseCookie sessionCookie(String name, String value, Duration maxAge, String path) {
+//        return ResponseCookie.from(name, value).httpOnly(true).secure(true)
+//                .sameSite(sameSite).path(path).maxAge(maxAge).build();
+//    }
+
     private static String mask(String phone) {
         return phone.substring(0, 3) + " •••• " + phone.substring(phone.length() - 3);
+    }
+
+    private ResponseEntity<Map<String, Object>> startSession(String token) {
+        boolean hasPhoto = auth.currentUser(token)
+                .map(u -> u.getPhotoPublicId() != null)
+                .orElse(false);
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .header(HttpHeaders.SET_COOKIE, cookie(token, AuthService.SESSION_TTL).toString())
+                .body(Map.of("ok", true, "hasPhoto", hasPhoto));
     }
 }

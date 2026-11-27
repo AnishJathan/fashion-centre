@@ -66,8 +66,7 @@ export function PhotoEditor({
   useEffect(() => {
     if (!garmentReady) setReview(false);
   }, [garmentReady]);
-  const fromLibrary = useRef(false);
-  async function capture(source: "camera" | "library" = "camera") {
+  async function capture() {
     if (!alive.current || working.current) return;
     working.current = true;
     clear();
@@ -77,8 +76,7 @@ export function PhotoEditor({
     setMessage("");
     let next: LocalPhoto | null = null;
     try {
-      next = await takePhoto(source);
-      fromLibrary.current = source === "library";
+      next = await takePhoto("camera");
       if (!alive.current || token !== epoch.current) return;
       current.current = next;
       setPhoto(next);
@@ -100,13 +98,13 @@ export function PhotoEditor({
     if (!alive.current || !photo || !rights || working.current) return;
     working.current = true;
     setBusy(true);
-    setBusyLabel("Checking and saving your account photo…");
+    setBusyLabel("Checking and saving your scan…");
     setMessage("");
     setMessageError(false);
     const token = epoch.current;
     controller.current = new AbortController();
     try {
-      if (!fromLibrary.current) await requireGoodPhoto(photo.uri);
+      await requireGoodPhoto(photo.uri);
       if (!alive.current || token !== epoch.current) return;
       const form = new FormData();
       appendPhoto(form, "file", photo);
@@ -119,18 +117,18 @@ export function PhotoEditor({
         throw new Error(
           res.status === 401
             ? "Your session expired. Sign in again."
-            : "Could not save your photo.",
+            : "Could not save your scan.",
         );
       if (alive.current && token === epoch.current) {
         clear();
         setBusy(false);
-        setMessage("Photo saved to your account.");
+        setMessage("Scan saved to your account.");
         onSaved?.();
       }
     } catch (e) {
       if (alive.current && token === epoch.current) {
         setMessageError(true);
-        setMessage(e instanceof Error ? e.message : "Photo upload failed.");
+        setMessage(e instanceof Error ? e.message : "Scan upload failed.");
       }
     } finally {
       working.current = false;
@@ -148,18 +146,28 @@ export function PhotoEditor({
   return (
     <Card>
       <AccountSection
-        step={upload ? "Account photo" : "Step 2 · Your photo"}
-        title={photo ? "Review your photo" : "Add a full-body photo"}
+        step={upload ? "Full-body scan" : "Step 2 · Your photo"}
+        title={
+          photo
+            ? upload
+              ? "Review your scan"
+              : "Review your photo"
+            : upload
+              ? "Scan your full body"
+              : "Add a full-body photo"
+        }
         description={upload
-          ? "Choose a full-body photo or scan in even light, with your head and feet in view."
+          ? "Stand 2–3 steps back in even light, with your head and feet visible."
           : "Take an upright photo with your head and feet visible, in clear, even light."}
       />
-      <Text style={{ color: p.muted, fontSize: 12, lineHeight: 18 }}>
-        JPEG, PNG or WebP · Up to 10 MiB · Up to 40 megapixels
-      </Text>
+      {!upload && (
+        <Text style={{ color: p.muted, fontSize: 12, lineHeight: 18 }}>
+          JPEG, PNG or WebP · Up to 10 MiB · Up to 40 megapixels
+        </Text>
+      )}
       {upload && !hasNativeVision && (
         <AccountNotice
-          title="Photo checks unavailable"
+          title="Scanner unavailable"
           message={visionUnavailableMessage}
         />
       )}
@@ -171,7 +179,6 @@ export function PhotoEditor({
               void discard(next);
               return;
             }
-            fromLibrary.current = false;
             current.current = next;
             setPhoto(next);
             setScanning(false);
@@ -206,7 +213,7 @@ export function PhotoEditor({
                   textAlign: "center",
                 }}
               >
-                Your photo goes here
+                {upload ? "Your scan goes here" : "Your photo goes here"}
               </Text>
               <Text
                 style={{
@@ -217,12 +224,11 @@ export function PhotoEditor({
                 }}
               >
                 {upload
-                  ? "Review and confirm before anything is uploaded."
+                  ? "Your scan is checked on this device before you save it."
                   : "Your photo stays on this device."}
               </Text>
             </View>
           )}
-          <Button label="Choose from photos" disabled={busy} onPress={() => void capture("library")} />
           {upload ? (
             <Button
               secondary
@@ -252,7 +258,7 @@ export function PhotoEditor({
           <PhotoPreview
             compact
             source={{ uri: photo.uri }}
-            label="Selected local full-body photo"
+            label={upload ? "Scanned full-body photo" : "Selected local full-body photo"}
           />
           <Text style={{ color: p.muted, fontSize: 12, textAlign: "center" }}>
             {photo.width} × {photo.height} pixels · Local preview
@@ -267,7 +273,7 @@ export function PhotoEditor({
             }}
             label={
               upload
-                ? "I have permission to use this photo and agree to save it to my account on the configured Fashion Centre server."
+                ? "I have permission to use this scan and agree to save it to my account on the configured Fashion Centre server."
                 : "I have permission to use both my personal photo and the garment image."
             }
           />
@@ -290,7 +296,7 @@ export function PhotoEditor({
               busy
                 ? "Please wait…"
                 : upload
-                  ? "Save photo to account"
+                  ? "Save scan to account"
                   : "Review local preparation"
             }
             disabled={busy || !canReview}
@@ -298,11 +304,11 @@ export function PhotoEditor({
             onPress={() =>
               upload
                 ? Alert.alert(
-                    "Upload account photo?",
-                    "Send this photo to the configured Fashion Centre backend and its R2/S3-compatible account storage for future try-on. Review the service privacy and retention terms before proceeding.",
+                    "Save scan to account?",
+                    "Send this scan to the configured Fashion Centre backend and its R2/S3-compatible account storage for future try-on. Review the service privacy and retention terms before proceeding.",
                     [
                       { text: "Cancel", style: "cancel" },
-                      { text: "Upload photo", onPress: () => void save() },
+                      { text: "Save scan", onPress: () => void save() },
                     ],
                   )
                 : setReview(true)
@@ -310,7 +316,7 @@ export function PhotoEditor({
           />
           <Button
             secondary
-            label="Remove local photo"
+            label={upload ? "Discard scan" : "Remove local photo"}
             disabled={busy}
             onPress={clear}
           />
@@ -326,13 +332,13 @@ export function PhotoEditor({
         <View style={{ gap: metrics.compactGap, paddingTop: 4 }}>
           <Body>
             {upload
-              ? "Gallery photos are checked for file type, size and dimensions. Camera scans also check pose, brightness and sharpness."
+              ? "Scans are checked on this device for pose, brightness and sharpness before anything is saved."
               : "File type, size and dimensions are checked locally. Preparing a photo does not upload it or generate a result."}
           </Body>
           <Text style={{ color: p.muted, fontSize: 12, lineHeight: 18 }}>
-            Leaving, replacing or removing clears the temporary preview.
-            Originals in your photo library stay unchanged. Upload requires
-            separate confirmation.
+            {upload
+              ? "Retaking or discarding clears the temporary scan. Saving requires separate confirmation."
+              : "Leaving, replacing or removing clears the temporary preview. Originals in your photo library stay unchanged. Upload requires separate confirmation."}
           </Text>
         </View>
       )}

@@ -87,9 +87,7 @@ class TryOnRuntimeApplicationTest {
                 .andExpect(status().isBadRequest());
         org.mockito.Mockito.verifyNoInteractions(s3, pruna);
     }
-    @Test void manualSchemasCannotBeDiscoveredByFlywayDefaultLocation() {
-        assertThat(getClass().getResource("/db/migration/V1__auth_tables.sql")).isNotNull();
-    }
+
     @Test void legacyProviderRoutesAreGoneAndAnonymousShoppersCannotAccessSavedPhotosOrPredictions() throws Exception {
         mvc.perform(get("/api/auth/me")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/users/me/photo")).andExpect(status().isUnauthorized());

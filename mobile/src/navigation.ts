@@ -87,7 +87,7 @@ export function parseLink(value: string): Route | null {
   } catch {
     return null;
   }
-  let segment = segments[0] ?? "home";
+  let segment = segments[0] ?? "login";
   if (segment === "merchant") segment = "stores";
   if (segment === "try") segment = "prepare";
   if (segment === "orders" && valueId) segment = "order";

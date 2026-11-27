@@ -39,6 +39,8 @@ export function apiUrl(path: string): string {
     ) + path
   );
 }
-export function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  return fetch(apiUrl(path), { ...init, credentials: "include" });
+export async function apiFetch(path: string, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  headers.set("ngrok-skip-browser-warning", "true");
+  return fetch(apiUrl(path), { ...init, headers, credentials: "include" });
 }

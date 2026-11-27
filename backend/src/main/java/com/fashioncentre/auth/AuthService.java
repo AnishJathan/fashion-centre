@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,19 +36,24 @@ public class AuthService {
     private final String pepper;
     private final boolean exposeDevCode;
 
+    private final SocialAccountService social;
+
     public AuthService(UserRepository users, LoginCodeRepository codes, SessionRepository sessions,
-                       CodeSender sender,
+                       CodeSender sender, SocialAccountService social,
                        @Value("${auth.code-pepper}") String pepper,
                        @Value("${auth.expose-dev-code:false}") boolean exposeDevCode) {
         this.users = users;
         this.codes = codes;
         this.sessions = sessions;
         this.sender = sender;
+        this.social = social;
         this.pepper = pepper;
         this.exposeDevCode = exposeDevCode;
     }
 
-    /** Returns the code only when auth.expose-dev-code is true (local development). Otherwise null. */
+    /**
+     * Returns the code only when auth.expose-dev-code is true (local development) Otherwise null.
+     */
     @Transactional
     public String requestCode(String phone) {
         requireE164(phone);
@@ -55,7 +61,9 @@ public class AuthService {
 
         codes.findFirstByPhoneNumberOrderByCreatedAtDesc(phone)
                 .filter(last -> last.getCreatedAt().plus(RESEND_WAIT).isAfter(now))
-                .ifPresent(last -> { throw tooMany("Please wait a moment before requesting another code."); });
+                .ifPresent(last -> {
+                    throw tooMany("Please wait a moment before requesting another code.");
+                });
 
         if (codes.countByPhoneNumberAndCreatedAtAfter(phone, now.minus(Duration.ofHours(1))) >= MAX_SENDS_PER_HOUR) {
             throw tooMany("Too many codes requested. Try again later.");
@@ -127,7 +135,8 @@ public class AuthService {
     @Transactional
     public String updateProfileName(String token, String expectedAccountId, String firstName) {
         User user = currentUser(token).orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-        if (!user.getId().equals(expectedAccountId)) throw new ResponseStatusException(HttpStatus.CONFLICT, "Your account changed.");
+        if (!user.getId().equals(expectedAccountId))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Your account changed.");
         String name = firstName == null ? "" : firstName.strip();
         if (name.isEmpty() || name.length() > 80 || name.chars().anyMatch(Character::isISOControl))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enter a valid name.");
@@ -177,4 +186,19 @@ public class AuthService {
             throw new IllegalStateException(e);
         }
     }
+
+    public String loginWithSocial(String provider, VerifiedIdentity id) {
+        User user = findOrCreateSocialUser(provider, id);
+        return createSession(user, Instant.now());
+    }
+
+    private User findOrCreateSocialUser(String provider, VerifiedIdentity id) {
+        try {
+            return social.findOrCreate(provider, id);
+        } catch (DataIntegrityViolationException e) {
+            // Another request created the same user first, so read it again in a new transaction.
+            return social.findOrCreate(provider, id);
+        }
+    }
 }
+

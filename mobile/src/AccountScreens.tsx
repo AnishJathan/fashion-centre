@@ -10,6 +10,7 @@ import { otpFieldMetrics } from "./photo/layout";
 import { useIsFocused } from "@react-navigation/native";
 import React, { useEffect, useRef, useState } from "react";
 import { Text } from "./Typography";
+import * as WebBrowser from "expo-web-browser";
 import {
   Alert,
   AppState,
@@ -61,6 +62,7 @@ import {
   pollJob,
   validJobId,
 } from "./photo/jobs";
+import { AppleSignInButton } from "./AppleSignInButton";
 const configuredUrl = (path: string) => {
   try {
     return apiUrl(path);
@@ -83,7 +85,7 @@ function Login({ simulation, browse, openMerchant, studio = false }: { studio?: 
     [message, setMessage] = useState(""),
     [messageError, setMessageError] = useState(false),
     [busy, setBusy] = useState(false),
-    [openingGoogle, setOpeningGoogle] = useState(false),
+    [openingProvider, setOpeningProvider] = useState<"google" | "apple" | null>(null),
     [expires, setExpires] = useState(0),
     [resend, setResend] = useState(0),
     [now, setNow] = useState(Date.now()),
@@ -210,30 +212,64 @@ function Login({ simulation, browse, openMerchant, studio = false }: { studio?: 
       if (active.current) setBusy(false);
     }
   }
-  async function google() {
-    if (inflight.current) return;
-    inflight.current = true;
-    abort.current?.abort();
-    setBusy(true);
-    setOpeningGoogle(true);
-    setMessage("");
-    try {
-      await browserSignIn("google");
-      if (!active.current) return;
-      tryOnSession.clear();
-      const verified = await verifyProfileAccount(() => apiFetch("/api/auth/me"), () => active.current);
-      if (!verified) throw Error("Couldn’t confirm your session. Please sign in again.");
-      setPhotoError(false);
-      setHasPhoto(verified.account.hasPhoto);
-      setPhotoVersion(value => value + 1);
-      setStep("account");
-    } catch (cause) {
-      if (active.current) { setMessage(errorText(cause)); setMessageError(true); }
-    } finally {
-      inflight.current = false;
-      if (active.current) { setBusy(false); setOpeningGoogle(false); }
+// async function google() {
+//   if (inflight.current) return;
+//   inflight.current = true;
+//   setBusy(true);
+//   setOpeningProvider("google");
+//   setMessage("");
+//   try {
+//     await browserSignIn("google");
+//     if (!active.current) return;
+//     tryOnSession.clear();
+//     const verified = await verifyProfileAccount(() => apiFetch("/api/auth/me"), () => active.current);
+//     if (!verified) throw Error("Couldn’t confirm your session. Please sign in again.");
+//     setPhotoError(false);
+//     setHasPhoto(verified.account.hasPhoto);
+//     setPhotoVersion((value) => value + 1);
+//     setStep("account");
+//   } catch (cause) {
+//     if (active.current) { setMessage(errorText(cause)); setMessageError(true); }
+//   } finally {
+//     inflight.current = false;
+//     if (active.current) { setBusy(false); setOpeningProvider(null); }
+//   }
+// }
+
+async function socialSignIn(provider: "google" | "apple") {
+  if (inflight.current) return;
+  inflight.current = true;
+  setBusy(true);
+  setOpeningProvider(provider);
+  setMessage("");
+  setMessageError(false);
+  try {
+    await browserSignIn(provider);
+    if (!active.current) return;
+    tryOnSession.clear();
+    const verified = await verifyProfileAccount(
+      () => apiFetch("/api/auth/me"),
+      () => active.current,
+    );
+    if (!verified) throw new Error("Couldn’t confirm your session. Please sign in again.");
+    setPhotoError(false);
+    setHasPhoto(verified.account.hasPhoto);
+    setPhotoVersion((value) => value + 1);
+    setStep("account");
+  } catch (cause) {
+    if (active.current) {
+      setMessage(errorText(cause));
+      setMessageError(true);
+    }
+  } finally {
+    inflight.current = false;
+    if (active.current) {
+      setBusy(false);
+      setOpeningProvider(null);
     }
   }
+}
+
   async function logout() {
     if (inflight.current) return;
     inflight.current = true;
@@ -303,8 +339,12 @@ function Login({ simulation, browse, openMerchant, studio = false }: { studio?: 
       {!!message && <AccountNotice message={message} error={messageError} />}
       {step === "phone" && (
         <Card>
-          {!simulation && <GoogleSignInButton onPress={google} disabled={busy} busy={openingGoogle}/>}
-          <AccountSection title={simulation ? "Your mobile number" : "Or use WhatsApp"}/>
+{!simulation && (
+  <>
+    <GoogleSignInButton onPress={() => void socialSignIn("google")} disabled={busy} busy={openingProvider === "google"} />
+    <AppleSignInButton onPress={() => void socialSignIn("apple")} disabled={busy} busy={openingProvider === "apple"} />
+  </>
+)}          <AccountSection title={simulation ? "Your mobile number" : "Or use WhatsApp"}/>
           <Text style={{color: p.text, fontSize: 14, fontWeight: "600"}}>WhatsApp number</Text>
           <View style={{flexDirection: fontScale >= 1.4 || width < 340 ? "column" : "row", alignItems: "stretch", gap: 8}}>
             <CountryPicker country={country} onChange={setCountry} disabled={busy}/>
@@ -336,14 +376,14 @@ function Login({ simulation, browse, openMerchant, studio = false }: { studio?: 
           </Text>
           <Button
             label={
-              busy && !openingGoogle
+              busy && !openingProvider
                 ? "Sending code…"
                 : simulation
                   ? "Start demo"
                   : "Send WhatsApp code"
             }
             disabled={busy || !phone.trim()}
-            busy={busy && !openingGoogle}
+            busy={busy && !openingProvider}
             onPress={() => void action(false)}
           />
           {simulation && (

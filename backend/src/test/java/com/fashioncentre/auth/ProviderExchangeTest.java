@@ -20,6 +20,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -34,9 +35,15 @@ class ProviderExchangeTest {
     final RestClient.Builder http = RestClient.builder();
     final MockRestServiceServer provider = MockRestServiceServer.bindTo(http).build();
     final KeyPair keys = rsa();
-    final SignInProviders client = new SignInProviders("https://fashion.example", "google-id", KEY, "shop-id", KEY,
-            http.build(), NimbusJwtDecoder.withPublicKey((RSAPublicKey) keys.getPublic()).build());
-
+    final SignInProviders client = new SignInProviders(
+            "https://fashion.example",
+            "google-id", KEY,
+            "shop-id", KEY,
+            "", "", "", "",          // Apple disabled
+            false,                    // allowExpoGo
+            http.build(),
+            NimbusJwtDecoder.withPublicKey((RSAPublicKey) keys.getPublic()).build(),
+            NimbusJwtDecoder.withPublicKey((RSAPublicKey) keys.getPublic()).build());  // Apple decoder, unused here
     static KeyPair rsa() {
         try { var generator = KeyPairGenerator.getInstance("RSA"); generator.initialize(2048); return generator.generateKeyPair(); }
         catch (Exception ex) { throw new AssertionError(ex); }
@@ -94,7 +101,13 @@ class ProviderExchangeTest {
     }
 
     @Test void providersWithoutCredentialsAreUnavailable() {
-        var empty = new SignInProviders("", "", "", "", "");
+        var empty = new SignInProviders(
+                "", "", "", "", "",
+                "", "", "", "",
+                false,
+                RestClient.builder().build(),
+                null,
+                null);                 // Apple decoder: not used when origin is empty                 // Apple decoder: not used when origin is empty
         assertThatThrownBy(() -> empty.origin("google")).isInstanceOfSatisfying(ResponseStatusException.class,
                 e -> assertThat(e.getStatusCode().value()).isEqualTo(503));
         assertThatThrownBy(() -> empty.origin("shopify")).isInstanceOfSatisfying(ResponseStatusException.class,
