@@ -93,7 +93,7 @@ export function CameraScanner({
               shutterSound: false,
             }) ?? Promise.resolve(undefined),
           analyze: async (uri) => (await analyzePhoto(uri, true)).feedback,
-          normalize: (uri) => normalizeLocalPhoto(uri),
+          normalize: (uri) => normalizeLocalPhoto(uri, "image/jpeg"),
           validate: async (photo) => {
             await requireGoodPhoto(photo.uri);
           },

@@ -41,7 +41,7 @@ function decode64(s: string) {
   }
   return out.subarray(0, index);
 }
-export async function inspectFile(uri: string, type: string) {
+export async function inspectFile(uri: string, declaredType?: string) {
   const info = await FS.getInfoAsync(uri);
   if (
     !info.exists ||
@@ -59,7 +59,7 @@ export async function inspectFile(uri: string, type: string) {
       length: info.size,
     }),
   );
-  validatePhotoHeader(type, info.size, bytes);
+  const type = validatePhotoHeader(declaredType, info.size, bytes);
   const dimensions = encodedDimensions(type, bytes);
   if (!dimensions) throw new Error("Unsupported or damaged image dimensions.");
   validateDimensions(dimensions.width, dimensions.height);
@@ -86,28 +86,22 @@ export async function takePhoto(source: "camera" | "library" = "camera"): Promis
   };
   const result = source === "library" ? await chooseLibraryPhoto(options) : await Picker.launchCameraAsync(options);
   if (result.canceled) return null;
-  const asset = result.assets[0];
-  const type =
-    asset.mimeType ||
-    (/\.png$/i.test(asset.uri)
-      ? "image/png"
-      : /\.webp$/i.test(asset.uri)
-        ? "image/webp"
-        : "image/jpeg");
+  const { uri } = result.assets[0];
   try {
-    return await normalizeLocalPhoto(asset.uri, type);
+    // The system picker can label a supported photo with the wrong MIME type.
+    return await normalizeLocalPhoto(uri);
   } finally {
-    if (FS.cacheDirectory && asset.uri.startsWith(FS.cacheDirectory))
-      await FS.deleteAsync(asset.uri, { idempotent: true }).catch(() => {});
+    if (FS.cacheDirectory && uri.startsWith(FS.cacheDirectory))
+      await FS.deleteAsync(uri, { idempotent: true }).catch(() => {});
   }
 }
 
 /** Produces a private, metadata-stripped JPEG in the app cache; caller owns cleanup. */
 export async function normalizeLocalPhoto(
   uri: string,
-  type = "image/jpeg",
+  declaredType?: string,
 ): Promise<LocalPhoto> {
-  await inspectFile(uri, type);
+  await inspectFile(uri, declaredType);
   const photo = await Manipulator.manipulateAsync(uri, [], {
     compress: 0.9,
     format: Manipulator.SaveFormat.JPEG,

@@ -24,6 +24,16 @@ test("photo type and actual signature must agree", () => {
     ),
   );
 });
+test("picker photos use their file signatures when the label is untrusted", () => {
+  const jpeg = new Uint8Array([255, 216, 255]);
+  const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+  const webp = new TextEncoder().encode("RIFF0000WEBP");
+  assert.equal(validatePhotoHeader(undefined, jpeg.length, jpeg), "image/jpeg");
+  assert.equal(validatePhotoHeader(undefined, png.length, png), "image/png");
+  assert.equal(validatePhotoHeader(undefined, webp.length, webp), "image/webp");
+  assert.throws(() => validatePhotoHeader(undefined, 12, new TextEncoder().encode("<svg/>")), /JPEG, PNG or WebP/);
+  assert.throws(() => validatePhotoHeader("image/png", jpeg.length, jpeg), /do not match/);
+});
 test("local size limits and resolution warnings are explicit", () => {
   const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
   assert.throws(() => validatePhotoHeader("image/png", 0, png));

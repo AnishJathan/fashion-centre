@@ -496,7 +496,7 @@ function Login({ simulation, browse, openMerchant, studio = false }: { studio?: 
                 description="This is the photo used for saved-photo try-on."
               />
               {hasPhoto === false ? (
-                <AccountNotice message="You haven’t saved a photo yet. Scan and confirm your photo below." />
+                <AccountNotice message="Choose a photo or start a scan below, then review it before saving." />
               ) : !photoError ? (
                 <PhotoPreview
                   compact
