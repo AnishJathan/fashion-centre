@@ -31,6 +31,8 @@ npm run test:native-quality
 | Demo API smoke check | A standalone Spring Boot preview starts on port 8082 without account, storage, or try-on service credentials. |
 | Mobile verification | Type checking, runtime and component tests, both Metro exports, and the pure Java image quality tests |
 
+The browser imports existing shopping records into an IndexedDB snapshot on first load. Store and checkout changes check that snapshot while holding the same Web Lock. The local storage mirror supports existing backups and tab notifications. A failed save keeps the previous basket, and startup preserves a recovery copy before repairing a divergent mirror.
+
 Use a physical-device build for camera, file access, and app lifecycle changes. Check the target Flyway history before deploying migrations. An installation that applied the conflicting merchant versions from the short-lived V2–V6 ordering needs a separately validated reconciliation. The upgrade test covers databases using the original V1–V3 ordering. To run it locally, set `FASHION_TEST_MYSQL_URL` to an empty loopback MySQL database named `fashion_migration_test` and supply the test user and password through `FASHION_TEST_MYSQL_USER` and `FASHION_TEST_MYSQL_PASSWORD`. Real WhatsApp delivery, R2, paid Pruna jobs, and merchant installation require their own test environment and authorized test data.
 
 Earlier reports are in the [history folder](history/README.md). Check CI on the commit you intend to merge.

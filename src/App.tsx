@@ -2,8 +2,8 @@ import { lazy, Suspense, useMemo, useEffect, useRef, useState, type ReactNode } 
 import { parseNavigation, scopeHref } from './navigationScope';
 import { BrandContext, BrandLink } from './StoreNavigation';
 import { decodeRoute, loadCatalogue, loadSources, readIds, readStores, STORES_KEY, toggleId, type Brand, type Product, type StoreRegistration } from './domain';
-import { assertStoredCurrent, storageRecoveryNeeded, withStorageLock, writeStored } from './browserStorage';
-import { COMMERCE_KEY, commerceReducer, localCommerceRepository, type CommerceAction } from './commerce';
+import { storageRecoveryNeeded, withShoppingStorage } from './browserStorage';
+import { COMMERCE_KEY, commerceReducer, readLocalCommerce, type CommerceAction } from './commerce';
 import { CartScreen, CheckoutScreen, OrdersScreen, ProfileScreen } from './CommerceScreens';
 import { LoginSimulation } from './LoginSimulation';
 import { TryOnPanel } from './TryOnPanel';
@@ -37,7 +37,7 @@ type CatalogueLoad =
   | { status: 'error'; error: string };
 
 function useBrowserShopping() {
-  const [state, setState] = useState(() => localCommerceRepository.read());
+  const [state, setState] = useState(readLocalCommerce);
   const [stores, setStores] = useState(readStores);
   const [saved, setSaved] = useState(() => readIds(SAVED_KEY));
   const [followed, setFollowed] = useState(() => readIds(FOLLOWED_KEY));
@@ -48,11 +48,11 @@ function useBrowserShopping() {
 
   async function dispatch(action: CommerceAction) {
     try {
-      return await withStorageLock(COMMERCE_KEY, () => {
-        if (action.type === 'add' || action.type === 'checkout') assertStoredCurrent(STORES_KEY);
+      return await withShoppingStorage(async storage => {
+        if (action.type === 'add' || action.type === 'checkout') storage.assertCurrent(STORES_KEY);
         const next = commerceReducer(commerce.current, action);
         if (next === commerce.current) return false;
-        localCommerceRepository.write(next);
+        await storage.write(COMMERCE_KEY, next);
         commerce.current = next;
         setState(next);
         return true;
@@ -65,9 +65,9 @@ function useBrowserShopping() {
 
   async function changeStores(update: (previous: StoreRegistration[]) => StoreRegistration[]) {
     try {
-      await withStorageLock(STORES_KEY, () => {
+      await withShoppingStorage(async storage => {
         const next = update(choices.current.stores);
-        writeStored(STORES_KEY, next);
+        await storage.write(STORES_KEY, next);
         choices.current.stores = next;
         setStores(next);
       });
@@ -78,9 +78,9 @@ function useBrowserShopping() {
 
   async function changeSaved(id: string) {
     try {
-      await withStorageLock(SAVED_KEY, () => {
+      await withShoppingStorage(async storage => {
         const next = toggleId(choices.current.saved, id);
-        writeStored(SAVED_KEY, next);
+        await storage.write(SAVED_KEY, next);
         choices.current.saved = next;
         setSaved(next);
       });
@@ -91,9 +91,9 @@ function useBrowserShopping() {
 
   async function changeFollowed(id: string) {
     try {
-      await withStorageLock(FOLLOWED_KEY, () => {
+      await withShoppingStorage(async storage => {
         const next = toggleId(choices.current.followed, id);
-        writeStored(FOLLOWED_KEY, next);
+        await storage.write(FOLLOWED_KEY, next);
         choices.current.followed = next;
         setFollowed(next);
       });
@@ -104,7 +104,7 @@ function useBrowserShopping() {
 
   useEffect(() => {
     // Persist a migrated version of legacy records under the same lock as normal edits.
-    void withStorageLock(COMMERCE_KEY, () => localCommerceRepository.write(commerce.current)).catch(error => {
+    void withShoppingStorage(storage => storage.write(COMMERCE_KEY, commerce.current)).catch(error => {
       setStorageIssue(error instanceof Error ? error.message : 'Stored data could not be saved.');
     });
 

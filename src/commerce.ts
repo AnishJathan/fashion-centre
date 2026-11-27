@@ -1,6 +1,6 @@
 import type { Product } from './domain.ts';
 import { currencyDigits, validMoney, safeImage } from './domain.ts';
-import { readStored, writeStored } from './browserStorage.ts';
+import { readStored } from './browserStorage.ts';
 export const COMMERCE_KEY = 'fc.commerce.v2';
 export const MAX_QUANTITY = 9;
 export interface CartLine {
@@ -180,4 +180,6 @@ export function parseCommerce(raw: string | null): CommerceState {
     const preferences = { style: string(prefs.style) ? prefs.style : '', fit: string(prefs.fit) ? prefs.fit : '', updates: prefs.updates === true };
     return { cart, orders, legacySamples, preferences };
 }
-export const localCommerceRepository = { read(): CommerceState { return readStored(COMMERCE_KEY, raw => parseCommerce(raw ?? localStorage.getItem('fc.commerce.v1')), initialCommerce()); }, write(state: CommerceState) { writeStored(COMMERCE_KEY, state); } };
+export function readLocalCommerce(): CommerceState {
+    return readStored(COMMERCE_KEY, raw => parseCommerce(raw ?? localStorage.getItem('fc.commerce.v1')), initialCommerce());
+}
